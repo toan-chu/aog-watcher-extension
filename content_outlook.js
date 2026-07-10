@@ -10,6 +10,7 @@
   const first = (root, list) => list.map((selector) => root.querySelector(selector)).find(Boolean) ?? null;
   const all = (root, list) => [...new Set(list.flatMap((selector) => [...root.querySelectorAll(selector)]))];
   const normalized = (value) => String(value ?? "").trim().toLocaleLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
   async function refreshConfig() {
     const stored = await runtime.safeStorageGet("aog_config");
@@ -99,15 +100,30 @@
 
   function currentUnreadSnapshot() {
     const outlook_ids = [];
-    if (!folderGatePasses().pass) return outlook_ids;
-    for (const row of candidateRows()) {
+    if (!folderGatePasses().pass) return null;
+    const rows = candidateRows();
+    if (rows.length === 0) return null;
+    for (const row of rows) {
       if (!isUnread(row)) continue;
       const sender = extractSender(row);
       const subject = extractSubject(row);
       const rawId = extractMessageId(row, sender, subject);
       if (rawId) outlook_ids.push(rawId);
     }
-    return outlook_ids;
+    return outlook_ids.sort();
+  }
+
+  function sameSnapshot(left, right) {
+    return Array.isArray(left) && Array.isArray(right) && left.length === right.length && left.every((id, index) => id === right[index]);
+  }
+
+  async function stableUnreadSnapshot() {
+    for (;;) {
+      const firstSnapshot = currentUnreadSnapshot();
+      await sleep(2000);
+      const secondSnapshot = currentUnreadSnapshot();
+      if (sameSnapshot(firstSnapshot, secondSnapshot)) return secondSnapshot;
+    }
   }
 
   function seedBaseline(baseline) {
@@ -117,7 +133,8 @@
   }
 
   async function syncBaseline() {
-    const response = await runtime.safeSendMessage({ type: "BASELINE_SYNC", source: "outlook", snapshot: { outlook_ids: currentUnreadSnapshot() } }).catch(() => null);
+    const outlookIds = await stableUnreadSnapshot();
+    const response = await runtime.safeSendMessage({ type: "BASELINE_SYNC", source: "outlook", snapshot: { outlook_ids: outlookIds } }).catch(() => null);
     seedBaseline(response?.baseline ?? null);
   }
 

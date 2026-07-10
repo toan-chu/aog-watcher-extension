@@ -53,6 +53,14 @@ describe("v4.3 P0 field feedback fixes", () => {
     expect(outlook).toContain("for (const id of baseline.outlook_ids) seen.add(id)");
   });
 
+  it("waits for a stable Outlook unread snapshot before syncing baseline", () => {
+    expect(outlook).toContain("async function stableUnreadSnapshot");
+    expect(outlook).toContain("await sleep(2000)");
+    expect(outlook).toContain("sameSnapshot(firstSnapshot, secondSnapshot)");
+    expect(outlook).toContain("if (rows.length === 0) return null");
+    expect(outlook).toContain("const outlookIds = await stableUnreadSnapshot()");
+  });
+
   it("blocks Outlook scans when outlook_watch_path does not match the current path", () => {
     expect(outlook).toContain("function folderGatePasses");
     expect(outlook).toContain("stats.folder_gate = gate.mode");

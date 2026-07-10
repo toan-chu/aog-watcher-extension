@@ -230,6 +230,8 @@ async function executeEffect(effect) {
       }
       if (await queryIdleState(config) === "active") {
         if (effect.alert.source === ALERT_SOURCE.WHATSAPP && isSameGroupName(effect.alert.group_name, effect.alert.active_conversation)) {
+          state.pending_wake = effect.alert.alert_id;
+          await persist();
           await appendServiceEvent({ event_type: "WAKE_SUPPRESSED_FOCUSED", alert_id: effect.alert.alert_id, source: effect.alert.source, group_name: effect.alert.group_name });
           break;
         }

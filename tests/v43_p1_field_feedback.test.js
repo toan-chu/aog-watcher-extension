@@ -36,6 +36,12 @@ describe("v4.3 P1 field feedback fixes", () => {
     expect(serviceWorker).toContain("isSameGroupName");
   });
 
+  it("keeps pending wake when focused WhatsApp suppression happens", () => {
+    const focusedBranch = serviceWorker.slice(serviceWorker.indexOf("WAKE_SUPPRESSED_FOCUSED") - 260, serviceWorker.indexOf("WAKE_SUPPRESSED_FOCUSED") + 260);
+    expect(focusedBranch).toContain("state.pending_wake = effect.alert.alert_id");
+    expect(focusedBranch).toContain("await persist()");
+  });
+
   it("supports gentle audio loop mode with ramp while preserving escalate mode", () => {
     expect(existsSync(new URL("../assets/audio/gentle_loop.wav", import.meta.url))).toBe(true);
     expect(offscreen).toContain("playGentle");

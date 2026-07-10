@@ -12,9 +12,9 @@ Nguồn: feedback ca trực 30/06. Đọc blueprint TRƯỚC khi code — root c
 
 **Đợt 2 — P1 (UX trực đêm):**
 
-- [ ] WS4: Idle-gated wake (`chrome.idle`, permission mới) + focused-chat suppression. AN TOÀN: chỉ gate audio ở effect layer, escalation timers KHÔNG đổi
-- [ ] WS5: Âm thanh gentle loop tần số thấp (`wake_audio_mode`)
-- [ ] WS6: End Shift button rõ ràng + inline confirm (bỏ window.confirm)
+- [x] WS4: Idle-gated wake (`chrome.idle`, permission mới) + focused-chat suppression. AN TOÀN: chỉ gate audio ở effect layer, escalation timers KHÔNG đổi
+- [x] WS5: Âm thanh gentle loop tần số thấp (`wake_audio_mode`)
+- [x] WS6: End Shift button rõ ràng + inline confirm (bỏ window.confirm)
 
 - [ ] Regression tests theo test plan 20 case trong blueprint, giữ 111 test cũ pass
 - [ ] Claude review

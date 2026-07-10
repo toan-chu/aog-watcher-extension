@@ -20,6 +20,8 @@ async function load() {
   byId("primaryTimeout").value = config.primary_timeout_seconds;
   byId("backupDelay").value = config.backup_delay_seconds;
   byId("maxDuration").value = config.max_alert_duration_seconds;
+  byId("idleThreshold").value = Math.max(15, Number(config.idle_threshold_seconds) || 15);
+  byId("wakeAudioMode").value = config.wake_audio_mode === "escalate" ? "escalate" : "gentle";
 }
 
 byId("settingsForm").addEventListener("submit", async (event) => {
@@ -48,6 +50,8 @@ byId("settingsForm").addEventListener("submit", async (event) => {
     primary_timeout_seconds: Number(byId("primaryTimeout").value),
     backup_delay_seconds: Number(byId("backupDelay").value),
     max_alert_duration_seconds: Number(byId("maxDuration").value),
+    idle_threshold_seconds: Math.max(15, Number(byId("idleThreshold").value) || 15),
+    wake_audio_mode: byId("wakeAudioMode").value === "escalate" ? "escalate" : "gentle",
   };
   await setConfig(config);
   await chrome.runtime.sendMessage({ type: "SETTINGS_UPDATED" }).catch(() => {});
@@ -56,6 +60,12 @@ byId("settingsForm").addEventListener("submit", async (event) => {
 });
 
 load().catch((error) => { byId("status").textContent = `Load failed: ${error.message}`; });
+
+byId("previewAudio").addEventListener("click", async () => {
+  await chrome.runtime.sendMessage({ type: "PREVIEW_AUDIO", mode: byId("wakeAudioMode").value }).catch(() => {});
+  byId("status").style.color = "var(--green)";
+  byId("status").textContent = "Audio preview started.";
+});
 
 function download(name, blob) {
   const url = URL.createObjectURL(blob);

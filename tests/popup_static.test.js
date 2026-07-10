@@ -5,10 +5,11 @@ const popupHtml = await readFile(new URL("../popup.html", import.meta.url), "utf
 const popupJs = await readFile(new URL("../popup.js", import.meta.url), "utf8");
 
 describe("popup safety copy", () => {
-  it("makes End Shift consequences explicit and confirms before stopping monitoring", () => {
-    expect(popupHtml).toContain("End shift (stop monitoring)");
-    expect(popupJs).toContain("End shift will stop receiving alerts");
-    expect(popupJs).toContain("confirm(");
+  it("uses inline End Shift confirmation instead of browser confirm", () => {
+    expect(popupHtml).toContain("class=\"end-shift\"");
+    expect(popupJs).toContain("Xác nhận kết thúc ca?");
+    expect(popupJs).toContain("setTimeout(resetEndShiftConfirm, 5000)");
+    expect(popupJs).not.toContain("confirm(");
   });
 
   it("renders recent event time in local Vietnamese time and not raw UTC slice", () => {

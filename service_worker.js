@@ -1,4 +1,4 @@
-import { APP_STATE, DEFAULT_CONFIG, MESSAGE, ROLE } from "./lib/constants.js";
+import { ALERT_SOURCE, APP_STATE, DEFAULT_CONFIG, MESSAGE, ROLE } from "./lib/constants.js";
 import { deterministicAlertId } from "./lib/hash.js";
 import { shouldSkipEmail } from "./lib/filter.js";
 import { resolveRoleAtTime, isWithinAnySlot } from "./lib/shift_engine.js";
@@ -41,6 +41,18 @@ function timing(config) {
     backup_delay_seconds: Number(config.backup_delay_seconds) || 180,
     max_alert_duration_seconds: Number(config.max_alert_duration_seconds) || 540,
   };
+}
+
+function normalizedName(value) {
+  return String(value ?? "").trim().toLocaleLowerCase().replace(/\s+/g, " ");
+}
+
+function isSameGroupName(left, right) {
+  return Boolean(normalizedName(left)) && normalizedName(left) === normalizedName(right);
+}
+
+function idleThreshold(config) {
+  return Math.max(15, Number(config.idle_threshold_seconds) || 15);
 }
 
 // Resolve role for this dispatch. Priority:
@@ -108,6 +120,26 @@ async function ensureOffscreen() {
   const url = chrome.runtime.getURL("offscreen.html");
   const contexts = chrome.runtime.getContexts ? await chrome.runtime.getContexts({ contextTypes: ["OFFSCREEN_DOCUMENT"], documentUrls: [url] }) : [];
   if (contexts.length === 0) await chrome.offscreen.createDocument({ url: "offscreen.html", reasons: ["AUDIO_PLAYBACK"], justification: "Play escalating wake alarm while an AOG alert is active." });
+}
+
+async function playWakeAudio(config) {
+  await ensureOffscreen();
+  await chrome.runtime.sendMessage({ type: MESSAGE.AUDIO_PLAY, mode: config.wake_audio_mode === "escalate" ? "escalate" : "gentle" }).catch(() => {});
+}
+
+async function showWakeNotification(alert) {
+  await chrome.notifications.create(`aog-${alert.alert_id}`, { type: "basic", iconUrl: "assets/icon128.png", title: "AOG alert", message: alert.group_name || alert.subject || "New eligible alert", priority: 2 }).catch(() => {});
+}
+
+async function queryIdleState(config) {
+  if (!chrome.idle?.queryState) return "idle";
+  return new Promise((resolve) => {
+    try {
+      chrome.idle.queryState(idleThreshold(config), (stateName) => resolve(stateName || "active"));
+    } catch {
+      resolve("idle");
+    }
+  });
 }
 
 async function clearTimers(name, alertId) {
@@ -196,11 +228,23 @@ async function executeEffect(effect) {
         await appendServiceEvent({ event_type: "DRY_RUN_WOULD_WAKE", alert_id: effect.alert.alert_id, source: effect.alert.source, group_name: effect.alert.group_name, sender: effect.alert.sender, subject: effect.alert.subject });
         break;
       }
-      await ensureOffscreen();
-      await chrome.runtime.sendMessage({ type: MESSAGE.AUDIO_PLAY }).catch(() => {});
-      await chrome.notifications.create(`aog-${effect.alert.alert_id}`, { type: "basic", iconUrl: "assets/icon128.png", title: "AOG alert", message: effect.alert.group_name || effect.alert.subject || "New eligible alert", priority: 2 }).catch(() => {});
+      if (await queryIdleState(config) === "active") {
+        if (effect.alert.source === ALERT_SOURCE.WHATSAPP && isSameGroupName(effect.alert.group_name, effect.alert.active_conversation)) {
+          await appendServiceEvent({ event_type: "WAKE_SUPPRESSED_FOCUSED", alert_id: effect.alert.alert_id, source: effect.alert.source, group_name: effect.alert.group_name });
+          break;
+        }
+        await showWakeNotification(effect.alert);
+        state.pending_wake = effect.alert.alert_id;
+        await persist();
+        await appendServiceEvent({ event_type: "WAKE_DEFERRED_ACTIVE", alert_id: effect.alert.alert_id, source: effect.alert.source, group_name: effect.alert.group_name, sender: effect.alert.sender, subject: effect.alert.subject });
+        break;
+      }
+      await playWakeAudio(config);
+      await showWakeNotification(effect.alert);
       break;
     case "STOP_WAKE":
+      state.pending_wake = null;
+      await persist();
       await chrome.runtime.sendMessage({ type: MESSAGE.AUDIO_STOP }).catch(() => {});
       break;
     case "SCHEDULE_TIMER":
@@ -350,6 +394,10 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message.type === MESSAGE.ALERT_DETECTED) await handleAlert(message.alert);
     else if (message.type === MESSAGE.BASELINE_SYNC) sendResponse(await handleBaselineSync(message));
     else if (message.type === MESSAGE.PEER_TAG_RECEIVED) await handlePeerText(message.text);
+    else if (message.type === MESSAGE.PREVIEW_AUDIO) {
+      await playWakeAudio({ wake_audio_mode: message.mode === "escalate" ? "escalate" : "gentle" });
+      setTimeout(() => chrome.runtime.sendMessage({ type: MESSAGE.AUDIO_STOP }).catch(() => {}), 6000);
+    }
     else if (message.type === MESSAGE.ACK_CURRENT) await dispatch({ type: "ALERT_ACK" });
     else if (message.type === MESSAGE.START_SHIFT) {
       const config = await getConfig();
@@ -384,4 +432,14 @@ chrome.alarms.onAlarm.addListener((alarm) => enqueue(async () => {
   const config = await getConfig();
   const type = { primary_timeout: "TIMER_PRIMARY_TIMEOUT", backup_delay: "TIMER_BACKUP_DELAY", max_alert_duration: "TIMER_MAX_DURATION" }[match[1]];
   await dispatch({ type, payload: { alert_id: match[2], timing: timing(config) } });
+}));
+
+chrome.idle?.onStateChanged?.addListener((idleState) => enqueue(async () => {
+  if (idleState !== "idle" && idleState !== "locked") return;
+  await hydrate();
+  if (state.app_state !== APP_STATE.ALERTING || !state.pending_wake || state.pending_wake !== state.current_alert?.alert_id) return;
+  const config = await getConfig();
+  await playWakeAudio(config);
+  state.pending_wake = null;
+  await persist();
 }));

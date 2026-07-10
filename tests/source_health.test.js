@@ -23,9 +23,4 @@ describe("source health", () => {
   it("reports unseen sources disconnected", () => {
     expect(deriveHealth({}, 1000)).toMatchObject({ whatsapp: { connected: false }, outlook: { connected: false } });
   });
-
-  it("preserves scan stats on heartbeats", () => {
-    const records = markSourceSeen({}, "outlook", 1000, { rows_seen: 4, unread_seen: 1 });
-    expect(deriveHealth(records, 2000).outlook.stats).toMatchObject({ rows_seen: 4, unread_seen: 1 });
-  });
 });

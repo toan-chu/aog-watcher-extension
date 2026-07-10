@@ -51,9 +51,11 @@ h1 { margin: 0; font: 600 22px/1.1 Bahnschrift, "Segoe UI", sans-serif; }
 .slot-row.slot-row--active { background: rgba(82, 214, 139, 0.08); border-left: 2px solid var(--green); padding-left: 6px; margin-left: -8px; }
 .slot-label { color: var(--muted); font-size: 11px; }
 .slot-row input[type="time"], .slot-row select { border: 1px solid var(--line); background: var(--panel); color: var(--ink); padding: 6px 4px; font-size: 12px; }
-.role-row { display: grid; grid-template-columns: auto 1fr; gap: 10px; align-items: center; margin-top: 10px; }
+.role-row { display: grid; grid-template-columns: auto auto 1fr; gap: 10px; align-items: center; margin-top: 10px; }
 .role-row button { border: 1px solid var(--green); color: var(--green); background: var(--panel); padding: 8px 14px; cursor: pointer; }
 .role-row button.role-row__active { background: var(--red); border-color: var(--red); color: #fff; }
+.role-row .end-shift { border-color: var(--red); color: #ffb5b0; }
+.role-row .end-shift[data-confirming="true"] { background: var(--red); border-color: var(--red); color: #fff; }
 .hint { color: var(--muted); font-size: 11px; }
 select { border: 1px solid var(--line); background: var(--panel); color: var(--ink); padding: 8px; }
 .recent { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }

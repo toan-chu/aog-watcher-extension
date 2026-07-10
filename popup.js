@@ -4,8 +4,16 @@ import { getTodayEvents } from "./lib/event_log.js";
 const elements = Object.fromEntries(["stateBadge", "dryRunBadge", "testModeBadge", "alertPanel", "alertTitle", "alertMeta", "ackButton", "roleValue", "queueValue", "shiftValue", "whatsappDot", "whatsappValue", "outlookDot", "outlookValue", "diagnosticsRows", "shiftSetup", "startShiftButton", "shiftStatusHint", "endShiftButton", "recentEvents", "exportButton", "settingsButton", "feedback"].map((id) => [id, document.getElementById(id)]));
 
 const slotRows = [...document.querySelectorAll(".slot-row")];
+let endShiftConfirmTimer = null;
 
 function showFeedback(message) { elements.feedback.textContent = message; }
+
+function resetEndShiftConfirm() {
+  clearTimeout(endShiftConfirmTimer);
+  endShiftConfirmTimer = null;
+  elements.endShiftButton.dataset.confirming = "false";
+  elements.endShiftButton.textContent = "End shift";
+}
 
 function eventClass(eventType) {
   if (eventType === "ACK" || eventType === "PEER_HANDLED") return "recent-event--ok";
@@ -89,6 +97,7 @@ function render(status) {
     elements.startShiftButton.disabled = false;
     elements.startShiftButton.classList.remove("role-row__active");
     elements.endShiftButton.hidden = true;
+    resetEndShiftConfirm();
     elements.shiftStatusHint.textContent = "Chưa bắt đầu ca";
   }
 
@@ -173,10 +182,17 @@ elements.startShiftButton.addEventListener("click", async () => {
 });
 
 elements.endShiftButton.addEventListener("click", async () => {
-  if (!confirm("End shift will stop receiving alerts on this machine. Continue?")) return;
+  if (elements.endShiftButton.dataset.confirming !== "true") {
+    elements.endShiftButton.dataset.confirming = "true";
+    elements.endShiftButton.textContent = "Xác nhận kết thúc ca?";
+    clearTimeout(endShiftConfirmTimer);
+    endShiftConfirmTimer = setTimeout(resetEndShiftConfirm, 5000);
+    return;
+  }
+  resetEndShiftConfirm();
   const response = await chrome.runtime.sendMessage({ type: "END_SHIFT" });
   if (response?.status) render(response.status);
-  showFeedback("Shift ended.");
+  showFeedback("Ca đã kết thúc — không còn alert trên máy này.");
 });
 
 elements.settingsButton.addEventListener("click", () => chrome.runtime.openOptionsPage());

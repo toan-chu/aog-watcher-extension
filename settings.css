@@ -12,8 +12,8 @@ h2 { margin: 0 0 16px; font: 600 17px/1 Bahnschrift, sans-serif; }
 .grid { display: grid; gap: 18px; }
 .two { grid-template-columns: 1fr 1fr; }.three { grid-template-columns: repeat(3, 1fr); }.four { grid-template-columns: repeat(4, 1fr); }
 label { display: grid; gap: 6px; color: #cad5cf; font-size: 13px; }
-input, textarea { width: 100%; border: 1px solid var(--line); background: var(--panel); color: var(--ink); padding: 10px 12px; font: inherit; resize: vertical; }
-input:focus, textarea:focus, button:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; border-color: transparent; }
+input, textarea, select { width: 100%; border: 1px solid var(--line); background: var(--panel); color: var(--ink); padding: 10px 12px; font: inherit; resize: vertical; }
+input:focus, textarea:focus, select:focus, button:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; border-color: transparent; }
 .check { display: flex; align-items: center; gap: 10px; padding-top: 26px; }
 .check input { width: 18px; height: 18px; accent-color: var(--green); }
 .actions { position: sticky; bottom: 0; display: flex; justify-content: space-between; align-items: center; gap: 20px; background: rgb(11 17 14 / 94%); border-top: 1px solid var(--line); padding: 16px 0; backdrop-filter: blur(8px); }

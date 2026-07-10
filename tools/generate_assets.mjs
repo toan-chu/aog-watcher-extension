@@ -42,14 +42,14 @@ function icon(size) {
   return Buffer.concat([Buffer.from([137,80,78,71,13,10,26,10]), chunk("IHDR", header), chunk("IDAT", deflateSync(Buffer.concat(rows))), chunk("IEND", Buffer.alloc(0))]);
 }
 
-function wav(frequency, amplitude) {
+function wav(frequency, amplitude, seconds = 1, fadeInSeconds = 0, continuous = false) {
   const sampleRate = 22050;
-  const seconds = 1;
   const samples = sampleRate * seconds;
   const data = Buffer.alloc(samples * 2);
   for (let i = 0; i < samples; i += 1) {
-    const envelope = Math.max(0, 1 - i / samples);
-    const pulse = i < sampleRate * 0.72 ? Math.sin(2 * Math.PI * frequency * i / sampleRate) : 0;
+    const fadeIn = fadeInSeconds > 0 ? Math.min(1, i / (sampleRate * fadeInSeconds)) : 1;
+    const envelope = Math.max(0, 1 - i / samples) * fadeIn;
+    const pulse = continuous || i < sampleRate * 0.72 ? Math.sin(2 * Math.PI * frequency * i / sampleRate) : 0;
     data.writeInt16LE(Math.round(pulse * envelope * amplitude * 32767), i * 2);
   }
   const header = Buffer.alloc(44);
@@ -64,4 +64,4 @@ mkdirSync("assets/audio", { recursive: true });
 for (const size of [16, 32, 48, 128]) writeFileSync(`assets/icon${size}.png`, icon(size));
 const tones = [["soft", 520, 0.25], ["medium", 700, 0.4], ["loud", 880, 0.65], ["urgent", 1100, 0.85]];
 for (const [name, frequency, amplitude] of tones) writeFileSync(`assets/audio/alert_${name}.wav`, wav(frequency, amplitude));
-
+writeFileSync("assets/audio/gentle_loop.wav", wav(320, 0.22, 24, 4, true));

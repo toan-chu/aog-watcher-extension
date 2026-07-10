@@ -412,7 +412,10 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       state.session = session;
       await dispatch({ type: "ROLE_CHANGED", payload: { role: initialRole } });
       await appendServiceEvent({ event_type: "SHIFT_STARTED", role: initialRole, slot_index: resolved?.slot_index ?? null, test_mode: Boolean(config.test_mode) });
-      await sendRebaselineToTabs();
+      // Fire-and-forget: MUST NOT await. Content scripts respond to REBASELINE only after
+      // their BASELINE_SYNC round-trip completes, and BASELINE_SYNC is processed on this same
+      // serialized queue — awaiting here deadlocks the entire message pipeline.
+      sendRebaselineToTabs();
     } else if (message.type === MESSAGE.UPDATE_SHIFT_SLOTS) {
       const config = await getConfig();
       await setConfig({ ...config, shift_slots: message.slots });

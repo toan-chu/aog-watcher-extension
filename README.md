@@ -94,7 +94,7 @@ npx vitest run                      # unit + integration tests
 node tools/check_extension.mjs     # kiểm tra cấu trúc MV3
 ```
 
-Current v4.3.0 suite: **131/131 tests** (111 existing + 20 field-feedback regressions).
+Current v4.3.0 suite: **133/133 tests** (111 existing + 22 field-feedback regressions).
 
 Kiến trúc, quyết định thiết kế và lịch sử các round fix nằm trong `docs/` — bắt đầu từ `20260622_aog-watcher-v4-blueprint.md`.
 

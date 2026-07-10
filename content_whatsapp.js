@@ -6,6 +6,8 @@
   const seenTags = new Set();
   let config = null;
   let scanTimer = null;
+  let baselineReady = false;
+  let lastStats = emptyStats();
 
   async function refreshConfig() {
     const stored = await runtime.safeStorageGet("aog_config");
@@ -29,23 +31,61 @@
     return (config?.customer_groups ?? []).some((group) => normalized(group) === target) && target !== normalized(config?.coord_group);
   }
 
+  function emptyStats() {
+    return { rows_seen: 0, unread_seen: 0, alerts_sent: 0, suppressed_baseline: 0, suppressed_gate: 0, last_scan_at: null };
+  }
+
+  function currentUnreadSnapshot() {
+    const snapshot = {};
+    for (const row of all(document, selectors.chatRows)) {
+      const name = groupName(row);
+      if (!name || !isCustomer(name)) continue;
+      const unread = unreadCount(row);
+      if (unread > 0) snapshot[name] = unread;
+    }
+    return snapshot;
+  }
+
+  function seedBaseline(baseline) {
+    baselineReady = Boolean(baseline?.whatsapp_unread);
+    if (!baselineReady) return;
+    for (const [name, unread] of Object.entries(baseline.whatsapp_unread ?? {})) {
+      lastUnreadByGroup.set(name, Number(unread) || 0);
+    }
+  }
+
+  async function syncBaseline() {
+    const response = await runtime.safeSendMessage({ type: "BASELINE_SYNC", source: "whatsapp", snapshot: { whatsapp_unread: currentUnreadSnapshot() } }).catch(() => null);
+    seedBaseline(response?.baseline ?? null);
+  }
+
   function scanCustomerGroups() {
     if (!config) return;
+    const stats = emptyStats();
+    stats.last_scan_at = new Date().toISOString();
     for (const row of all(document, selectors.chatRows)) {
       try {
+        stats.rows_seen += 1;
         const name = groupName(row);
         const unread = unreadCount(row);
         if (!name || !isCustomer(name)) continue;
+        if (unread > 0) stats.unread_seen += 1;
         const previousUnread = lastUnreadByGroup.get(name);
         lastUnreadByGroup.set(name, unread);
-        if (unread <= 0 || (previousUnread !== undefined && unread <= previousUnread)) continue;
+        if (!baselineReady || previousUnread === undefined) {
+          if (unread > 0) stats.suppressed_baseline += 1;
+          continue;
+        }
+        if (unread <= 0 || unread <= previousUnread) continue;
         const minute = new Date(); minute.setSeconds(0, 0);
         const signature = `${name}|${unread}|${minute.toISOString()}`;
-        runtime.safeSendMessage({ type: "ALERT_DETECTED", alert: { source: "whatsapp", group_name: name, unread_count: unread, message_text: "", detected_at: new Date().toISOString(), raw_id: signature } }).catch(() => {});
+        stats.alerts_sent += 1;
+        runtime.safeSendMessage({ type: "ALERT_DETECTED", alert: { source: "whatsapp", group_name: name, unread_count: unread, message_text: "", active_conversation: activeConversationName(document, selectors), detected_at: new Date().toISOString(), raw_id: signature } }).catch(() => {});
       } catch (error) {
         console.warn("AOG Watcher: WhatsApp row scan failed", error);
       }
     }
+    lastStats = stats;
   }
 
   function scanPeerTags() {
@@ -156,6 +196,12 @@
   }
 
   runtime.addRuntimeMessageListener((message, _sender, sendResponse) => {
+    if (message.type === "REBASELINE") {
+      baselineReady = false;
+      lastUnreadByGroup.clear();
+      syncBaseline().then(() => { scheduleScan(); sendResponse({ ok: true }); }).catch((error) => sendResponse({ ok: false, error: error.message }));
+      return true;
+    }
     if (message.type !== "SEND_PEER_TAG") return false;
     sendPeerTag(message.text).then(() => sendResponse({ ok: true })).catch((error) => sendResponse({ ok: false, error: error.message }));
     return true;
@@ -164,10 +210,11 @@
   runtime.addStorageChangedListener((changes, area) => { if (area === "local" && changes.aog_config) { config = changes.aog_config.newValue; scheduleScan(); } });
 
   function sendHealth() {
-    runtime.safeSendMessage({ type: "CONTENT_HEALTH", source: "whatsapp", connected: true }).catch(() => {});
+    runtime.safeSendMessage({ type: "CONTENT_HEALTH", source: "whatsapp", connected: true, stats: lastStats }).catch(() => {});
   }
 
   refreshConfig().then(() => {
+    syncBaseline().catch(() => {});
     new MutationObserver(scheduleScan).observe(document.documentElement, { childList: true, subtree: true, characterData: true });
     scheduleScan();
     sendHealth();

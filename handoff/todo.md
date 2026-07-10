@@ -6,9 +6,9 @@ Nguồn: feedback ca trực 30/06. Đọc blueprint TRƯỚC khi code — root c
 
 **Đợt 1 — P0 (fix lỗi thực địa):**
 
-- [ ] WS1: Shift baseline — snapshot ID/count theo shift_id, chặn backlog flush (BASELINE_SYNC/REBASELINE handshake)
-- [ ] WS2: Outlook folder gate (`outlook_watch_path`) + unread labels đa ngôn ngữ + `sender_whitelist` + blacklist match display name
-- [ ] WS3: Diagnostics — scan stats trong CONTENT_HEALTH + popup Diagnostics panel
+- [x] WS1: Shift baseline — snapshot ID/count theo shift_id, chặn backlog flush (BASELINE_SYNC/REBASELINE handshake)
+- [x] WS2: Outlook folder gate (`outlook_watch_path`) + unread labels đa ngôn ngữ + `sender_whitelist` + blacklist match display name
+- [x] WS3: Diagnostics — scan stats trong CONTENT_HEALTH + popup Diagnostics panel
 
 **Đợt 2 — P1 (UX trực đêm):**
 

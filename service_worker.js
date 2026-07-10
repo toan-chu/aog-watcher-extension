@@ -10,10 +10,12 @@ import { dispatchPeerOnce, PeerDispatchGuard } from "./lib/peer_dispatch_guard.j
 import { deriveHealth, markAlertSourceSeen, markSourceSeen } from "./lib/source_health.js";
 import {
   appendEventLog,
+  clearShiftBaseline,
   getConfig,
   getRoleSession,
   getRuntimeState,
   getEventLog,
+  getShiftBaseline,
   getSourceHealth,
   endShiftSession,
   isAlertEscalated,
@@ -22,6 +24,7 @@ import {
   markAlertPeerHandled,
   setConfig,
   setRoleSession,
+  setShiftBaseline,
   startShiftSession,
   setRuntimeState,
   setSourceHealth,
@@ -71,9 +74,9 @@ async function hydrateHealth() {
   return healthRecords;
 }
 
-async function recordSourceHealth(source) {
+async function recordSourceHealth(source, stats = null) {
   await hydrateHealth();
-  healthRecords = markSourceSeen(healthRecords, source);
+  healthRecords = markSourceSeen(healthRecords, source, Date.now(), stats);
   await setSourceHealth(healthRecords);
 }
 
@@ -125,6 +128,51 @@ async function sendPeerText(text) {
   }
   await appendEventLog({ event_type: "PEER_SEND_FAILED", error: lastError });
   throw new Error(lastError);
+}
+
+function baselineFromSnapshot(shiftId, snapshot = {}) {
+  return {
+    shift_id: shiftId,
+    created_at: new Date().toISOString(),
+    outlook_ids: Array.isArray(snapshot.outlook_ids) ? [...snapshot.outlook_ids] : [],
+    whatsapp_unread: snapshot.whatsapp_unread && typeof snapshot.whatsapp_unread === "object" ? { ...snapshot.whatsapp_unread } : {},
+    sources: {},
+  };
+}
+
+async function handleBaselineSync(message) {
+  await hydrate();
+  const shiftId = state.session?.shift_id;
+  if (!shiftId) return { baseline: null };
+  let baseline = await getShiftBaseline();
+  if (!baseline || baseline.shift_id !== shiftId) {
+    baseline = baselineFromSnapshot(shiftId, message.snapshot);
+    baseline.sources[message.source] = true;
+    await setShiftBaseline(baseline);
+    await appendServiceEvent({ event_type: "BASELINE_CREATED", source: message.source, shift_id: shiftId });
+    return { baseline };
+  }
+  const sources = { ...(baseline.sources ?? {}) };
+  if (!sources[message.source]) {
+    if (message.source === "outlook" && Array.isArray(message.snapshot?.outlook_ids)) baseline = { ...baseline, outlook_ids: [...message.snapshot.outlook_ids] };
+    if (message.source === "whatsapp" && message.snapshot?.whatsapp_unread) baseline = { ...baseline, whatsapp_unread: { ...message.snapshot.whatsapp_unread } };
+    baseline = { ...baseline, sources: { ...sources, [message.source]: true } };
+    await setShiftBaseline(baseline);
+    await appendServiceEvent({ event_type: "BASELINE_CREATED", source: message.source, shift_id: shiftId });
+  }
+  return { baseline };
+}
+
+async function sendRebaselineToTabs() {
+  const targets = [
+    "https://web.whatsapp.com/*",
+    "https://outlook.office.com/*",
+    "https://outlook.office365.com/*",
+    "https://outlook.live.com/*",
+    "https://outlook.cloud.microsoft/*",
+  ];
+  const tabs = await chrome.tabs.query({ url: targets });
+  await Promise.all(tabs.map((tab) => chrome.tabs.sendMessage(tab.id, { type: MESSAGE.REBASELINE }).catch(() => {})));
 }
 
 async function appendServiceEvent(record) {
@@ -239,6 +287,7 @@ async function endCurrentShift() {
   await hydrate();
   const shiftId = state.session?.shift_id;
   if (shiftId) await endShiftSession(shiftId);
+  await clearShiftBaseline();
   await setRoleSession(null);
   state.session = null;
   await appendServiceEvent({ event_type: "SHIFT_ENDED", shift_id: shiftId ?? null });
@@ -299,6 +348,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message.type === MESSAGE.AUDIO_PLAY || message.type === MESSAGE.AUDIO_STOP || message.type === MESSAGE.STATUS_UPDATED) return false;
   enqueue(async () => {
     if (message.type === MESSAGE.ALERT_DETECTED) await handleAlert(message.alert);
+    else if (message.type === MESSAGE.BASELINE_SYNC) sendResponse(await handleBaselineSync(message));
     else if (message.type === MESSAGE.PEER_TAG_RECEIVED) await handlePeerText(message.text);
     else if (message.type === MESSAGE.ACK_CURRENT) await dispatch({ type: "ALERT_ACK" });
     else if (message.type === MESSAGE.START_SHIFT) {
@@ -312,6 +362,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       state.session = session;
       await dispatch({ type: "ROLE_CHANGED", payload: { role: initialRole } });
       await appendServiceEvent({ event_type: "SHIFT_STARTED", role: initialRole, slot_index: resolved?.slot_index ?? null, test_mode: Boolean(config.test_mode) });
+      await sendRebaselineToTabs();
     } else if (message.type === MESSAGE.UPDATE_SHIFT_SLOTS) {
       const config = await getConfig();
       await setConfig({ ...config, shift_slots: message.slots });
@@ -319,10 +370,10 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     } else if (message.type === MESSAGE.END_SHIFT) {
       await endCurrentShift();
     } else if (message.type === MESSAGE.CONTENT_HEALTH) {
-      if (message.connected) await recordSourceHealth(message.source);
+      if (message.connected) await recordSourceHealth(message.source, message.stats ?? null);
       broadcastStatus();
     } else if (message.type === MESSAGE.SETTINGS_UPDATED) broadcastStatus();
-    sendResponse({ ok: true, status: await status() });
+    if (message.type !== MESSAGE.BASELINE_SYNC) sendResponse({ ok: true, status: await status() });
   });
   return true;
 });

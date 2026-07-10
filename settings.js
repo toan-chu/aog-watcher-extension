@@ -10,6 +10,8 @@ async function load() {
   byId("selfDisplayName").value = config.self_display_name;
   byId("customerGroups").value = config.customer_groups.join("\n");
   byId("coordGroup").value = config.coord_group;
+  byId("outlookWatchPath").value = config.outlook_watch_path ?? "";
+  byId("senderWhitelist").value = (config.sender_whitelist ?? []).join("\n");
   byId("skipDomains").value = config.skip_sender_domains.join("\n");
   byId("subjectKeywords").value = config.subject_keywords.join("\n");
   byId("testMode").checked = config.test_mode;
@@ -36,6 +38,8 @@ byId("settingsForm").addEventListener("submit", async (event) => {
     self_display_name: byId("selfDisplayName").value.trim(),
     customer_groups: customerGroups,
     coord_group: coordGroup,
+    outlook_watch_path: byId("outlookWatchPath").value.trim(),
+    sender_whitelist: unique(lines(byId("senderWhitelist").value)),
     skip_sender_domains: unique(lines(byId("skipDomains").value).map((item) => item.replace(/^@/, "").toLocaleLowerCase())),
     subject_keywords: unique(lines(byId("subjectKeywords").value)),
     test_mode: byId("testMode").checked,

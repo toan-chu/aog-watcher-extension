@@ -3,13 +3,13 @@ import { deriveHealth, markAlertSourceSeen, markSourceSeen } from "../lib/source
 
 describe("source health", () => {
   it("records a heartbeat", () => {
-    expect(markSourceSeen({}, "outlook", 1000)).toEqual({ outlook: { connected: true, last_seen: 1000 } });
+    expect(markSourceSeen({}, "outlook", 1000)).toEqual({ outlook: { connected: true, last_seen: 1000, stats: null } });
   });
 
   it("ignores unknown sources", () => expect(markSourceSeen({}, "other", 1000)).toEqual({}));
 
   it("treats an email alert as an implicit Outlook heartbeat", () => {
-    expect(markAlertSourceSeen({}, { source: "email" }, 2000)).toEqual({ outlook: { connected: true, last_seen: 2000 } });
+    expect(markAlertSourceSeen({}, { source: "email" }, 2000)).toEqual({ outlook: { connected: true, last_seen: 2000, stats: null } });
   });
 
   it("reports a recent source connected", () => {
@@ -22,5 +22,10 @@ describe("source health", () => {
 
   it("reports unseen sources disconnected", () => {
     expect(deriveHealth({}, 1000)).toMatchObject({ whatsapp: { connected: false }, outlook: { connected: false } });
+  });
+
+  it("preserves scan stats on heartbeats", () => {
+    const records = markSourceSeen({}, "outlook", 1000, { rows_seen: 4, unread_seen: 1 });
+    expect(deriveHealth(records, 2000).outlook.stats).toMatchObject({ rows_seen: 4, unread_seen: 1 });
   });
 });

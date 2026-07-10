@@ -1,7 +1,7 @@
 import { eventsToCsv } from "./lib/csv_export.js";
 import { getTodayEvents } from "./lib/event_log.js";
 
-const elements = Object.fromEntries(["stateBadge", "dryRunBadge", "testModeBadge", "alertPanel", "alertTitle", "alertMeta", "ackButton", "roleValue", "queueValue", "shiftValue", "whatsappDot", "whatsappValue", "outlookDot", "outlookValue", "shiftSetup", "startShiftButton", "shiftStatusHint", "endShiftButton", "recentEvents", "exportButton", "settingsButton", "feedback"].map((id) => [id, document.getElementById(id)]));
+const elements = Object.fromEntries(["stateBadge", "dryRunBadge", "testModeBadge", "alertPanel", "alertTitle", "alertMeta", "ackButton", "roleValue", "queueValue", "shiftValue", "whatsappDot", "whatsappValue", "outlookDot", "outlookValue", "diagnosticsRows", "shiftSetup", "startShiftButton", "shiftStatusHint", "endShiftButton", "recentEvents", "exportButton", "settingsButton", "feedback"].map((id) => [id, document.getElementById(id)]));
 
 const slotRows = [...document.querySelectorAll(".slot-row")];
 
@@ -22,6 +22,20 @@ function shortText(value, limit = 35) {
 function localTime(timestamp) {
   const date = new Date(timestamp);
   return Number.isFinite(date.getTime()) ? date.toLocaleTimeString("vi-VN", { hour12: false }) : "--:--:--";
+}
+
+function diagnosticText(source, stats) {
+  if (!stats) return `${source}: no scan data yet`;
+  const gate = stats.folder_gate === "blocked" ? ` / gate blocked (${stats.path || "unknown path"})` : "";
+  return `${source}: ${stats.rows_seen ?? 0} rows / ${stats.unread_seen ?? 0} unread / ${stats.alerts_sent ?? 0} alert${gate}`;
+}
+
+function diagnosticHint(stats) {
+  if (!stats) return "";
+  if (stats.folder_gate === "blocked") return "Outlook folder gate is blocking this path.";
+  if ((stats.unread_seen ?? 0) > 0 && (stats.alerts_sent ?? 0) === 0 && (stats.suppressed_baseline ?? 0) === 0) return "Check UI language or filters.";
+  if ((stats.rows_seen ?? 0) > 0 && (stats.unread_seen ?? 0) === 0) return "Unread detection may not match this UI language.";
+  return "";
 }
 
 function readSlotsFromUI() {
@@ -89,6 +103,19 @@ function render(status) {
     elements[`${source}Dot`].classList.toggle("online", online);
     elements[`${source}Value`].textContent = online ? "Connected" : "Not detected";
   }
+  elements.diagnosticsRows.replaceChildren(...["whatsapp", "outlook"].map((source) => {
+    const stats = status.health?.[source]?.stats ?? null;
+    const row = document.createElement("div");
+    const hint = diagnosticHint(stats);
+    row.className = hint ? "diagnostics__row diagnostics__row--warn" : "diagnostics__row";
+    row.textContent = diagnosticText(source === "whatsapp" ? "WhatsApp" : "Outlook", stats);
+    if (hint) {
+      const small = document.createElement("small");
+      small.textContent = hint;
+      row.append(document.createElement("br"), small);
+    }
+    return row;
+  }));
   const recent = status.recent_events ?? [];
   elements.recentEvents.replaceChildren(...recent.slice(-5).reverse().map((event) => {
     const item = document.createElement("li");

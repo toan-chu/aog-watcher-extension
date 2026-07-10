@@ -38,6 +38,12 @@ h1 { margin: 0; font: 600 22px/1.1 Bahnschrift, "Segoe UI", sans-serif; }
 .connections i { width: 7px; height: 7px; border-radius: 50%; background: #65756d; }
 .connections i.online { background: var(--green); box-shadow: 0 0 0 3px rgb(82 214 139 / 12%); }
 .connections strong { color: var(--muted); font-size: 11px; }
+.diagnostics { margin-top: 12px; border: 1px solid var(--line); padding: 8px 10px; }
+.diagnostics summary { cursor: pointer; color: var(--muted); font-size: 11px; text-transform: uppercase; }
+.diagnostics__rows { display: grid; gap: 7px; margin-top: 8px; }
+.diagnostics__row { color: var(--muted); font-size: 11px; }
+.diagnostics__row--warn { color: var(--amber); }
+.diagnostics__row small { color: inherit; opacity: .86; }
 .role-setup { margin-top: 14px; padding-top: 13px; border-top: 1px solid var(--line); }
 .role-setup > label { display: block; margin-bottom: 8px; color: var(--muted); font-size: 11px; }
 .role-setup > label small { display: block; color: #65756d; font-size: 10px; font-weight: 400; }

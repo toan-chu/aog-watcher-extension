@@ -23,17 +23,34 @@ function chunk(type, data) {
   return output;
 }
 
+// Night-shift theme: rounded navy tile, warm crescent moon, coral alert dot.
+// Shapes are drawn with signed-distance coverage for smooth anti-aliased edges at every size.
 function icon(size) {
+  const px = 1 / size;
+  const clamp01 = (value) => Math.max(0, Math.min(1, value));
+  const circle = (u, v, cx, cy, r) => clamp01((r - Math.hypot(u - cx, v - cy)) / px / 1.5 + 0.5);
+  const mix = (a, b, t) => a.map((channel, i) => channel + (b[i] - channel) * t);
   const rows = [];
   for (let y = 0; y < size; y += 1) {
     const row = Buffer.alloc(1 + size * 4); row[0] = 0;
     for (let x = 0; x < size; x += 1) {
-      const edge = Math.min(x, y, size - 1 - x, size - 1 - y);
-      const inMark = x > size * 0.22 && x < size * 0.78 && y > size * 0.2 && y < size * 0.76;
-      const warning = inMark && (Math.abs(x - size / 2) < size * 0.075 || (y > size * 0.66 && Math.abs(x - size / 2) < size * 0.09));
-      const color = warning ? [255, 95, 87] : edge < size * 0.08 ? [82, 214, 139] : [11, 17, 14];
+      const u = (x + 0.5) / size, v = (y + 0.5) / size;
+      // Rounded-rect tile coverage (alpha).
+      const cornerRadius = 0.20;
+      const dx = Math.max(Math.abs(u - 0.5) - (0.5 - cornerRadius), 0);
+      const dy = Math.max(Math.abs(v - 0.5) - (0.5 - cornerRadius), 0);
+      const cover = clamp01((cornerRadius - Math.hypot(dx, dy)) / px / 1.5 + 0.5);
+      // Navy vertical gradient background.
+      let rgb = mix([38, 48, 94], [21, 27, 58], v);
+      // Crescent moon = big circle minus offset cut circle.
+      const moon = clamp01(circle(u, v, 0.44, 0.55, 0.27) - circle(u, v, 0.56, 0.46, 0.24));
+      rgb = mix(rgb, [255, 213, 110], moon);
+      // Coral alert dot top-right, with a thin background ring so it reads on any backdrop.
+      const ring = circle(u, v, 0.74, 0.28, 0.155);
+      const dot = circle(u, v, 0.74, 0.28, 0.115);
+      rgb = mix(rgb, mix([21, 27, 58], [255, 100, 92], dot), ring);
       const offset = 1 + x * 4;
-      row.set([...color, 255], offset);
+      row.set([Math.round(rgb[0]), Math.round(rgb[1]), Math.round(rgb[2]), Math.round(cover * 255)], offset);
     }
     rows.push(row);
   }

@@ -1,0 +1,25 @@
+:root { color-scheme: dark; --bg: #0b110e; --panel: #141e1a; --line: #2a3b34; --ink: #edf3ef; --muted: #93a39b; --green: #52d68b; --red: #ff6b61; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 "Segoe UI", sans-serif; }
+main { width: min(920px, calc(100% - 32px)); margin: 48px auto 80px; }
+header { border-left: 4px solid var(--green); padding-left: 20px; margin-bottom: 28px; }
+header p { margin: 0; color: var(--green); font: 700 11px/1 Bahnschrift, sans-serif; }
+h1 { margin: 5px 0; font: 600 34px/1.15 Bahnschrift, "Segoe UI", sans-serif; }
+header span, small { color: var(--muted); }
+.helper { margin: -8px 0 16px; color: var(--muted); font-size: 13px; }
+section { padding: 22px 0; border-top: 1px solid var(--line); }
+h2 { margin: 0 0 16px; font: 600 17px/1 Bahnschrift, sans-serif; }
+.grid { display: grid; gap: 18px; }
+.two { grid-template-columns: 1fr 1fr; }.three { grid-template-columns: repeat(3, 1fr); }.four { grid-template-columns: repeat(4, 1fr); }
+label { display: grid; gap: 6px; color: #cad5cf; font-size: 13px; }
+input, textarea { width: 100%; border: 1px solid var(--line); background: var(--panel); color: var(--ink); padding: 10px 12px; font: inherit; resize: vertical; }
+input:focus, textarea:focus, button:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; border-color: transparent; }
+.check { display: flex; align-items: center; gap: 10px; padding-top: 26px; }
+.check input { width: 18px; height: 18px; accent-color: var(--green); }
+.actions { position: sticky; bottom: 0; display: flex; justify-content: space-between; align-items: center; gap: 20px; background: rgb(11 17 14 / 94%); border-top: 1px solid var(--line); padding: 16px 0; backdrop-filter: blur(8px); }
+.actions p { margin: 0; color: var(--red); }
+button { border: 0; background: var(--green); color: #07110c; padding: 12px 24px; font: 700 14px/1 Bahnschrift, sans-serif; cursor: pointer; }
+button:hover { filter: brightness(1.08); }
+button:disabled { opacity: .62; cursor: wait; }
+button[data-busy="true"]::before { content: "⏳ "; }
+@media (max-width: 680px) { .two, .three, .four { grid-template-columns: 1fr; } main { margin-top: 24px; } }

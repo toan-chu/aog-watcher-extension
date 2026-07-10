@@ -1,0 +1,15 @@
+{
+  "name": "aog-watcher-extension",
+  "version": "4.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "check": "node tools/check_extension.mjs && vitest run"
+  },
+  "devDependencies": {
+    "vitest": "^3.2.4",
+    "xlsx": "^0.18.5"
+  }
+}

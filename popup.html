@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AOG Watcher</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div><p class="eyebrow">NIGHT OPS</p><h1>AOG Watcher</h1></div>
+      <div class="badges"><span id="dryRunBadge" class="dry-run" hidden>DRY-RUN</span><span id="testModeBadge" class="dry-run" hidden>TEST</span><span id="stateBadge" class="state state--idle">IDLE</span></div>
+    </header>
+
+    <section id="alertPanel" class="alert-panel" aria-live="polite">
+      <p class="alert-panel__label">Current alert</p>
+      <strong id="alertTitle">No active alert</strong>
+      <span id="alertMeta">Watcher is standing by.</span>
+    </section>
+
+    <button id="ackButton" class="ack" type="button" disabled>ACKNOWLEDGE</button>
+
+    <section class="metrics" aria-label="Status">
+      <div><span>Role now</span><strong id="roleValue">--</strong></div>
+      <div><span>Queue</span><strong id="queueValue">0</strong></div>
+      <div><span>Shift</span><strong id="shiftValue">--</strong></div>
+    </section>
+
+    <section class="connections" aria-label="Connections">
+      <div><i id="whatsappDot"></i><span>WhatsApp Web</span><strong id="whatsappValue">Unknown</strong></div>
+      <div><i id="outlookDot"></i><span>Outlook Web</span><strong id="outlookValue">Unknown</strong></div>
+    </section>
+
+    <section id="shiftSetup" class="role-setup">
+      <label>Shift slots tối nay <small>Tự đổi role theo giờ máy</small></label>
+      <div class="slot-row" data-slot="0">
+        <span class="slot-label">Slot 1</span>
+        <input type="time" data-field="start" required>
+        <span>→</span>
+        <input type="time" data-field="end" required>
+        <select data-field="role"><option value="primary">Primary</option><option value="backup">Backup</option></select>
+      </div>
+      <div class="slot-row" data-slot="1">
+        <span class="slot-label">Slot 2</span>
+        <input type="time" data-field="start" required>
+        <span>→</span>
+        <input type="time" data-field="end" required>
+        <select data-field="role"><option value="primary">Primary</option><option value="backup">Backup</option></select>
+      </div>
+      <div class="role-row">
+        <button id="startShiftButton" type="button">Start shift</button>
+        <span id="shiftStatusHint" class="hint">Chưa bắt đầu ca</span>
+      </div>
+    </section>
+
+    <section class="recent">
+      <div class="recent__head"><span>Recent events</span><button id="endShiftButton" class="text-button" type="button" hidden>End shift (stop monitoring)</button></div>
+      <ul id="recentEvents"></ul>
+    </section>
+
+    <footer>
+      <button id="exportButton" class="text-button" type="button">Export today</button>
+      <button id="settingsButton" class="text-button" type="button">Settings</button>
+    </footer>
+    <p id="feedback" class="feedback" role="status"></p>
+  </main>
+  <script type="module" src="popup.js"></script>
+</body>
+</html>

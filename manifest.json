@@ -1,0 +1,52 @@
+{
+  "manifest_version": 3,
+  "name": "AOG Watcher",
+  "version": "4.2.0",
+  "description": "Monitor WhatsApp and Outlook AOG alerts with two-operator escalation.",
+  "permissions": ["storage", "alarms", "offscreen", "notifications"],
+  "host_permissions": [
+    "https://web.whatsapp.com/*",
+    "https://outlook.office.com/*",
+    "https://outlook.office365.com/*",
+    "https://outlook.live.com/*",
+    "https://outlook.cloud.microsoft/*"
+  ],
+  "background": {
+    "service_worker": "service_worker.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://web.whatsapp.com/*"],
+      "js": ["lib/content_runtime.js", "lib/whatsapp_selectors.js", "lib/whatsapp_dom.js", "content_whatsapp.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://outlook.office.com/mail/*",
+        "https://outlook.office365.com/mail/*",
+        "https://outlook.live.com/mail/*",
+        "https://outlook.cloud.microsoft/mail/*"
+      ],
+      "js": ["lib/content_runtime.js", "lib/outlook_selectors.js", "lib/outlook_message_id.js", "content_outlook.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "AOG Watcher",
+    "default_icon": {
+      "16": "assets/icon16.png",
+      "32": "assets/icon32.png",
+      "48": "assets/icon48.png",
+      "128": "assets/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "assets/icon16.png",
+    "32": "assets/icon32.png",
+    "48": "assets/icon48.png",
+    "128": "assets/icon128.png"
+  },
+  "options_page": "settings.html"
+}

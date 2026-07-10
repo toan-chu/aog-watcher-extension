@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="vi">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>AOG Watcher Settings</title><link rel="stylesheet" href="settings.css"></head>
+<body>
+  <main>
+    <header><p>NIGHT OPS CONFIG</p><h1>AOG Watcher Settings</h1><span>Thiết lập riêng cho máy này. Tên group phải khớp chính xác WhatsApp Web.</span></header>
+    <form id="settingsForm">
+      <section><h2>Operator</h2><div class="grid two"><label>My display name <small>Hiện trong tag WhatsApp coord — bắt buộc khác giữa 2 máy</small><input id="selfDisplayName" required></label><label></label></div></section>
+      <section><h2>WhatsApp groups</h2><div class="grid two"><label>Customer groups <small>Mỗi dòng một group</small><textarea id="customerGroups" rows="7"></textarea></label><label>Coord group <small>Chỉ một group nội bộ</small><input id="coordGroup" required></label></div></section>
+      <section><h2>Outlook filters</h2><div class="grid two"><label>Skip sender domains <small>Mỗi dòng một domain</small><textarea id="skipDomains" rows="5"></textarea></label><label>Subject keywords <small>Để trống để nhận mọi subject</small><textarea id="subjectKeywords" rows="5"></textarea></label></div></section>
+      <section><h2>Test &amp; Dry-run</h2><p class="helper">Shift slots cấu hình ở popup (Start/End + role mỗi slot). Test mode để ép role + bypass giờ slot khi test ngoài ca.</p><div class="grid four"><label class="check"><input id="testMode" type="checkbox"><span>Test mode<br><small>Bypass slot gate, ép test role</small></span></label><label>Test role<select id="testRole"><option value="primary">Primary (kêu ngay)</option><option value="backup">Backup (chờ backup delay)</option></select></label><label class="check"><input id="dryRun" type="checkbox"><span>Dry-run<br><small>No alarm, no peer tag</small></span></label><label></label></div></section>
+      <section><h2>Timing (seconds)</h2><div class="grid three"><label>Primary timeout<input id="primaryTimeout" type="number" min="5" max="3600" required></label><label>Backup delay<input id="backupDelay" type="number" min="5" max="3600" required></label><label>Max alert duration<input id="maxDuration" type="number" min="10" max="7200" required></label></div></section>
+      <section><h2>Reports</h2><p class="helper">From/To default to current month if blank.</p><div class="grid four"><label>From<input id="reportFrom" type="date"></label><label>To<input id="reportTo" type="date"></label><button id="exportHr" type="button">Export HR payroll</button><button id="exportAnalytics" type="button">Export analytics XLSX</button></div></section>
+      <div class="actions"><p id="status" role="status"></p><button type="submit">Save settings</button></div>
+    </form>
+  </main>
+  <script src="lib/vendor/xlsx.full.min.js"></script>
+  <script type="module" src="settings.js"></script>
+</body>
+</html>

@@ -39,9 +39,13 @@ Click icon AOG Watcher → popup mở → click **Settings**.
 | My display name | Tên cá nhân (vd "Toan"). **Bắt buộc khác giữa 2 máy** — dùng để gắn vào tag WhatsApp coord, chống loop tự đọc tag mình gửi |
 | Customer groups | Tên các group WhatsApp khách hàng, **mỗi dòng 1 group**. Copy y nguyên tên hiển thị trong sidebar WhatsApp Web |
 | Coord group | Tên group nội bộ 2 người dùng để extension gửi/nhận tag (vd "aog-coord") |
-| Skip sender domains | `trustana.vn` (default). Email từ domain này sẽ không alert |
+| Outlook watch path | Khuyến nghị điền path của hộp/folder AOG, ví dụ `/mail/aog@trustana.vn/` hoặc `/mail/AOG/`. Để trống = extension canh folder Outlook đang mở và popup sẽ cảnh báo chưa khóa folder |
+| Sender whitelist | Tùy chọn. Mỗi dòng một email, domain, hoặc một phần display name. Nếu có điền, chỉ sender match whitelist mới alert |
+| Skip sender domains | `trustana.vn` (default). Email từ domain này sẽ không alert; từ v4.3.0 cũng match display name có chứa domain |
 | Subject keywords | Để trống = alert mọi email. Điền keyword (vd `AOG`, mỗi dòng 1) = chỉ alert email có subject chứa keyword |
 | Shift Slots (popup, KHÔNG ở Settings) | Cấu hình ngay trên popup. 2 slot, mỗi slot có Start/End + Role. Mặc định: Slot 1 `22:00→02:30` Primary, Slot 2 `02:30→07:00` Backup. Tự đổi role theo giờ máy khi qua slot mới |
+| Wake audio mode | `gentle` mặc định: nhạc dịu loop thấp tần, volume tăng chậm. `escalate`: chuông 4 cấp cũ |
+| Idle threshold | Mặc định `15` giây. Chrome không cho thấp hơn 15s. Chỉ dùng để gate âm thanh; escalation timer vẫn chạy |
 | Test mode | OFF (bật khi muốn bypass slot gate để test ngoài giờ) |
 | Test role | `Primary` (kêu ngay) hoặc `Backup` (chờ backup_delay rồi mới kêu) — chỉ áp dụng khi Test mode ON |
 | Dry-run | OFF (chỉ bật khi muốn test logic không kêu/không gửi tag) |
@@ -100,16 +104,18 @@ Setup 1 lần, dùng mãi. Chỉ vào Settings khi muốn đổi config (thêm c
    - "Shift: ACTIVE" (nếu đang trong giờ slot đã set).
    - 2 chấm xanh: WhatsApp Web Connected + Outlook Web Connected.
    - Badge "DRY-RUN" **KHÔNG hiển thị** (nếu có, vào Settings tắt Dry-run).
-7. Click **Start shift**. Extension tự pick role hiện tại theo slot, log thời gian.
+7. Click **Start shift**. Extension tự pick role hiện tại theo slot, log thời gian, và chụp baseline tin/mail đang unread. Tin cũ trước Start shift không reo.
 8. Volume Windows: max.
-9. (Optional) Nhắn vào coord group "vào ca, online" để partner biết.
+9. Mở panel **Diagnostics** nếu cần kiểm tra extension đang thấy bao nhiêu row/unread và Outlook có bị folder gate chặn không.
+10. (Optional) Nhắn vào coord group "vào ca, online" để partner biết.
 
 **Lưu ý:** 2 máy chạy theo giờ máy cục bộ. 2 người cần đồng bộ giờ máy trước ca (auto-sync NTP Windows OK).
 
 ### Trong ca
 
 **Khi có AOG alert:**
-- Extension kêu báo thức + popup desktop notification.
+- Nếu máy đang idle/locked, extension phát âm thanh + popup desktop notification. Nếu máy đang active, extension chỉ hiện notification và giữ escalation timer chạy; khi máy idle lại mà alert chưa ACK thì âm thanh bật lên.
+- Nếu alert WhatsApp đến đúng conversation khách đang mở, extension suppress cả audio lẫn notification để không làm phiền khi bạn đang trả lời chính group đó.
 - Click icon AOG Watcher → popup → bấm nút **ACKNOWLEDGE** (chỉ enable khi đang ALERTING).
 - Audio dừng, alert mark HANDLED.
 - Extension **tự động**: gõ "aog-coord" vào search box WhatsApp → Enter → switch sang coord group → gửi tag `[AOG-HANDLED]` → clear search box.
@@ -137,10 +143,11 @@ Setup 1 lần, dùng mãi. Chỉ vào Settings khi muốn đổi config (thêm c
 
 ### Ra ca
 
-1. Bấm **End shift (stop monitoring)** → confirm dialog → OK.
-2. Extension stop nhận alert.
-3. (Optional) Nhắn coord: "off ca, bàn giao xong".
-4. Có thể đóng tab WhatsApp/Outlook hoặc đóng browser.
+1. Bấm **End shift** trên popup. Nút sẽ đổi thành **Xác nhận kết thúc ca?** trong 5 giây.
+2. Bấm lần 2 để kết thúc ca.
+3. Extension stop nhận alert và xóa baseline của ca.
+4. (Optional) Nhắn coord: "off ca, bàn giao xong".
+5. Có thể đóng tab WhatsApp/Outlook hoặc đóng browser.
 
 ---
 
@@ -189,6 +196,17 @@ Cột chính:
 - Click icon AOG Watcher → check site access (Bước 2 setup) đã bật cho domain đó chưa.
 - `edge://extensions/` → AOG Watcher → click Reload (mũi tên tròn) → refresh tab.
 
+### Popup Diagnostics nói gì?
+
+Mở popup → bung panel **Diagnostics**:
+
+- `rows`: số dòng extension nhìn thấy trong WhatsApp/Outlook.
+- `unread`: số dòng/tin đang được nhận dạng là unread.
+- `alert`: số alert đã gửi lên service worker trong scan gần nhất.
+- `gate blocked`: Outlook đang không ở đúng `outlook_watch_path`; mở đúng hộp/folder AOG hoặc sửa setting.
+- `rows > 0, unread = 0`: khả năng selector unread chưa match ngôn ngữ/UI Outlook. Báo dev kèm ngôn ngữ Outlook.
+- `unread > 0, alert = 0` mà không phải baseline/gate: kiểm tra sender whitelist, skip domain, subject keywords.
+
 ### Extension không kêu khi có tin AOG
 
 Theo thứ tự check:
@@ -199,7 +217,18 @@ Theo thứ tự check:
 4. Popup → "Role now: OUT OF SLOT"? Đã Start shift nhưng giờ hiện tại không nằm trong slot nào. Chỉnh slot cho phủ giờ hiện tại.
 5. Volume Windows max? Audio extension giới hạn = volume Windows.
 6. Group khách hàng có nằm trong Settings "Customer groups" không? Tên phải khớp **chính xác** với WhatsApp Web sidebar.
-7. Cho email: subject có chứa keyword (nếu set) không? Sender có nằm trong `skip_sender_domains` không? Subject keywords default = trống (alert mọi email), nhưng nếu điền vd "AOG" thì mọi email không có "AOG" trong subject sẽ silent skip → vào Recent events check `SKIPPED_EMAIL_FILTER`.
+7. Cho email: Outlook tab có đang ở đúng folder/hộp AOG theo `outlook_watch_path` không? Nếu sai, Diagnostics sẽ hiện `gate blocked`.
+8. Cho email: sender có bị whitelist/blacklist/subject keyword chặn không? Subject keywords default = trống (alert mọi email), nhưng nếu điền vd "AOG" thì mọi email không có "AOG" trong subject sẽ silent skip → vào Recent events check `SKIPPED_EMAIL_FILTER`.
+9. Nếu vừa bấm Start shift và có nhiều unread cũ: đó là baseline. Tin/mail unread có trước Start shift sẽ không reo; chỉ tin mới tăng sau baseline mới alert.
+
+### Extension chỉ hiện notification, không phát âm thanh
+
+Từ v4.3.0, audio bị gate bởi trạng thái idle:
+
+- Máy đang active → chỉ hiện notification, escalation timer vẫn chạy.
+- Máy idle/locked hoặc chuyển idle khi alert còn treo → audio phát.
+- Nếu đang mở đúng WhatsApp conversation vừa có tin → suppress cả audio và notification vì bạn đang xử lý ngay group đó.
+- Muốn hành vi chuông cũ: Settings → Wake audio mode → `Escalating beeps`. Audio vẫn bị idle gate theo thiết kế an toàn v4.3.
 
 ### Test 2 case Primary / Backup khi ngoài giờ
 
@@ -224,7 +253,7 @@ Bug nghiêm trọng. **Lập tức**:
 ### Export CSV/XLSX không có data
 
 - Verify Settings → date range bao trùm shift cậu muốn export.
-- Verify đã có shift session (bấm Confirm Role ít nhất 1 lần).
+- Verify đã có shift session (bấm Start shift ít nhất 1 lần).
 
 ### Bug khác
 
@@ -268,8 +297,8 @@ A: Mỗi máy chạy role theo giờ máy của mình. Nếu lệch >2 phút có
 **Q: Có thể chạy trên điện thoại không?**
 A: Không. Extension chỉ chạy trên Chrome/Edge desktop. Phone có thể setup WhatsApp DND Override + Outlook VIP làm safety net riêng (xem `docs/native-phone-setup.md` nếu có).
 
-**Q: Audio level escalation 4 cấp hoạt động thế nào?**
-A: Khi alert kêu, mỗi 15s tăng 1 level (soft → medium → loud → urgent). Volume browser cũng tăng theo. Max ở level 4.
+**Q: Audio hoạt động thế nào?**
+A: Mặc định v4.3.0 dùng `gentle`: một vòng âm thấp tần, loop liên tục, volume tăng từ 0.2 lên 0.7 trong khoảng 60 giây. Nếu chọn `escalate`, extension dùng chuông 4 cấp cũ (soft → medium → loud → urgent, tăng mỗi 15s). Cả hai mode đều chỉ phát khi máy idle/locked; khi máy active, escalation timer vẫn chạy nhưng audio được defer.
 
 **Q: Có nhiều hơn 2 sale dùng được không?**
 A: Hiện tại scope 2 người Primary/Backup. Multi-coord không support, cần build round riêng.
@@ -284,8 +313,16 @@ Update extension: replace folder → Reload extension trong `edge://extensions/`
 
 ---
 
-**Version:** 4.2.0 (Round 6 — Shift Slots refactor + WhatsApp Web 2026 selector fix)
-**Last updated:** 2026-06-29
+**Version:** 4.3.0 (Field feedback fixes — shift baseline, Outlook gate, diagnostics, idle-gated gentle wake)
+**Last updated:** 2026-07-10
+
+**Changelog 4.3.0:**
+- Shift baseline theo `shift_id`: tin/mail unread có trước Start shift không reo; reload tab giữa ca vẫn giữ baseline để tin mới trong lúc tab chết không bị nuốt.
+- Outlook folder gate `outlook_watch_path`, sender whitelist, blacklist match display name, và unread label tiếng Việt.
+- Popup **Diagnostics** hiển thị rows/unread/alerts/gate để debug reo bậy hoặc im bậy.
+- Idle-gated wake: máy active chỉ notification hoặc suppress nếu đúng WhatsApp conversation đang mở; escalation timer không đổi.
+- Audio mặc định `gentle` loop thấp tần, có thể đổi lại `escalate`.
+- End Shift chuyển sang nút rõ cạnh Start Shift với inline confirm 5 giây.
 
 **Changelog 4.2.0:**
 - **Fix gửi tag vào coord group fail (root cause Round 5):** WhatsApp Web 2026 block synthetic click events trên sidebar rows. Thay bằng search box + Enter để switch conversation. Verified live trên Chrome.

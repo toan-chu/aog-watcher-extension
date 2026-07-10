@@ -1,5 +1,15 @@
 # Audit
 
+## [2026-07-10 11:26] -- AOG Watcher v4.3 Field Feedback Fixes -- REPORT
+
+**Done:** Implemented WS1-WS6 from `docs/20260710_aog-watcher-v43-blueprint.md`. WS1 adds persisted shift baseline per `shift_id` with `BASELINE_SYNC`/`REBASELINE`; WS2 adds Outlook folder gate, Vietnamese unread labels, sender whitelist, and display-name blacklist matching; WS3 exposes scan diagnostics in health and popup. WS4 gates only wake audio/notification at the effect layer using `chrome.idle` while leaving escalation timers intact; WS5 adds gentle loop audio mode; WS6 replaces `window.confirm()` with inline End Shift confirmation.
+**Files changed:** `manifest.json`, `service_worker.js`, `content_whatsapp.js`, `content_outlook.js`, `offscreen.js`, `popup.html`, `popup.js`, `popup.css`, `settings.html`, `settings.js`, `settings.css`, `lib/constants.js`, `lib/storage.js`, `lib/source_health.js`, `lib/filter.js`, `lib/outlook_selectors.js`, `lib/runtime_state.js`, `lib/event_log.js`, `assets/audio/gentle_loop.wav`, `tools/generate_assets.mjs`, `tests/v43_p0_field_feedback.test.js`, `tests/v43_p1_field_feedback.test.js`, `docs/SOP.md`, `README.md`, `docs/20260710_aog-watcher-v43-build-audit.md`, `handoff/todo.md`
+**Verification:** `npm.cmd test` passed 131/131 tests (111 existing + 20 v4.3 field-feedback regressions); `node tools/check_extension.mjs` passed; `npm.cmd audit --omit=dev` found 0 vulnerabilities.
+**Open questions for Cowork:** Please review idle-gated wake behavior before live use, especially the accepted trade-off where an "active" machine shows notification without audio while escalation continues.
+**Risks/known gaps:** Manual overnight team checklist (a)-(f) from the blueprint remains pending in the real Chrome/Outlook/WhatsApp environment. Baseline intentionally suppresses unread mail/messages that existed before Start shift, even if the tab was open first.
+
+---
+
 ## [2026-06-23 12:01] -- AOG Watcher v4 Round 5 Report Fixes -- REPORT
 
 **Done:** Fixed Claude Round 5 Issues J/K/L. ACK/PEER_HANDLED/MISSED log rows now carry group/sender/subject context; popup recent events show Vietnam/local time; HR CSV has metadata comments and local decimal/date formatting; Analytics XLSX has first-sheet Report Info, five-sheet order, local timestamps, widths/freeze/header styling, static missed/heatmap fallback styling; Settings exports default blank dates to current month, use timestamped filenames, disable buttons during export, and show filename/count status.

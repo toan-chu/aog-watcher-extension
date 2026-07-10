@@ -1,5 +1,14 @@
 # History
 
+## [2026-07-10 11:26] -- AOG Watcher v4.3 field feedback fixes
+
+**Type:** feature
+**Files Changed:** `manifest.json`, `service_worker.js`, `content_whatsapp.js`, `content_outlook.js`, `offscreen.js`, `popup.html`, `popup.js`, `settings.html`, `settings.js`, `lib/constants.js`, `lib/storage.js`, `lib/source_health.js`, `lib/filter.js`, `lib/outlook_selectors.js`, `lib/runtime_state.js`, `assets/audio/gentle_loop.wav`, `tests/v43_p0_field_feedback.test.js`, `tests/v43_p1_field_feedback.test.js`, `docs/SOP.md`, `README.md`, `docs/20260710_aog-watcher-v43-build-audit.md`, `handoff/todo.md`, `handoff/audit.md`
+**Summary:** Built v4.3 from the field-feedback blueprint: shift baseline prevents backlog flush, Outlook is gated to the AOG folder with multilingual unread detection, diagnostics show scan stats, active-user wake audio is deferred safely, gentle audio is default, and End Shift uses inline confirmation. Updated SOP/README and added 20 focused regression tests while preserving the original 111-test suite.
+**Decision:** Kept wake gating at the effect layer only so state machine, peer protocol, report pipeline, and escalation timers remain unchanged; active users get notification/deferred audio instead of lifecycle suppression.
+
+---
+
 ## [2026-06-23 12:01] -- Round 5 report context and export polish
 
 **Type:** bugfix

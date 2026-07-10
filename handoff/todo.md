@@ -16,7 +16,7 @@ Nguồn: feedback ca trực 30/06. Đọc blueprint TRƯỚC khi code — root c
 - [x] WS5: Âm thanh gentle loop tần số thấp (`wake_audio_mode`)
 - [x] WS6: End Shift button rõ ràng + inline confirm (bỏ window.confirm)
 
-- [ ] Regression tests theo test plan 20 case trong blueprint, giữ 111 test cũ pass
+- [x] Regression tests theo test plan 20 case trong blueprint, giữ 111 test cũ pass
 - [ ] Claude review
 - [ ] Team test 1 đêm theo checklist manual (a)-(f) trong blueprint
 

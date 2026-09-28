@@ -4,6 +4,7 @@ Chỉ huy:   claude [COWORK-EXEC] (Codex bận, Chairman giải trừ 2026-09-28
 ## Việc đang mở
 
 RF-02  chờ-ký  commit reform RF-01 + gỡ luật chết
+V5-01  nháp    nâng cấp đợt 1 (nhóm lạ, SharePoint, kiểm tra đầu ca, phát hiện bị mù, hộp đen, cấu hình mẫu)
 
 ## Hôm qua
 
@@ -18,7 +19,7 @@ RF-01  đóng-đạt  2026-09-28
 ## Đang treo, cần Chairman
 
 - Ký RF-02.
-- Chốt ĐỀ BÀI đợt nâng cấp 1 (nhóm lạ, kiểm tra đầu ca, phát hiện bị mù, hộp đen).
+- V5-01: chốt phạm vi A/B, điền kịch bản nghiệm thu, gửi đường dẫn SharePoint.
 - Import `handoff-standard` vào tài liệu Project; `RULES.md` chưa ghi sinh từ phiên bản chuẩn nào.
 
 ## Bẫy đã biết

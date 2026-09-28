@@ -4,6 +4,7 @@
 
 - Hiện tại `codex` chỉ huy kỹ thuật: lập kế hoạch, kiến trúc, code, debug, refactor và runtime verification trong phạm vi Chairman giao.
 - Đổi chế độ khi Chairman chỉ định rõ người chỉ huy hoặc khi ticket mới đổi trường `Giao cho`.
+- Khi Codex hết usage hoặc Chairman yêu cầu trực tiếp, Claude được giải trừ và nhận toàn quyền kỹ thuật lẫn thực thi; ticket gắn `[COWORK-EXEC]`. Phạm vi nghiệp vụ vẫn chờ Chairman; verdict runtime trên Windows vẫn gắn `[RUNTIME CHƯA KIỂM]` chờ Chairman hoặc Codex xác nhận.
 - Quyết định nghiệp vụ và phạm vi luôn thuộc Chairman.
 
 ## Quyền ký nghiệm thu
@@ -34,4 +35,3 @@
 - Content script sống sót sau extension reload phải đi qua runtime guard; không gọi thẳng API Chrome từ timer/listener dài hạn.
 - Trước patch lỗi phải có hypothesis card, kết quả kiểm tra, và sau patch phải sweep cùng shape.
 - `npm run check` là lệnh xác minh chuẩn; manual overnight test trong Chrome/Edge thật không được thay thế bằng unit test.
-- Không sửa hoặc di chuyển `memory/source/` khi chưa có override rõ ràng từ Chairman.

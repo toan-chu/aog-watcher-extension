@@ -1,9 +1,9 @@
-Cập nhật:  2026-09-28 10:56 UTC+7 - bởi codex
-Chỉ huy:   codex
+Cập nhật:  2026-09-28 15:20 UTC+7 - bởi claude
+Chỉ huy:   claude [COWORK-EXEC] (Codex bận, Chairman giải trừ 2026-09-28)
 
 ## Việc đang mở
 
-Không có.
+RF-02  chờ-ký  commit reform RF-01 + gỡ luật chết
 
 ## Hôm qua
 
@@ -17,7 +17,9 @@ RF-01  đóng-đạt  2026-09-28
 
 ## Đang treo, cần Chairman
 
-Không có.
+- Ký RF-02.
+- Chốt ĐỀ BÀI đợt nâng cấp 1 (nhóm lạ, kiểm tra đầu ca, phát hiện bị mù, hộp đen).
+- Import `handoff-standard` vào tài liệu Project; `RULES.md` chưa ghi sinh từ phiên bản chuẩn nào.
 
 ## Bẫy đã biết
 

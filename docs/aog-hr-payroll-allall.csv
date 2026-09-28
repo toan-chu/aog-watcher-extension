@@ -1,2 +1,0 @@
-﻿shift_id,operator,partner,role,shift_start,shift_end,duration_hours,alerts_received,alerts_acked_by_self,alerts_missed,avg_response_time_seconds
-shift-20260623043530-0d64r,Toan,Test,primary,2026-06-23T04:35:30.397Z,(in progress),0.08,2,2,0,92.3

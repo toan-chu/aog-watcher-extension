@@ -1,7 +1,7 @@
 # AOG Watcher v4.3 — Blueprint (Codex Build Spec)
 
 **Ngày:** 2026-07-10
-**Trạng thái:** READY FOR CODEX
+**Trạng thái:** IMPLEMENTED IN v4.3.0; automated verification 133/133 tests
 **Nguồn:** Feedback ca trực 30/06 (anh Toàn + Monica + Ethan + Leah + Julia) → Claude phân tích root cause đối chiếu source v4.2.0.
 **Nguyên tắc:** Không refactor ngoài scope. Giữ state machine, peer protocol, report pipeline nguyên trạng. Mọi thay đổi là gating/filtering TRƯỚC state machine hoặc effect-level SAU state machine — lifecycle alert không đổi để report không vỡ.
 

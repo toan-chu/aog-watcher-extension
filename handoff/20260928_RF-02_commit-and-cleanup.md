@@ -2,7 +2,7 @@ Mã:         RF-02
 Mạch:       RF - reform handoff
 Nối tiếp:   RF-01
 Giao cho:   claude [COWORK-EXEC]
-Trạng thái: chờ-ký
+Trạng thái: đóng-đạt
 Vòng:       1/2
 
 ## ĐỀ BÀI
@@ -32,7 +32,7 @@ Chairman xem repo: lịch sử có một mốc riêng cho reform RF-01, không c
 - [x] Gỡ luật `memory/source/` khỏi `RULES.md`.
 - [x] Ghi quy tắc giải trừ `[COWORK-EXEC]` vào `RULES.md`.
 - [x] Cập nhật `STATE.md`.
-- [ ] Chairman ký nghiệm thu chung.
+- [x] Chairman ký nghiệm thu chung.
 
 ## AUDIT
 
@@ -69,7 +69,9 @@ handoff/20260928_RF-02_commit-and-cleanup.md
 
 ### Acceptance signature
 
-Chưa ký.
+ĐẠT - Chairman ủy quyền bằng lời trong hội thoại 2026-09-28 ("Ký giúp tôi"); claude ghi hộ.
+
+-- chairman (claude ghi hộ) - 2026-09-28
 
 ## HISTORY
 

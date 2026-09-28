@@ -1,10 +1,9 @@
-Cập nhật:  2026-09-28 15:20 UTC+7 - bởi claude
+Cập nhật:  2026-09-28 16:45 UTC+7 - bởi claude
 Chỉ huy:   claude [COWORK-EXEC] (Codex bận, Chairman giải trừ 2026-09-28)
 
 ## Việc đang mở
 
-RF-02  chờ-ký  commit reform RF-01 + gỡ luật chết
-V5-01  nháp    nâng cấp đợt 1 (nhóm lạ, SharePoint, kiểm tra đầu ca, phát hiện bị mù, hộp đen, cấu hình mẫu)
+V5-01  chờ-nghiệm-thu  AOG Watcher 5.0.0 (code xong, 176/176 test; runtime chưa kiểm)
 
 ## Hôm qua
 
@@ -15,11 +14,11 @@ V5-01  nháp    nâng cấp đợt 1 (nhóm lạ, SharePoint, kiểm tra đầu 
 ## Vừa đóng
 
 RF-01  đóng-đạt  2026-09-28
+RF-02  đóng-đạt  2026-09-28
 
 ## Đang treo, cần Chairman
 
-- Ký RF-02.
-- V5-01: chốt phạm vi A/B, điền kịch bản nghiệm thu, gửi đường dẫn SharePoint.
+- V5-01: gửi link site SharePoint AOG; nghiệm thu runtime KS-1..KS-8 trên 2 máy thật.
 - Import `handoff-standard` vào tài liệu Project; `RULES.md` chưa ghi sinh từ phiên bản chuẩn nào.
 
 ## Bẫy đã biết
@@ -27,6 +26,8 @@ RF-01  đóng-đạt  2026-09-28
 - Reload MV3 có thể để lại content script cũ; runtime call dài hạn phải đi qua guard.
 - Active-user wake gating không được dừng escalation timer.
 - Baseline phải được tái sử dụng khi reload tab giữa ca.
+- 5.0: nguồn vừa gửi alert được tính là còn sống; đừng chỉ dựa vào nhịp CONTENT_HEALTH.
+- 5.0: dòng ca trực dùng chung 2 máy → luôn upsert vào dòng CŨ NHẤT của đêm (shared: true).
 
 ## Báo lỗi giả
 

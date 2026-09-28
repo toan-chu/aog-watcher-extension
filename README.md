@@ -1,70 +1,35 @@
-# AOG Watcher v4.3.0
+# AOG Watcher v5.0.0
 
 ![License MIT](https://img.shields.io/badge/license-MIT-green)
 ![JavaScript ES2022](https://img.shields.io/badge/JavaScript-ES2022-yellow)
 ![Chrome MV3](https://img.shields.io/badge/Chrome%20%2F%20Edge-Manifest%20V3-orange)
-![Tests 133 passing](https://img.shields.io/badge/tests-133%20passing-brightgreen)
 
-> **AOG Watcher canh WhatsApp và Outlook để hai người trực đêm không bỏ lỡ yêu cầu khẩn cấp mà vẫn có thể nghỉ.**
-> Người trực bắt đầu ca → extension phát hiện tin mới → người chính ACK hoặc hệ thống tự leo thang sang người dự phòng → báo cáo được xuất cuối ca.
+> **AOG Watcher canh WhatsApp và Outlook để hai người trực đêm không bỏ lỡ yêu cầu khẩn cấp, tự báo khi chính nó hỏng, và ghi ca trực lên SharePoint của group AOG.**
+> Mở ca → kiểm tra đầu ca → có tin thì reo → người chính ACK hoặc leo thang sang máy dự phòng → sáng ra dòng ca trực và hộp đen ghi rõ từng tin, từng lần miss và nguyên nhân.
 
 ## 🎯 Ai làm gì
 
 | Vai trò | Việc cần làm | Cần biết code? |
 |---|---|---|
-| Người trực chính | Mở hai tab, Start Shift và ACK alert | Không |
-| Người trực dự phòng | Giữ máy sẵn sàng và xử lý khi alert leo thang | Không |
-| Quản lý ca | Kiểm tra cấu hình và xuất báo cáo | Không |
-| Người bảo trì | Cập nhật selector, logic và chạy verification | Có |
+| Người trực | Dán link SharePoint lần đầu, mở 2 tab, Bắt đầu ca, làm checklist, ACK | Không |
+| Trưởng team | Tạo bảng SharePoint một lần, giữ danh sách nhóm và cài đặt chung | Không |
+| Người bảo trì | Cập nhật bộ nhận diện giao diện khi WhatsApp/Outlook đổi, chạy kiểm tra | Có |
 
 ## 🔄 Luồng chạy
 
 ```text
-WhatsApp Web ──┐
-               ├──> phát hiện tin mới sau Start Shift
-Outlook Web ───┘                 │
-                                 ▼
-                   chuông máy người trực chính
-                                 │
-                    ACK ─────────┴──── không ACK đúng hạn
-                     │                         │
-                     ▼                         ▼
-          peer nhận AOG-HANDLED       máy dự phòng reo
-                     │                         │
-                     └──────────┬──────────────┘
-                                ▼
-                       báo cáo cuối ca
+WhatsApp Web ──┐                       ┌──> chuông máy chính ── ACK ──> báo máy kia (SharePoint)
+               ├──> Watcher (2 máy) ───┤                        └ không ACK ──> máy dự phòng reo
+Outlook Web ───┘        │              └──> tự kiểm: nguồn mù? máy kia mất liên lạc? quên mở ca?
+                        ▼
+          SharePoint AOG: Ca trực · Nhóm chung · Hộp đen · Cài đặt chung
 ```
 
-Extension không dùng server và không gửi tracking. Dữ liệu vận hành nằm trong browser local storage; browser và hai tab nguồn phải mở trong ca.
+Không có server riêng. Extension dùng chính đăng nhập Microsoft công ty trong trình duyệt để đọc/ghi SharePoint. SharePoint lỗi thì vẫn canh và reo, hai máy báo nhau qua nhóm điều phối WhatsApp.
 
-## 🚀 Cài đặt
+## 🚀 Cài đặt và sử dụng
 
-1. Tải repo bằng **Code → Download ZIP**, rồi giải nén vào một thư mục cố định.
-2. Mở `chrome://extensions` hoặc `edge://extensions`.
-3. Bật **Developer mode**.
-4. Chọn **Load unpacked** và trỏ tới thư mục vừa giải nén.
-5. Ghim icon AOG Watcher lên thanh công cụ.
-
-## 📋 Dùng thế nào
-
-1. Chuột phải icon → **Options**; nhập tên người trực, vai trò, nhóm khách, nhóm điều phối và Outlook watch path.
-2. Mở sẵn WhatsApp Web và tab Outlook tại đúng hộp AOG.
-3. Mở popup, bấm **Start Shift** và chờ hai source chuyển xanh.
-4. Khi có alert, bấm **ACK** để nhận xử lý; peer sẽ nhận tag `[AOG-HANDLED]` và dừng wake.
-5. Hết ca, bấm **End Shift**, sau đó xuất báo cáo nếu cần.
-
-Quy trình hai máy, bàn giao ca và xuất báo cáo chi tiết nằm trong [Cẩm nang vận hành](docs/SOP.md).
-
-## ❓ Hỏng thì làm gì
-
-- Không reo: mở **Diagnostics** trong popup; kiểm tra shift đang active, hai source xanh, Outlook đúng folder và filter đúng.
-- Reo tin cũ: xác nhận đã dùng v4.3.0 và chỉ đánh giá item xuất hiện sau khi bấm Start Shift.
-- Outlook im lặng: kiểm tra `outlook_watch_path`, ngôn ngữ UI và các số `rows seen`/`unread seen` trong Diagnostics.
-- Một máy ACK nhưng máy kia vẫn reo: kiểm tra nhóm điều phối và khả năng gửi/đọc tag `[AOG-HANDLED]`.
-- Sau khi reload extension: reload lại tab WhatsApp và Outlook để bỏ content script cũ.
-
-Nếu lỗi vẫn còn, ghi lại thời điểm, ảnh Diagnostics, source liên quan và các bước tái hiện trước khi mở ticket.
+Làm theo [Cẩm nang vận hành](docs/SOP.md): mục A cho trưởng team (một lần), mục B cho người trực mới, mục C cho mỗi đêm.
 
 ## 🛠️ Phát triển
 
@@ -75,7 +40,7 @@ npm install
 npm run check
 ```
 
-`npm run check` kiểm tra 14 file được manifest tham chiếu rồi chạy 133 test Vitest. Kiến trúc hiện tại nằm ở [handoff/MAP.md](handoff/MAP.md); quy tắc làm việc nằm ở [handoff/RULES.md](handoff/RULES.md).
+`npm run check` kiểm tra các file manifest tham chiếu rồi chạy toàn bộ test Vitest. Kiến trúc hiện tại nằm ở [handoff/MAP.md](handoff/MAP.md); quy tắc làm việc nằm ở [handoff/RULES.md](handoff/RULES.md).
 
 ## 📄 Giấy phép
 

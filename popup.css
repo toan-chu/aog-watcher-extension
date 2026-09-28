@@ -72,3 +72,37 @@ footer { display: flex; justify-content: space-between; margin-top: 13px; paddin
 .feedback { min-height: 18px; margin: 8px 0 0; color: var(--amber); font-size: 11px; }
 @keyframes pulse { 50% { opacity: .72; } }
 @media (prefers-reduced-motion: reduce) { .state--alerting { animation: none; } }
+/* 5.0 */
+.ready { border: 1px solid var(--muted); color: var(--muted); padding: 4px 7px; font: 700 10px/1 Bahnschrift, sans-serif; }
+.ready--ok { border-color: var(--green); color: var(--green); }
+.ready--bad { border-color: var(--red); color: var(--red); }
+.section-label { margin: 0 0 6px; color: var(--muted); font-size: 11px; text-transform: uppercase; }
+.system-alerts { display: grid; gap: 8px; margin-top: 12px; }
+.system-alerts:empty { display: none; }
+.sys { border: 1px solid var(--red); background: rgb(255 95 87 / 10%); padding: 10px 12px; display: grid; gap: 6px; }
+.sys--quiet { border-color: var(--amber); background: rgb(244 185 66 / 8%); }
+.sys--ack { opacity: .6; }
+.sys strong { font-size: 13px; }
+.sys span { color: #d9c9c7; font-size: 12px; }
+.sys__actions { display: flex; gap: 8px; }
+.sys__actions button, .unknown button, .preflight__actions button, .leak__form button { border: 1px solid var(--green); color: var(--green); background: var(--panel); padding: 6px 10px; cursor: pointer; font-size: 12px; }
+.sys__actions button.primary, .unknown button.primary { background: var(--green); color: #07110c; }
+.unknown { margin-top: 12px; border: 1px solid var(--amber); padding: 10px 12px; }
+.unknown__row { display: grid; gap: 6px; padding: 6px 0; border-top: 1px solid var(--line); }
+.unknown__row:first-child { border-top: 0; }
+.unknown__row div { display: flex; gap: 8px; }
+.connections i.warn { background: var(--amber); }
+.connections i.bad { background: var(--red); box-shadow: 0 0 0 3px rgb(255 95 87 / 15%); }
+.connections strong { max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.preflight { margin-top: 12px; border: 1px solid var(--line); padding: 10px 12px; }
+.preflight ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 5px; font-size: 12px; }
+.preflight li small { display: block; color: var(--muted); font-size: 11px; }
+.pf--pass::before { content: "✓ "; color: var(--green); }
+.pf--fail::before { content: "✗ "; color: var(--red); }
+.pf--warn::before { content: "! "; color: var(--amber); }
+.pf--fail { color: #ffb5b0; }
+.preflight__actions { display: flex; gap: 8px; margin-top: 8px; }
+.leak { margin-top: 12px; border: 1px solid var(--line); padding: 8px 10px; }
+.leak summary { cursor: pointer; color: var(--muted); font-size: 11px; text-transform: uppercase; }
+.leak__form { display: grid; gap: 6px; margin-top: 8px; }
+.leak__form input, .leak__form select { border: 1px solid var(--line); background: var(--panel); color: var(--ink); padding: 6px; font-size: 12px; }

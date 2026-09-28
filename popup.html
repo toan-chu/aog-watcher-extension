@@ -9,65 +9,89 @@
 <body>
   <main class="shell">
     <header class="topbar">
-      <div><p class="eyebrow">NIGHT OPS</p><h1>AOG Watcher</h1></div>
-      <div class="badges"><span id="dryRunBadge" class="dry-run" hidden>DRY-RUN</span><span id="testModeBadge" class="dry-run" hidden>TEST</span><span id="stateBadge" class="state state--idle">IDLE</span></div>
+      <div><p class="eyebrow">NIGHT OPS · <span id="versionValue">5.0</span></p><h1>AOG Watcher</h1></div>
+      <div class="badges"><span id="dryRunBadge" class="dry-run" hidden>DRY-RUN</span><span id="testModeBadge" class="dry-run" hidden>TEST</span><span id="readyBadge" class="ready ready--off">CHƯA VÀO CA</span><span id="stateBadge" class="state state--idle">IDLE</span></div>
     </header>
 
-    <section id="alertPanel" class="alert-panel" aria-live="polite">
-      <p class="alert-panel__label">Current alert</p>
-      <strong id="alertTitle">No active alert</strong>
-      <span id="alertMeta">Watcher is standing by.</span>
-    </section>
+    <section id="systemAlerts" class="system-alerts" aria-live="assertive"></section>
 
-    <button id="ackButton" class="ack" type="button" disabled>ACKNOWLEDGE</button>
+    <section id="alertPanel" class="alert-panel" aria-live="polite">
+      <p class="alert-panel__label">Tin đang reo</p>
+      <strong id="alertTitle">Không có tin</strong>
+      <span id="alertMeta">Watcher đang canh.</span>
+    </section>
+    <button id="ackButton" class="ack" type="button" disabled>ACK — TÔI NHẬN XỬ LÝ</button>
+
+    <section id="unknownChats" class="unknown" hidden>
+      <p class="section-label">Chat lạ vừa nhắn (chưa có trong danh sách)</p>
+      <div id="unknownList"></div>
+    </section>
 
     <section class="metrics" aria-label="Status">
-      <div><span>Role now</span><strong id="roleValue">--</strong></div>
-      <div><span>Queue</span><strong id="queueValue">0</strong></div>
-      <div><span>Shift</span><strong id="shiftValue">--</strong></div>
+      <div><span>Vai trò</span><strong id="roleValue">--</strong></div>
+      <div><span>Hàng chờ</span><strong id="queueValue">0</strong></div>
+      <div><span>Nhóm canh</span><strong id="groupsValue">0</strong></div>
     </section>
 
-    <section class="connections" aria-label="Connections">
-      <div><i id="whatsappDot"></i><span>WhatsApp Web</span><strong id="whatsappValue">Unknown</strong></div>
-      <div><i id="outlookDot"></i><span>Outlook Web</span><strong id="outlookValue">Unknown</strong></div>
+    <section class="connections" aria-label="Nguồn">
+      <div><i id="whatsappDot"></i><span>WhatsApp Web</span><strong id="whatsappValue">--</strong></div>
+      <div><i id="outlookDot"></i><span>Outlook (hộp AOG)</span><strong id="outlookValue">--</strong></div>
+      <div><i id="sharepointDot"></i><span>SharePoint AOG</span><strong id="sharepointValue">--</strong></div>
+      <div><i id="peerDot"></i><span>Máy trực cùng</span><strong id="peerValue">--</strong></div>
     </section>
 
-    <details class="diagnostics">
-      <summary>Diagnostics</summary>
-      <div id="diagnosticsRows" class="diagnostics__rows"></div>
-    </details>
+    <section id="preflight" class="preflight" hidden>
+      <p class="section-label">Kiểm tra đầu ca</p>
+      <ul id="preflightList"></ul>
+      <div class="preflight__actions"><button id="testSoundButton" type="button">Thử chuông</button><button id="soundOkButton" type="button">Nghe rõ</button></div>
+    </section>
 
     <section id="shiftSetup" class="role-setup">
-      <label>Shift slots tối nay <small>Tự đổi role theo giờ máy</small></label>
+      <label>Giờ ca tối nay <small>Vai trò tự đổi theo giờ máy</small></label>
       <div class="slot-row" data-slot="0">
         <span class="slot-label">Slot 1</span>
         <input type="time" data-field="start" required>
         <span>→</span>
         <input type="time" data-field="end" required>
-        <select data-field="role"><option value="primary">Primary</option><option value="backup">Backup</option></select>
+        <select data-field="role"><option value="primary">Chính</option><option value="backup">Dự phòng</option></select>
       </div>
       <div class="slot-row" data-slot="1">
         <span class="slot-label">Slot 2</span>
         <input type="time" data-field="start" required>
         <span>→</span>
         <input type="time" data-field="end" required>
-        <select data-field="role"><option value="primary">Primary</option><option value="backup">Backup</option></select>
+        <select data-field="role"><option value="primary">Chính</option><option value="backup">Dự phòng</option></select>
       </div>
       <div class="role-row">
-        <button id="startShiftButton" type="button">Start shift</button>
-        <button id="endShiftButton" class="end-shift" type="button" hidden>End shift</button>
+        <button id="startShiftButton" type="button">Bắt đầu ca</button>
+        <button id="endShiftButton" class="end-shift" type="button" hidden>Kết thúc ca</button>
         <span id="shiftStatusHint" class="hint">Chưa bắt đầu ca</span>
       </div>
     </section>
 
+    <details class="leak">
+      <summary>Có tin bị lọt? (Watcher không reo)</summary>
+      <div class="leak__form">
+        <select id="leakSource"><option value="whatsapp">WhatsApp</option><option value="email">Outlook</option></select>
+        <input id="leakWhat" placeholder="Tên nhóm / tiêu đề email">
+        <input id="leakAt" type="datetime-local">
+        <button id="leakButton" type="button">Ghi nhận tin bị lọt</button>
+      </div>
+    </details>
+
+    <details class="diagnostics">
+      <summary>Chẩn đoán</summary>
+      <div id="diagnosticsRows" class="diagnostics__rows"></div>
+    </details>
+
     <section class="recent">
-      <div class="recent__head"><span>Recent events</span></div>
+      <div class="recent__head"><span>Sự kiện gần đây</span></div>
       <ul id="recentEvents"></ul>
     </section>
 
     <footer>
-      <button id="exportButton" class="text-button" type="button">Export today</button>
-      <button id="settingsButton" class="text-button" type="button">Settings</button>
+      <button id="sharepointButton" class="text-button" type="button" hidden>Mở SharePoint</button>
+      <button id="settingsButton" class="text-button" type="button">Cài đặt</button>
     </footer>
     <p id="feedback" class="feedback" role="status"></p>
   </main>

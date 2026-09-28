@@ -1,15 +1,22 @@
 {
   "manifest_version": 3,
   "name": "AOG Watcher",
-  "version": "4.3.0",
-  "description": "Monitor WhatsApp and Outlook AOG alerts with two-operator escalation.",
-  "permissions": ["storage", "alarms", "offscreen", "notifications", "idle"],
+  "version": "5.0.0",
+  "description": "AOG night-shift watcher: WhatsApp + Outlook alerts, two-machine escalation, self-checks and SharePoint team log.",
+  "permissions": [
+    "storage",
+    "alarms",
+    "offscreen",
+    "notifications",
+    "idle"
+  ],
   "host_permissions": [
     "https://web.whatsapp.com/*",
     "https://outlook.office.com/*",
     "https://outlook.office365.com/*",
     "https://outlook.live.com/*",
-    "https://outlook.cloud.microsoft/*"
+    "https://outlook.cloud.microsoft/*",
+    "https://*.sharepoint.com/*"
   ],
   "background": {
     "service_worker": "service_worker.js",
@@ -17,8 +24,15 @@
   },
   "content_scripts": [
     {
-      "matches": ["https://web.whatsapp.com/*"],
-      "js": ["lib/content_runtime.js", "lib/whatsapp_selectors.js", "lib/whatsapp_dom.js", "content_whatsapp.js"],
+      "matches": [
+        "https://web.whatsapp.com/*"
+      ],
+      "js": [
+        "lib/content_runtime.js",
+        "lib/whatsapp_selectors.js",
+        "lib/whatsapp_dom.js",
+        "content_whatsapp.js"
+      ],
       "run_at": "document_idle"
     },
     {
@@ -28,7 +42,12 @@
         "https://outlook.live.com/mail/*",
         "https://outlook.cloud.microsoft/mail/*"
       ],
-      "js": ["lib/content_runtime.js", "lib/outlook_selectors.js", "lib/outlook_message_id.js", "content_outlook.js"],
+      "js": [
+        "lib/content_runtime.js",
+        "lib/outlook_selectors.js",
+        "lib/outlook_message_id.js",
+        "content_outlook.js"
+      ],
       "run_at": "document_idle"
     }
   ],

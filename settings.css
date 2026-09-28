@@ -23,3 +23,12 @@ button:hover { filter: brightness(1.08); }
 button:disabled { opacity: .62; cursor: wait; }
 button[data-busy="true"]::before { content: "⏳ "; }
 @media (max-width: 680px) { .two, .three, .four { grid-template-columns: 1fr; } main { margin-top: 24px; } }
+/* 5.0 */
+.button-row { display: flex; gap: 10px; align-items: end; flex-wrap: wrap; }
+button.ghost { background: transparent; color: var(--green); border: 1px solid var(--green); }
+.result { min-height: 20px; margin: 12px 0 0; color: var(--muted); font-size: 13px; white-space: pre-line; }
+.result.ok { color: var(--green); }
+.result.bad { color: var(--red); }
+.admin { margin-top: 16px; border: 1px solid var(--line); padding: 12px 14px; }
+.admin summary { cursor: pointer; color: var(--muted); }
+h2 small { color: var(--muted); font-size: 12px; font-weight: 400; }

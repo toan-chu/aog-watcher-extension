@@ -84,9 +84,9 @@ describe("v4.3 P0 field feedback fixes", () => {
   });
 
   it("renders a collapsible diagnostics panel in the popup", () => {
-    expect(popupHtml).toContain("Diagnostics");
-    expect(popupJs).toContain("diagnosticText");
-    expect(popupJs).toContain("diagnosticHint");
+    expect(popupHtml).toContain("Chẩn đoán");
+    expect(popupHtml).toContain("diagnosticsRows");
+    expect(popupJs).toContain("folder_gate === \"blocked\"");
   });
 
   it("adds settings controls for Outlook folder gate and sender whitelist", () => {

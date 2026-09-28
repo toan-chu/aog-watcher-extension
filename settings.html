@@ -3,19 +3,52 @@
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>AOG Watcher Settings</title><link rel="stylesheet" href="settings.css"></head>
 <body>
   <main>
-    <header><p>NIGHT OPS CONFIG</p><h1>AOG Watcher Settings</h1><span>Thiết lập riêng cho máy này. Tên group phải khớp chính xác WhatsApp Web.</span></header>
+    <header><p>NIGHT OPS CONFIG · 5.0</p><h1>Cài đặt AOG Watcher</h1><span>Người mới: dán link SharePoint AOG → bấm "Đăng nhập &amp; kiểm tra" → điền tên. Các cài đặt chung tự lấy về từ SharePoint.</span></header>
     <form id="settingsForm">
-      <section><h2>Operator</h2><div class="grid two"><label>My display name <small>Hiện trong tag WhatsApp coord — bắt buộc khác giữa 2 máy</small><input id="selfDisplayName" required></label><label></label></div></section>
-      <section><h2>WhatsApp groups</h2><div class="grid two"><label>Customer groups <small>Mỗi dòng một group</small><textarea id="customerGroups" rows="7"></textarea></label><label>Coord group <small>Chỉ một group nội bộ</small><input id="coordGroup" required></label></div></section>
-      <section><h2>Outlook filters</h2><p class="helper">Outlook watch path locks alerts to the AOG mailbox/folder. Open the AOG box and copy the URL part after outlook.office.com, for example /mail/aog@trustana.vn/ or /mail/AOG/.</p><div class="grid two"><label>Outlook watch path <small>Leave blank to watch whichever Outlook folder is open</small><input id="outlookWatchPath"></label><label>Sender whitelist <small>Optional. One email, domain, or display-name substring per line</small><textarea id="senderWhitelist" rows="5"></textarea></label><label>Skip sender domains <small>Mỗi dòng một domain; also matches display names containing the domain</small><textarea id="skipDomains" rows="5"></textarea></label><label>Subject keywords <small>Để trống để nhận mọi subject</small><textarea id="subjectKeywords" rows="5"></textarea></label></div></section>
-      <section><h2>Test &amp; Dry-run</h2><p class="helper">Shift slots cấu hình ở popup (Start/End + role mỗi slot). Test mode để ép role + bypass giờ slot khi test ngoài ca.</p><div class="grid four"><label class="check"><input id="testMode" type="checkbox"><span>Test mode<br><small>Bypass slot gate, ép test role</small></span></label><label>Test role<select id="testRole"><option value="primary">Primary (kêu ngay)</option><option value="backup">Backup (chờ backup delay)</option></select></label><label class="check"><input id="dryRun" type="checkbox"><span>Dry-run<br><small>No alarm, no peer tag</small></span></label><label></label></div></section>
-      <section><h2>Timing (seconds)</h2><div class="grid three"><label>Primary timeout<input id="primaryTimeout" type="number" min="5" max="3600" required></label><label>Backup delay<input id="backupDelay" type="number" min="5" max="3600" required></label><label>Max alert duration<input id="maxDuration" type="number" min="10" max="7200" required></label></div></section>
-      <section><h2>Wake behavior</h2><p class="helper">Audio is gated by Chrome idle state. Chrome minimum idle threshold is 15 seconds; escalation timers still run while audio is deferred.</p><div class="grid three"><label>Idle threshold<input id="idleThreshold" type="number" min="15" max="3600" required></label><label>Wake audio mode<select id="wakeAudioMode"><option value="gentle">Gentle loop</option><option value="escalate">Escalating beeps</option></select></label><button id="previewAudio" type="button">Nghe thử</button></div></section>
-      <section><h2>Reports</h2><p class="helper">From/To default to current month if blank.</p><div class="grid four"><label>From<input id="reportFrom" type="date"></label><label>To<input id="reportTo" type="date"></label><button id="exportHr" type="button">Export HR payroll</button><button id="exportAnalytics" type="button">Export analytics XLSX</button></div></section>
-      <div class="actions"><p id="status" role="status"></p><button type="submit">Save settings</button></div>
+      <section>
+        <h2>1. SharePoint AOG</h2>
+        <p class="helper">Link trang SharePoint của group AOG, ví dụ https://congty.sharepoint.com/sites/AOG. Dùng chính tài khoản Microsoft công ty đang đăng nhập trong trình duyệt này.</p>
+        <div class="grid two">
+          <label>Link SharePoint AOG<input id="sharepointSiteUrl" placeholder="https://....sharepoint.com/sites/..."></label>
+          <div class="button-row"><button id="spTest" type="button">Đăng nhập &amp; kiểm tra</button><button id="spOpen" type="button" class="ghost">Mở SharePoint</button></div>
+        </div>
+        <p id="spResult" class="result"></p>
+        <details class="admin"><summary>Dành cho trưởng team (làm một lần)</summary>
+          <p class="helper">"Tạo bảng" tạo 6 bảng AOG_* trên site (cần quyền chủ site). "Đẩy cài đặt chung" ghi các cài đặt dùng chung của máy này lên bảng AOG_Settings để mọi máy tự lấy.</p>
+          <div class="button-row"><button id="spSetup" type="button">Tạo bảng</button><button id="spPublish" type="button" class="ghost">Đẩy cài đặt chung</button></div>
+        </details>
+      </section>
+      <section><h2>2. Người trực</h2><div class="grid two"><label>Tên hiển thị <small>Bắt buộc, khác nhau giữa các máy</small><input id="selfDisplayName" required></label><label></label></div></section>
+      <section><h2>3. WhatsApp</h2>
+        <p class="helper">Danh sách nhóm khách chung nằm trên SharePoint (bảng AOG_Groups) — trưởng team sửa/xoá ở đó. <span id="teamGroupsInfo"></span></p>
+        <div class="grid two">
+          <label>Nhóm điều phối <small>Chung · đường dự phòng khi SharePoint lỗi</small><input id="coordGroup"></label>
+          <label class="check"><input id="unknownChatAlert" type="checkbox"><span>Reo cho chat lạ<br><small>Chat chưa có trong danh sách vẫn reo, kèm nút Thêm / Bỏ qua</small></span></label>
+          <label>Nhóm riêng của tôi <small>Mỗi dòng một nhóm, chỉ máy này canh</small><textarea id="customerGroups" rows="5"></textarea></label>
+          <label>Chat đã bỏ qua <small>Máy này không reo cho các chat này</small><textarea id="ignoredChats" rows="5"></textarea></label>
+        </div>
+      </section>
+      <section><h2>4. Outlook <small>(chung)</small></h2><p class="helper">Mở hộp AOG, copy phần URL sau outlook.office.com, ví dụ /mail/aog@congty.vn/.</p><div class="grid two"><label>Đường dẫn hộp AOG<input id="outlookWatchPath"></label><label>Chỉ nhận từ người gửi <small>Tuỳ chọn, mỗi dòng một email/domain</small><textarea id="senderWhitelist" rows="4"></textarea></label><label>Bỏ qua domain gửi<textarea id="skipDomains" rows="4"></textarea></label><label>Từ khoá tiêu đề <small>Để trống = mọi tiêu đề</small><textarea id="subjectKeywords" rows="4"></textarea></label></div></section>
+      <section><h2>5. Thời gian &amp; cảnh báo <small>(chung)</small></h2>
+        <div class="grid three">
+          <label>Chờ ACK trước khi báo dự phòng (giây)<input id="primaryTimeout" type="number" min="5" max="3600" required></label>
+          <label>Dự phòng tự reo sau (giây)<input id="backupDelay" type="number" min="5" max="3600" required></label>
+          <label>Reo tối đa (giây)<input id="maxDuration" type="number" min="10" max="7200" required></label>
+          <label>Ngưỡng máy để yên (giây)<input id="idleThreshold" type="number" min="15" max="3600" required></label>
+          <label>Kiểu chuông<select id="wakeAudioMode"><option value="gentle">Dịu, lặp lại</option><option value="escalate">To dần</option></select></label>
+          <button id="previewAudio" type="button" class="ghost">Nghe thử</button>
+          <label class="check"><input id="followupEnabled" type="checkbox"><span>Hỏi lại sau ACK</span></label>
+          <label>Hỏi lại sau (phút)<input id="followupAfter" type="number" min="1" max="120"></label>
+          <label>Chờ trả lời (phút)<input id="followupAnswer" type="number" min="1" max="60"></label>
+          <label>Máy kia mất liên lạc sau (phút)<input id="peerLost" type="number" min="2" max="60"></label>
+          <label>Báo quên mở ca sau (phút)<input id="reminderGrace" type="number" min="1" max="120"></label>
+          <label>Báo "mù" sau (phút)<input id="blindAfter" type="number" min="1" max="60"></label>
+        </div>
+      </section>
+      <section><h2>6. Thử nghiệm</h2><div class="grid four"><label class="check"><input id="testMode" type="checkbox"><span>Test mode<br><small>Bỏ qua giờ ca, ép vai trò</small></span></label><label>Vai trò test<select id="testRole"><option value="primary">Chính</option><option value="backup">Dự phòng</option></select></label><label class="check"><input id="dryRun" type="checkbox"><span>Dry-run<br><small>Không reo, không báo máy kia</small></span></label><label></label></div></section>
+      <div class="actions"><p id="status" role="status"></p><button type="submit">Lưu cài đặt</button></div>
     </form>
   </main>
-  <script src="lib/vendor/xlsx.full.min.js"></script>
   <script type="module" src="settings.js"></script>
 </body>
 </html>

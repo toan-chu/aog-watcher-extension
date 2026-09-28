@@ -5,13 +5,15 @@
   const lastUnreadByGroup = new Map();
   const seenTags = new Set();
   let config = null;
+  let teamGroups = [];
   let scanTimer = null;
   let baselineReady = false;
   let lastStats = emptyStats();
 
   async function refreshConfig() {
-    const stored = await runtime.safeStorageGet("aog_config");
+    const stored = await runtime.safeStorageGet(["aog_config", "aog_team_groups"]);
     config = stored.aog_config ?? {};
+    teamGroups = Array.isArray(stored.aog_team_groups) ? stored.aog_team_groups : [];
   }
 
   function groupName(row) {
@@ -26,20 +28,34 @@
     return match ? Number(match[0]) : 1;
   }
 
-  function isCustomer(name) {
+  // 5.0: watch list = team groups (SharePoint) ∪ personal groups − ignored chats.
+  function inList(list, target) {
+    return (list ?? []).some((group) => normalized(group) === target);
+  }
+
+  function chatClass(name) {
     const target = normalized(name);
-    return (config?.customer_groups ?? []).some((group) => normalized(group) === target) && target !== normalized(config?.coord_group);
+    if (!target) return null;
+    if (config?.coord_group && target === normalized(config.coord_group)) return "coord";
+    if (inList(config?.ignored_chats, target)) return "ignored";
+    if (inList(teamGroups, target) || inList(config?.customer_groups, target)) return "customer";
+    return "unknown";
+  }
+
+  function isCustomer(name) {
+    return chatClass(name) === "customer";
   }
 
   function emptyStats() {
-    return { rows_seen: 0, unread_seen: 0, alerts_sent: 0, suppressed_baseline: 0, suppressed_gate: 0, last_scan_at: null };
+    return { rows_seen: 0, unread_seen: 0, alerts_sent: 0, unknown_sent: 0, suppressed_baseline: 0, suppressed_gate: 0, last_scan_at: null };
   }
 
   function currentUnreadSnapshot() {
     const snapshot = {};
     for (const row of all(document, selectors.chatRows)) {
       const name = groupName(row);
-      if (!name || !isCustomer(name)) continue;
+      const kind = chatClass(name);
+      if (!kind || kind === "coord") continue;
       const unread = unreadCount(row);
       if (unread > 0) snapshot[name] = unread;
     }
@@ -68,7 +84,8 @@
         stats.rows_seen += 1;
         const name = groupName(row);
         const unread = unreadCount(row);
-        if (!name || !isCustomer(name)) continue;
+        const kind = chatClass(name);
+        if (!kind || kind === "coord" || kind === "ignored") continue;
         if (unread > 0) stats.unread_seen += 1;
         const previousUnread = lastUnreadByGroup.get(name);
         lastUnreadByGroup.set(name, unread);
@@ -79,8 +96,9 @@
         if (unread <= 0 || unread <= previousUnread) continue;
         const minute = new Date(); minute.setSeconds(0, 0);
         const signature = `${name}|${unread}|${minute.toISOString()}`;
-        stats.alerts_sent += 1;
-        runtime.safeSendMessage({ type: "ALERT_DETECTED", alert: { source: "whatsapp", group_name: name, unread_count: unread, message_text: "", active_conversation: activeConversationName(document, selectors), detected_at: new Date().toISOString(), raw_id: signature } }).catch(() => {});
+        const unknownChat = kind === "unknown";
+        if (unknownChat) stats.unknown_sent += 1; else stats.alerts_sent += 1;
+        runtime.safeSendMessage({ type: "ALERT_DETECTED", alert: { source: "whatsapp", group_name: name, unknown_chat: unknownChat, unread_count: unread, message_text: "", active_conversation: activeConversationName(document, selectors), detected_at: new Date().toISOString(), raw_id: signature } }).catch(() => {});
       } catch (error) {
         console.warn("AOG Watcher: WhatsApp row scan failed", error);
       }
@@ -207,7 +225,12 @@
     return true;
   });
 
-  runtime.addStorageChangedListener((changes, area) => { if (area === "local" && changes.aog_config) { config = changes.aog_config.newValue; scheduleScan(); } });
+  runtime.addStorageChangedListener((changes, area) => {
+    if (area !== "local") return;
+    if (changes.aog_config) config = changes.aog_config.newValue;
+    if (changes.aog_team_groups) teamGroups = Array.isArray(changes.aog_team_groups.newValue) ? changes.aog_team_groups.newValue : [];
+    if (changes.aog_config || changes.aog_team_groups) scheduleScan();
+  });
 
   function sendHealth() {
     runtime.safeSendMessage({ type: "CONTENT_HEALTH", source: "whatsapp", connected: true, stats: lastStats }).catch(() => {});

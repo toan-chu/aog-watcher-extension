@@ -78,7 +78,7 @@ async function boot({ config = {}, sharepoint = null } = {}) {
   globalThis.chrome = chrome;
   if (sharepoint) globalThis.fetch = sharepoint.fetch;
   const { DEFAULT_CONFIG } = await import("../lib/constants.js");
-  chrome._store.aog_config = { ...DEFAULT_CONFIG, self_display_name: "Hoài", test_mode: true, test_role: "primary", ...config };
+  chrome._store.aog_config = { ...DEFAULT_CONFIG, sharepoint_site_url: "", self_display_name: "Hoài", test_mode: true, test_role: "primary", ...config };
   await import("../service_worker.js");
   const send = (message) => new Promise((resolve) => { chrome._listeners.message[0](message, {}, resolve); });
   const alarm = (name) => chrome._listeners.alarm[0]({ name });

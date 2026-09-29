@@ -1,9 +1,9 @@
 Mã:         V5-02
 Mạch:       V5 - AOG Watcher 5.0
 Nối tiếp:   V5-01
-Giao cho:   claude [COWORK-EXEC]
+Giao cho:   claude-ceo [COWORK-EXEC]
 Trạng thái: chờ-nghiệm-thu
-Vòng:       1/2
+Vòng:       2/2
 
 ## ĐỀ BÀI
 
@@ -42,6 +42,7 @@ Popup và trang Cài đặt của AOG Watcher 5.0 mang đúng nhận diện Trus
 - [x] Icon đổi sang tím Trustana + trăng cam + chấm đỏ (sinh lại bằng `tools/generate_assets.mjs`; âm thanh không đổi).
 - [x] Test tĩnh + ảnh chụp 3 trạng thái popup và trang Cài đặt vào `handoff/shots/`.
 - [ ] Chairman: mở popup trên máy thật, xem KS-1..KS-5. `[RUNTIME CHƯA KIỂM]`
+- [x] Vòng 2 (Chairman 2026-09-29: nền tím khó đọc): popup đổi sang nền trắng, chữ tím/đen như trang Cài đặt; thanh tiêu đề giữ tím Trustana. Ảnh: `shots/20260929_V5-02_05..07_popup-nen-trang-*.png`.
 
 ## AUDIT
 
@@ -62,7 +63,7 @@ Tests       181 passed (181)
 × V5-02 Trustana brand UI > keeps status colours distinct from the brand orange
 ```
 
-Ảnh chụp (Chromium headless, dữ liệu giả): `handoff/shots/20260929_V5-02_popup-alerting.png`, `..._popup-ready.png`, `..._popup-idle.png`, `..._settings.png`. Ảnh idle chụp trước lần chỉnh cột "Dự phòng" cuối cùng (chữ có thể hơi sát mép).
+Ảnh chụp vòng 1 (nền tối, Chromium headless, dữ liệu giả): `shots/20260929_V5-02_01..04_*.png` (đổi tên theo chuẩn v1.1 ở RF-03).
 
 **Sai lệch / lưu ý:**
 
@@ -93,3 +94,17 @@ Báo lỗi giả: không.
 Lessons: xem giao diện extension ngoài Chrome phải phục vụ qua http, không mở file://.
 
 -- claude - 2026-09-29
+
+### 2026-09-29 (vòng 2)
+
+Chairman nhận xét vòng 1: popup nền tím khó đọc → HỎNG vòng 1 về độ dễ đọc. Vòng 2: nền trắng, tiêu đề mục tím, chữ đen, trạng thái xanh/vàng/đỏ đậm cho nền sáng.
+
+Failure: bản đầu vòng 2 làm chữ "AOG Watcher" trên thanh tím thành màu đen, và nút Thử chuông vẫn hiện khi đã SẴN SÀNG (CSS ghi đè thuộc tính hidden). Thấy trên ảnh chụp, đã sửa trước khi giao.
+
+Báo lỗi giả: không.
+
+Lessons: đổi theme phải chụp lại cả 3 trạng thái rồi mới giao; thuộc tính `hidden` cần luật CSS `[hidden] { display: none !important }` khi phần tử có `display` riêng.
+
+Lưu ý nghiệp vụ: nền trắng lúc nửa đêm sẽ chói hơn (KS-2 "màn hình không chói"). Chairman quyết khi nghiệm thu.
+
+-- claude-ceo - 2026-09-29 10:58 UTC+7

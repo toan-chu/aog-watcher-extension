@@ -8,9 +8,9 @@ Extension Chrome/Edge canh WhatsApp Web và Outlook Web trong ca đêm, reo khi 
 
 ## A. Trưởng team — làm một lần
 
-1. Có sẵn một trang SharePoint cho group AOG (ví dụ `https://congty.sharepoint.com/sites/AOG`). Mọi người trực phải có quyền **sửa** trên trang này.
+1. Dữ liệu AOG nằm trong site CX: `https://trustanavn.sharepoint.com/sites/cx9` (đã là mặc định trong extension). Mọi người trực phải có quyền **sửa** trên các bảng AOG_*.
 2. Cài extension trên máy mình (mục B.1), mở **Cài đặt**.
-3. Mục **1. SharePoint AOG**: dán link trang → bấm **Đăng nhập & kiểm tra**.
+3. Mục **1. SharePoint AOG**: link site CX đã điền sẵn → bấm **Đăng nhập & kiểm tra**.
    - Đúng: hiện tên + email công ty của mình.
    - Sai "từ chối quyền / yêu cầu đăng nhập": bấm **Mở SharePoint**, đăng nhập bằng email công ty, quay lại bấm kiểm tra lần nữa.
 4. Mở **Dành cho trưởng team** → bấm **Tạo bảng**. Extension tạo 6 bảng trên trang:
@@ -35,7 +35,7 @@ Muốn xem như **một file Excel nhiều tab**: tạo file Excel trên SharePo
    - Đúng: icon trăng khuyết xuất hiện trên thanh công cụ.
    - Cập nhật bản mới: thay thư mục, bấm nút tải lại trên thẻ extension, rồi **tải lại tab WhatsApp và Outlook**.
 2. Chuột phải icon → **Options** (Cài đặt):
-   - Dán link SharePoint AOG → **Đăng nhập & kiểm tra** → thấy email công ty của mình là đúng.
+   - Link site CX đã điền sẵn → **Đăng nhập & kiểm tra** → thấy email công ty của mình là đúng.
    - Điền **Tên hiển thị** (khác người trực cùng) → **Lưu**.
    - Không cần chép nhóm hay cài đặt gì khác — đã tự lấy từ SharePoint.
 3. Mở sẵn 2 tab trong cùng trình duyệt: **WhatsApp Web** (đã quét QR) và **Outlook Web ở đúng hộp AOG**.

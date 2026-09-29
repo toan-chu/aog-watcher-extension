@@ -4,72 +4,90 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>AOG Watcher</title>
+  <link rel="stylesheet" href="assets/fonts/fonts.css">
   <link rel="stylesheet" href="popup.css">
 </head>
 <body>
-  <main class="shell">
-    <header class="topbar">
-      <div><p class="eyebrow">NIGHT OPS · <span id="versionValue">5.0</span></p><h1>AOG Watcher</h1></div>
-      <div class="badges"><span id="dryRunBadge" class="dry-run" hidden>DRY-RUN</span><span id="testModeBadge" class="dry-run" hidden>TEST</span><span id="readyBadge" class="ready ready--off">CHƯA VÀO CA</span><span id="stateBadge" class="state state--idle">IDLE</span></div>
-    </header>
+  <header class="brandbar">
+    <div class="brandbar__title">
+      <p class="eyebrow">by TRUST<span class="eyebrow__ana">ANA</span> · <span id="versionValue">5.0</span></p>
+      <h1>AOG Watcher</h1>
+    </div>
+    <div class="badges">
+      <span id="stateBadge" class="state state--idle">IDLE</span>
+      <span id="readyBadge" class="ready ready--off">CHƯA VÀO CA</span>
+      <span id="dryRunBadge" class="tag" hidden>DRY-RUN</span>
+      <span id="testModeBadge" class="tag" hidden>TEST</span>
+    </div>
+  </header>
 
+  <main class="shell">
+    <!-- 1. Việc gấp: cảnh báo hệ thống và tin đang reo luôn nằm trên cùng -->
     <section id="systemAlerts" class="system-alerts" aria-live="assertive"></section>
 
-    <section id="alertPanel" class="alert-panel" aria-live="polite">
+    <section id="alertPanel" class="card alert-panel" aria-live="polite">
       <p class="alert-panel__label">Tin đang reo</p>
       <strong id="alertTitle">Không có tin</strong>
       <span id="alertMeta">Watcher đang canh.</span>
+      <button id="ackButton" class="ack" type="button" disabled>ACK — TÔI NHẬN XỬ LÝ</button>
     </section>
-    <button id="ackButton" class="ack" type="button" disabled>ACK — TÔI NHẬN XỬ LÝ</button>
 
-    <section id="unknownChats" class="unknown" hidden>
-      <p class="section-label">Chat lạ vừa nhắn (chưa có trong danh sách)</p>
+    <section id="unknownChats" class="card unknown" hidden>
+      <h2>Chat lạ vừa nhắn</h2>
+      <p class="card__hint">Chưa có trong danh sách. Nhóm khách → thêm; chat cá nhân → bỏ qua.</p>
       <div id="unknownList"></div>
     </section>
 
-    <section class="metrics" aria-label="Status">
-      <div><span>Vai trò</span><strong id="roleValue">--</strong></div>
-      <div><span>Hàng chờ</span><strong id="queueValue">0</strong></div>
-      <div><span>Nhóm canh</span><strong id="groupsValue">0</strong></div>
+    <!-- 2. Ca trực -->
+    <section id="shiftSetup" class="card role-setup">
+      <h2>Ca trực</h2>
+      <div class="metrics" aria-label="Trạng thái ca">
+        <div><span>Vai trò</span><strong id="roleValue">--</strong></div>
+        <div><span>Hàng chờ</span><strong id="queueValue">0</strong></div>
+        <div><span>Nhóm canh</span><strong id="groupsValue">0</strong></div>
+      </div>
+      <div class="role-row">
+        <button id="startShiftButton" class="cta" type="button">Bắt đầu ca</button>
+        <button id="endShiftButton" class="end-shift" type="button" hidden>Kết thúc ca</button>
+        <span id="shiftStatusHint" class="hint">Chưa bắt đầu ca</span>
+      </div>
+      <details class="slots">
+        <summary>Giờ ca tối nay <small>vai trò tự đổi theo giờ máy</small></summary>
+        <div class="slot-row" data-slot="0">
+          <span class="slot-label">Slot 1</span>
+          <input type="time" data-field="start" required>
+          <span>→</span>
+          <input type="time" data-field="end" required>
+          <select data-field="role"><option value="primary">Chính</option><option value="backup">Dự phòng</option></select>
+        </div>
+        <div class="slot-row" data-slot="1">
+          <span class="slot-label">Slot 2</span>
+          <input type="time" data-field="start" required>
+          <span>→</span>
+          <input type="time" data-field="end" required>
+          <select data-field="role"><option value="primary">Chính</option><option value="backup">Dự phòng</option></select>
+        </div>
+      </details>
     </section>
 
-    <section class="connections" aria-label="Nguồn">
+    <!-- 3. Kiểm tra đầu ca (chỉ hiện khi đang trong ca) -->
+    <section id="preflight" class="card preflight" hidden>
+      <h2>Kiểm tra đầu ca</h2>
+      <ul id="preflightList"></ul>
+      <div class="preflight__actions"><button id="testSoundButton" type="button">Thử chuông</button><button id="soundOkButton" type="button" class="primary">Nghe rõ</button></div>
+    </section>
+
+    <!-- 4. Nguồn tin -->
+    <section class="card connections" aria-label="Nguồn tin">
+      <h2>Nguồn tin</h2>
       <div><i id="whatsappDot"></i><span>WhatsApp Web</span><strong id="whatsappValue">--</strong></div>
       <div><i id="outlookDot"></i><span>Outlook (hộp AOG)</span><strong id="outlookValue">--</strong></div>
       <div><i id="sharepointDot"></i><span>SharePoint AOG</span><strong id="sharepointValue">--</strong></div>
       <div><i id="peerDot"></i><span>Máy trực cùng</span><strong id="peerValue">--</strong></div>
     </section>
 
-    <section id="preflight" class="preflight" hidden>
-      <p class="section-label">Kiểm tra đầu ca</p>
-      <ul id="preflightList"></ul>
-      <div class="preflight__actions"><button id="testSoundButton" type="button">Thử chuông</button><button id="soundOkButton" type="button">Nghe rõ</button></div>
-    </section>
-
-    <section id="shiftSetup" class="role-setup">
-      <label>Giờ ca tối nay <small>Vai trò tự đổi theo giờ máy</small></label>
-      <div class="slot-row" data-slot="0">
-        <span class="slot-label">Slot 1</span>
-        <input type="time" data-field="start" required>
-        <span>→</span>
-        <input type="time" data-field="end" required>
-        <select data-field="role"><option value="primary">Chính</option><option value="backup">Dự phòng</option></select>
-      </div>
-      <div class="slot-row" data-slot="1">
-        <span class="slot-label">Slot 2</span>
-        <input type="time" data-field="start" required>
-        <span>→</span>
-        <input type="time" data-field="end" required>
-        <select data-field="role"><option value="primary">Chính</option><option value="backup">Dự phòng</option></select>
-      </div>
-      <div class="role-row">
-        <button id="startShiftButton" type="button">Bắt đầu ca</button>
-        <button id="endShiftButton" class="end-shift" type="button" hidden>Kết thúc ca</button>
-        <span id="shiftStatusHint" class="hint">Chưa bắt đầu ca</span>
-      </div>
-    </section>
-
-    <details class="leak">
+    <!-- 5. Ít dùng -->
+    <details class="fold leak">
       <summary>Có tin bị lọt? (Watcher không reo)</summary>
       <div class="leak__form">
         <select id="leakSource"><option value="whatsapp">WhatsApp</option><option value="email">Outlook</option></select>
@@ -79,15 +97,15 @@
       </div>
     </details>
 
-    <details class="diagnostics">
+    <section class="recent">
+      <h2>Sự kiện gần đây</h2>
+      <ul id="recentEvents"></ul>
+    </section>
+
+    <details class="fold diagnostics">
       <summary>Chẩn đoán</summary>
       <div id="diagnosticsRows" class="diagnostics__rows"></div>
     </details>
-
-    <section class="recent">
-      <div class="recent__head"><span>Sự kiện gần đây</span></div>
-      <ul id="recentEvents"></ul>
-    </section>
 
     <footer>
       <button id="sharepointButton" class="text-button" type="button" hidden>Mở SharePoint</button>

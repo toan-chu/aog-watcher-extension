@@ -7,6 +7,7 @@ const elements = Object.fromEntries(ids.map((id) => [id, document.getElementById
 const slotRows = [...document.querySelectorAll(".slot-row")];
 let endShiftConfirmTimer = null;
 let lastStatus = null;
+let slotsInitialized = false;
 
 const ROLE_LABEL = { primary: "CHÍNH", backup: "DỰ PHÒNG" };
 function showFeedback(message) { elements.feedback.textContent = message; }
@@ -110,6 +111,13 @@ function renderPreflight(status) {
   elements.readyBadge.textContent = !status.session ? "CHƯA VÀO CA" : (ready ? "SẴN SÀNG" : "CHƯA SẴN SÀNG");
   elements.readyBadge.className = `ready ${!status.session ? "ready--off" : (ready ? "ready--ok" : "ready--bad")}`;
   if (!pf) { elements.preflightList.replaceChildren(el("li", { textContent: "Đang kiểm tra…" })); return; }
+  // Popup height is limited (~600px): once ready, collapse the checklist to one line.
+  document.querySelector(".preflight__actions").hidden = ready;
+  if (ready) {
+    const warns = pf.items.filter((item) => item.status === "warn").length;
+    elements.preflightList.replaceChildren(el("li", { className: "pf--pass", textContent: `Đạt ${pf.items.length - warns}/${pf.items.length} mục${warns ? ` · ${warns} lưu ý` : ""} — sẵn sàng` }));
+    return;
+  }
   elements.preflightList.replaceChildren(...pf.items.map((item) => {
     const li = el("li", { className: `pf--${item.status}`, textContent: item.label });
     if (item.hint) li.append(el("small", { textContent: item.hint }));
@@ -120,6 +128,7 @@ function renderPreflight(status) {
 function render(status) {
   lastStatus = status;
   const active = status.app_state === "ALERTING";
+  document.body.classList.toggle("is-alerting", active || (status.system_alerts ?? []).some((item) => item.ring && !item.acknowledged));
   elements.versionValue.textContent = status.version ?? "5.0";
   elements.stateBadge.textContent = active ? "ĐANG REO" : "IDLE";
   elements.stateBadge.className = `state ${active ? "state--alerting" : "state--idle"}`;
@@ -160,6 +169,7 @@ function render(status) {
     elements.shiftStatusHint.textContent = "Chưa bắt đầu ca";
   }
   if (document.activeElement?.closest?.(".slot-row") === null) writeSlotsToUI(status.shift_slots);
+  if (!slotsInitialized) { document.querySelector(".slots").open = !hasSession; slotsInitialized = true; }
 
   elements.diagnosticsRows.replaceChildren(
     ...["whatsapp", "outlook"].map((source) => {

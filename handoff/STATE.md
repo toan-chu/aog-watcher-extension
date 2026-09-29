@@ -1,10 +1,10 @@
-Cập nhật:  2026-09-28 16:45 UTC+7 - bởi claude
+Cập nhật:  2026-09-29 10:10 UTC+7 - bởi claude
 Chỉ huy:   claude [COWORK-EXEC] (Codex bận, Chairman giải trừ 2026-09-28)
 
 ## Việc đang mở
 
 V5-01  chờ-nghiệm-thu  AOG Watcher 5.0.0 (code xong, 176/176 test; runtime chưa kiểm)
-V5-02  mở             Theme Trustana + dựng lại bố cục popup/Cài đặt (làm tiếp 2026-09-29)
+V5-02  chờ-nghiệm-thu  Theme Trustana + bố cục popup/Cài đặt (181/181 test; ảnh ở handoff/shots)
 
 ## Hôm qua
 
@@ -20,7 +20,7 @@ RF-02  đóng-đạt  2026-09-28
 ## Đang treo, cần Chairman
 
 - V5-01: gửi link site SharePoint AOG; nghiệm thu runtime KS-1..KS-8 trên 2 máy thật.
-- V5-02: chốt font (Roboto/Calibri theo guideline hay Montserrat/Quicksand); duyệt kịch bản nháp.
+- V5-02: mở popup trên máy thật, xem KS-1..KS-5.
 - Import `handoff-standard` vào tài liệu Project; `RULES.md` chưa ghi sinh từ phiên bản chuẩn nào.
 
 ## Bẫy đã biết

@@ -2,8 +2,8 @@ Mã:         V5-02
 Mạch:       V5 - AOG Watcher 5.0
 Nối tiếp:   V5-01
 Giao cho:   claude [COWORK-EXEC]
-Trạng thái: mở - chờ Chairman duyệt kịch bản, làm tiếp 2026-09-29
-Vòng:       0/2
+Trạng thái: chờ-nghiệm-thu
+Vòng:       1/2
 
 ## ĐỀ BÀI
 
@@ -14,7 +14,7 @@ Popup và trang Cài đặt của AOG Watcher 5.0 mang đúng nhận diện Trus
 **Brand guideline (Chairman gửi 2026-09-28)**
 
 - Tím Trustana `#4d148c`, cam Trustana `#ff6200`.
-- Font theo guideline: Roboto cho tiêu đề, Calibri cho nội dung. Chairman cân nhắc Quicksand hoặc Montserrat → chờ chốt.
+- Font: guideline ghi Roboto/Calibri. Chairman cho triển khai (2026-09-29) theo đề xuất: Montserrat cho tiêu đề (đóng gói sẵn, có dấu tiếng Việt), Calibri cho nội dung.
 
 **Ngoài phạm vi**
 
@@ -26,27 +26,49 @@ Popup và trang Cài đặt của AOG Watcher 5.0 mang đúng nhận diện Trus
 - V5-01 code xong 5.0.0 (commit e8b10a2), chờ nghiệm thu runtime; popup/settings hiện dùng theme tối xanh lá của 4.3 cộng thêm các khối mới.
 - Người dùng nhìn popup lúc nửa đêm, vừa bị đánh thức.
 
-**Kịch bản nghiệm thu** — NHÁP, chờ Chairman duyệt/sửa. Claude không tự viết tiêu chí cuối và không tự nghiệm thu.
+**Kịch bản nghiệm thu** — Chairman cho triển khai 2026-09-29 với số mặc định (3 giây, 30 giây). Claude không tự nghiệm thu.
 
 - KS-1 Nhận diện: mở popup và Cài đặt → thấy tím/cam Trustana và font đã chốt; không còn màu xanh lá 4.3.
-- KS-2 Đọc được lúc nửa đêm: người vừa bị đánh thức nhìn popup trong phòng tối → trong ___ giây biết đang có tin hay không và bấm được ACK; màn hình không chói.
+- KS-2 Đọc được lúc nửa đêm: người vừa bị đánh thức nhìn popup trong phòng tối → trong 3 giây biết đang có tin hay không và bấm được ACK; màn hình không chói.
 - KS-3 Phân biệt màu: tin đang reo / lỗi đỏ / cảnh báo / bình thường không bị lẫn với màu cam thương hiệu. Tuyệt đối không: một ô lỗi trông giống ô trang trí.
-- KS-4 Bố cục theo luồng: popup chia rõ các vùng Ca trực · Tin đang reo · Kiểm tra đầu ca · Nguồn tin · Sự kiện; người mới không cần hướng dẫn vẫn tìm được nút Bắt đầu ca, ACK, Thử chuông trong ___ giây.
+- KS-4 Bố cục theo luồng: popup chia rõ các vùng Ca trực · Tin đang reo · Kiểm tra đầu ca · Nguồn tin · Sự kiện; người mới không cần hướng dẫn vẫn tìm được nút Bắt đầu ca, ACK, Thử chuông trong 30 giây.
 - KS-5 Không mất tính năng: mọi nút của 5.0 vẫn có và vẫn chạy (npm run check đạt; soát tay từng nút).
 
 ## TODO
 
-- [ ] Chairman chốt font và duyệt kịch bản.
-- [ ] Đề xuất 2 phương án bố cục popup (vẽ ASCII) để Chairman chọn trước khi code.
-- [ ] Dựng lại HTML/CSS popup + Cài đặt theo phương án đã chọn; đóng gói font trong extension (không tải từ mạng lúc nửa đêm).
-- [ ] Cập nhật icon nếu Chairman muốn theo màu thương hiệu.
-- [ ] Test tĩnh + soát tay, ảnh chụp vào `handoff/shots/`.
+- [x] Font: Montserrat 600/700 (latin, latin-ext, vietnamese) đóng gói ở `assets/fonts/` kèm giấy phép OFL; Calibri cho nội dung.
+- [x] Bỏ bước chọn 2 phương án: Chairman bảo triển khai luôn → một bố cục theo độ gấp (xem Report).
+- [x] Dựng lại HTML/CSS popup (theme đêm tím) + Cài đặt (theme ngày sáng); giữ nguyên mọi id nên logic 5.0 không đổi.
+- [x] Icon đổi sang tím Trustana + trăng cam + chấm đỏ (sinh lại bằng `tools/generate_assets.mjs`; âm thanh không đổi).
+- [x] Test tĩnh + ảnh chụp 3 trạng thái popup và trang Cài đặt vào `handoff/shots/`.
+- [ ] Chairman: mở popup trên máy thật, xem KS-1..KS-5. `[RUNTIME CHƯA KIỂM]`
 
 ## AUDIT
 
 ### Report from the executor
 
-Chưa bắt đầu.
+**Bố cục popup (từ trên xuống theo độ gấp):** thanh thương hiệu (tím, viền cam, huy hiệu ĐANG REO / SẴN SÀNG) → cảnh báo hệ thống → Tin đang reo + nút ACK lớn → Chat lạ → Ca trực (vai trò, hàng chờ, Bắt đầu/Kết thúc, giờ ca gập lại) → Kiểm tra đầu ca (gập thành 1 dòng khi đã đạt) → Nguồn tin → Tin bị lọt / Sự kiện / Chẩn đoán. Khi có chuông, thanh trên cùng chuyển đỏ.
+
+**Màu:** cam Trustana chỉ dùng cho nút hành động chính và điểm nhấn thương hiệu. Trạng thái dùng màu riêng: xanh `#34d399` bình thường, vàng `#facc15` lưu ý, đỏ hồng `#ff3b5c` lỗi/đang reo.
+
+**Lệnh và output:**
+
+```text
+> npm run check
+MV3 check passed (14 referenced files).
+Test Files  28 passed (28)
+Tests       181 passed (181)
+> negative control: --danger = #ff6200 (trùng cam thương hiệu)
+× V5-02 Trustana brand UI > keeps status colours distinct from the brand orange
+```
+
+Ảnh chụp (Chromium headless, dữ liệu giả): `handoff/shots/20260929_V5-02_popup-alerting.png`, `..._popup-ready.png`, `..._popup-idle.png`, `..._settings.png`. Ảnh idle chụp trước lần chỉnh cột "Dự phòng" cuối cùng (chữ có thể hơi sát mép).
+
+**Sai lệch / lưu ý:**
+
+- Popup Chrome cao tối đa ~600px: lúc đang reo có đủ khối thì phải cuộn, nhưng khối reo + ACK luôn ở đầu nên không cần cuộn để ACK.
+- Ô giờ ca hiển thị 12h hay 24h theo ngôn ngữ Windows của máy.
+- `[RUNTIME CHƯA KIỂM]` trên Chrome/Edge thật.
 
 ### Acceptance signature
 
@@ -59,3 +81,15 @@ Chưa ký.
 Mở phiếu theo yêu cầu Chairman; chưa sửa file chức năng nào.
 
 -- claude - 2026-09-28
+
+### 2026-09-29
+
+Chairman: "triển khai tiếp". Làm theo font đã đề xuất (Montserrat + Calibri) và số mặc định trong kịch bản.
+
+Failure: ảnh chụp đầu tiên mở file trực tiếp nên trình duyệt chặn script module → popup trống; chuyển sang phục vụ qua http cục bộ. Ô giờ ca tràn ngang khi hiển thị AM/PM → sửa lưới cột.
+
+Báo lỗi giả: không.
+
+Lessons: xem giao diện extension ngoài Chrome phải phục vụ qua http, không mở file://.
+
+-- claude - 2026-09-29

@@ -23,7 +23,7 @@ function chunk(type, data) {
   return output;
 }
 
-// Night-shift theme: rounded navy tile, warm crescent moon, coral alert dot.
+// Trustana night theme (5.0): purple tile #4d148c, orange crescent #ff6200, crimson alert dot.
 // Shapes are drawn with signed-distance coverage for smooth anti-aliased edges at every size.
 function icon(size) {
   const px = 1 / size;
@@ -40,15 +40,15 @@ function icon(size) {
       const dx = Math.max(Math.abs(u - 0.5) - (0.5 - cornerRadius), 0);
       const dy = Math.max(Math.abs(v - 0.5) - (0.5 - cornerRadius), 0);
       const cover = clamp01((cornerRadius - Math.hypot(dx, dy)) / px / 1.5 + 0.5);
-      // Navy vertical gradient background.
-      let rgb = mix([38, 48, 94], [21, 27, 58], v);
+      // Trustana purple vertical gradient background.
+      let rgb = mix([92, 28, 160], [45, 11, 85], v);
       // Crescent moon = big circle minus offset cut circle.
       const moon = clamp01(circle(u, v, 0.44, 0.55, 0.27) - circle(u, v, 0.56, 0.46, 0.24));
-      rgb = mix(rgb, [255, 213, 110], moon);
+      rgb = mix(rgb, [255, 98, 0], moon);
       // Coral alert dot top-right, with a thin background ring so it reads on any backdrop.
       const ring = circle(u, v, 0.74, 0.28, 0.155);
       const dot = circle(u, v, 0.74, 0.28, 0.115);
-      rgb = mix(rgb, mix([21, 27, 58], [255, 100, 92], dot), ring);
+      rgb = mix(rgb, mix([45, 11, 85], [255, 59, 92], dot), ring);
       const offset = 1 + x * 4;
       row.set([Math.round(rgb[0]), Math.round(rgb[1]), Math.round(rgb[2]), Math.round(cover * 255)], offset);
     }

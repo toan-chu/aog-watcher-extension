@@ -1,34 +1,54 @@
-:root { color-scheme: dark; --bg: #0b110e; --panel: #141e1a; --line: #2a3b34; --ink: #edf3ef; --muted: #93a39b; --green: #52d68b; --red: #ff6b61; }
+/* AOG Watcher 5.0 settings — Trustana light theme (used by day). */
+:root {
+  color-scheme: light;
+  --brand-purple: #4d148c;
+  --brand-purple-deep: #2d0b55;
+  --brand-orange: #ff6200;
+  --bg: #f7f4fb;
+  --panel: #ffffff;
+  --line: #e1d8ee;
+  --ink: #221433;
+  --muted: #6b5d80;
+  --ok: #0f8a5f;
+  --danger: #d7263d;
+  --on-orange: #1a0a2e;
+  --font-head: "Montserrat", "Segoe UI", sans-serif;
+  --font-body: Calibri, "Segoe UI", "Carlito", sans-serif;
+  --green: var(--ok);
+  --red: var(--danger);
+}
 * { box-sizing: border-box; }
-body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 "Segoe UI", sans-serif; }
-main { width: min(920px, calc(100% - 32px)); margin: 48px auto 80px; }
-header { border-left: 4px solid var(--green); padding-left: 20px; margin-bottom: 28px; }
-header p { margin: 0; color: var(--green); font: 700 11px/1 Bahnschrift, sans-serif; }
-h1 { margin: 5px 0; font: 600 34px/1.15 Bahnschrift, "Segoe UI", sans-serif; }
-header span, small { color: var(--muted); }
-.helper { margin: -8px 0 16px; color: var(--muted); font-size: 13px; }
-section { padding: 22px 0; border-top: 1px solid var(--line); }
-h2 { margin: 0 0 16px; font: 600 17px/1 Bahnschrift, sans-serif; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 var(--font-body); }
+main { width: min(960px, calc(100% - 32px)); margin: 0 auto 80px; }
+.brandbar { margin: 0 calc(50% - 50vw) 24px; padding: 28px calc(50vw - 50% + 16px) 22px; background: linear-gradient(135deg, var(--brand-purple), var(--brand-purple-deep)); border-bottom: 4px solid var(--brand-orange); color: #fff; }
+.brandbar p { margin: 0; font: 600 11px/1 var(--font-head); letter-spacing: .08em; color: #e6dcf5; }
+.brandbar .ana { color: var(--brand-orange); }
+h1 { margin: 6px 0; font: 700 32px/1.15 var(--font-head); }
+.brandbar > span { color: #efe7fa; }
+.helper { margin: -6px 0 16px; color: var(--muted); font-size: 14px; }
+section { margin-bottom: 16px; padding: 22px 24px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; }
+h2 { margin: 0 0 16px; color: var(--brand-purple); font: 700 18px/1.2 var(--font-head); }
+h2 small { color: var(--muted); font: 400 13px var(--font-body); }
+small { color: var(--muted); }
 .grid { display: grid; gap: 18px; }
-.two { grid-template-columns: 1fr 1fr; }.three { grid-template-columns: repeat(3, 1fr); }.four { grid-template-columns: repeat(4, 1fr); }
-label { display: grid; gap: 6px; color: #cad5cf; font-size: 13px; }
-input, textarea, select { width: 100%; border: 1px solid var(--line); background: var(--panel); color: var(--ink); padding: 10px 12px; font: inherit; resize: vertical; }
-input:focus, textarea:focus, select:focus, button:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; border-color: transparent; }
-.check { display: flex; align-items: center; gap: 10px; padding-top: 26px; }
-.check input { width: 18px; height: 18px; accent-color: var(--green); }
-.actions { position: sticky; bottom: 0; display: flex; justify-content: space-between; align-items: center; gap: 20px; background: rgb(11 17 14 / 94%); border-top: 1px solid var(--line); padding: 16px 0; backdrop-filter: blur(8px); }
-.actions p { margin: 0; color: var(--red); }
-button { border: 0; background: var(--green); color: #07110c; padding: 12px 24px; font: 700 14px/1 Bahnschrift, sans-serif; cursor: pointer; }
-button:hover { filter: brightness(1.08); }
+.two { grid-template-columns: 1fr 1fr; } .three { grid-template-columns: repeat(3, 1fr); } .four { grid-template-columns: repeat(4, 1fr); }
+label { display: grid; gap: 6px; color: var(--ink); font-size: 14px; font-weight: 600; }
+label small { font-weight: 400; }
+input, textarea, select { width: 100%; border: 1px solid var(--line); border-radius: 5px; background: #fff; color: var(--ink); padding: 10px 12px; font: 400 15px var(--font-body); resize: vertical; }
+input:focus, textarea:focus, select:focus, button:focus-visible, summary:focus-visible { outline: 2px solid var(--brand-orange); outline-offset: 2px; border-color: transparent; }
+.check { display: flex; align-items: center; gap: 10px; padding-top: 24px; font-weight: 400; }
+.check input { width: 18px; height: 18px; accent-color: var(--brand-purple); }
+.button-row { display: flex; gap: 10px; align-items: end; flex-wrap: wrap; }
+button { border: 0; border-radius: 5px; background: var(--brand-orange); color: var(--on-orange); padding: 12px 22px; font: 700 14px/1 var(--font-head); cursor: pointer; }
+button.ghost { background: transparent; color: var(--brand-purple); border: 1px solid var(--brand-purple); }
+button:hover { filter: brightness(1.06); }
 button:disabled { opacity: .62; cursor: wait; }
 button[data-busy="true"]::before { content: "⏳ "; }
-@media (max-width: 680px) { .two, .three, .four { grid-template-columns: 1fr; } main { margin-top: 24px; } }
-/* 5.0 */
-.button-row { display: flex; gap: 10px; align-items: end; flex-wrap: wrap; }
-button.ghost { background: transparent; color: var(--green); border: 1px solid var(--green); }
-.result { min-height: 20px; margin: 12px 0 0; color: var(--muted); font-size: 13px; white-space: pre-line; }
-.result.ok { color: var(--green); }
-.result.bad { color: var(--red); }
-.admin { margin-top: 16px; border: 1px solid var(--line); padding: 12px 14px; }
-.admin summary { cursor: pointer; color: var(--muted); }
-h2 small { color: var(--muted); font-size: 12px; font-weight: 400; }
+.result { min-height: 20px; margin: 12px 0 0; color: var(--muted); font-size: 14px; white-space: pre-line; }
+.result.ok { color: var(--ok); }
+.result.bad { color: var(--danger); }
+.admin { margin-top: 16px; border: 1px dashed var(--line); border-radius: 6px; padding: 12px 14px; }
+.admin summary { cursor: pointer; color: var(--brand-purple); font-weight: 600; }
+.actions { position: sticky; bottom: 0; display: flex; justify-content: space-between; align-items: center; gap: 20px; background: rgb(247 244 251 / 95%); border-top: 1px solid var(--line); padding: 16px 0; backdrop-filter: blur(8px); }
+.actions p { margin: 0; color: var(--danger); }
+@media (max-width: 680px) { .two, .three, .four { grid-template-columns: 1fr; } }

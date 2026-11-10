@@ -140,6 +140,9 @@ Soát:
 Kết quả: ĐẠT PHẦN MÃ; giữ `chờ-soát` cho KS-2 đến KS-7 trên hai máy thật.
 -- codex - 2026-11-10 15:49 +07
 
+- 2026-11-10: theo quyết định mới của user, đã xoá `tools/Setup-AogSharePoint.ps1` khỏi repo vì file PnP nội bộ đã chuyển ra ngoài; README và SOP từ nay chỉ hướng dẫn tạo bốn bảng bằng **Settings → Create lists**.
+-- codex - 2026-11-10 15:51 +07
+
 ## HISTORY
 ### 2026-11-10
 Failure: file PnP bản 1.1 dừng ngay ở bảng đầu tiên vì claude giả định `Get-PnPList` trả về rỗng khi bảng chưa có, không kiểm bằng tài liệu hay file mẫu của user. Sửa ở bản 1.2.

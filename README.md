@@ -28,9 +28,10 @@ For Outlook alerts, Accept only brings Outlook to the front. Drafting an email r
 3. Enable **Developer mode**, select **Load unpacked**, choose the extracted folder, and pin AOG Watcher.
 4. Open **Settings** from the popup.
 5. Confirm the SharePoint site is `https://trustanavn.sharepoint.com/sites/aog`, select **Sign in & check**, enter a unique operator name, and save.
-6. Open and sign in to WhatsApp Web and the AOG mailbox in Outlook Web.
+6. The team lead expands **For the team lead (one-time setup)** and selects **Create lists**. The extension creates any missing lists or columns and reports when nothing remains to create.
+7. Open and sign in to WhatsApp Web and the AOG mailbox in Outlook Web.
 
-The team lead creates the four SharePoint lists once with `tools/Setup-AogSharePoint.ps1`:
+The **Create lists** button prepares these four SharePoint lists:
 
 | List | Purpose |
 |---|---|

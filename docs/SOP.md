@@ -7,8 +7,9 @@ AOG Watcher monitors WhatsApp Web and Outlook Web during the night shift, rings 
 ## A. Team lead: one-time setup
 
 1. Confirm every operator has edit access to `https://trustanavn.sharepoint.com/sites/aog`.
-2. Run `tools/Setup-AogSharePoint.ps1` with the approved PnP PowerShell sign-in method.
-3. Confirm these four lists exist:
+2. Open AOG Watcher **Settings**, confirm the SharePoint site, and select **Sign in & check**.
+3. Expand **For the team lead (one-time setup)** and select **Create lists**. This requires site-owner permission.
+4. Confirm these four lists exist:
 
    | List | Purpose |
    |---|---|
@@ -17,9 +18,9 @@ AOG Watcher monitors WhatsApp Web and Outlook Web during the night shift, rings 
    | `AOG_Shifts` | Planned roster and one actual shift row per operator per night |
    | `AOG_Log` | Operational events, machine heartbeats and peer signals |
 
-4. Run the setup script a second time. It must report that there is nothing to create and must not duplicate lists or columns.
-5. Add the current customer chats to `AOG_Groups`. The chat title must match the title shown in WhatsApp.
-6. Open AOG Watcher **Settings**, select **Sign in & check**, enter the coordination group and Outlook mailbox path, then publish the approved shared settings.
+5. Select **Create lists** again. It must report `All lists already exist; nothing to create.` and must not duplicate lists or columns.
+6. Add the current customer chats to `AOG_Groups`. The chat title must match the title shown in WhatsApp.
+7. In **Settings**, enter the coordination group and Outlook mailbox path, then publish the approved shared settings.
 
 ## B. Operator: first-time setup
 

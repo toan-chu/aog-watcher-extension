@@ -1,7 +1,7 @@
-Cập nhật: 2026-11-10 08:22 UTC - bởi claude
+Cập nhật: 2026-11-10 08:43 UTC - bởi codex
 
 ## Việc đang mở
-V5-06 - người làm codex - đang-làm - vòng 2/2
+V5-06 - người làm codex - chờ-soát - vòng 2/2
 V5-05 - người làm claude - chờ-soát - vòng 1/2
 RF-04 - người làm claude - chờ-soát - vòng 1/2
 RF-03 - người làm claude - chờ-soát - vòng 1/2

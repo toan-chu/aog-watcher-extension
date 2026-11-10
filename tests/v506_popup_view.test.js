@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { describe, expect, it } from "vitest";
-import { eventSentence, formatClock24, popupMode } from "../lib/popup_view.js";
+import { eventSentence, formatClock24, popupMode, watchingSummary } from "../lib/popup_view.js";
 
 const popupHtml = await readFile(new URL("../popup.html", import.meta.url), "utf8");
 
@@ -28,5 +28,18 @@ describe("V5-06 contextual popup", () => {
     expect(eventSentence({ event_type: "ACCEPT", group_name: "AOG CX", operator_name: "Toan" })).toBe("Toan accepted AOG CX.");
     expect(eventSentence({ event_type: "SHIFT_STARTED" })).toBe("Shift started.");
     expect(eventSentence({ event_type: "UNMAPPED_CODE" })).toBe("Watcher recorded an update.");
+  });
+
+  it("marks WATCHING red when either message detector is unhealthy", () => {
+    expect(watchingSummary({ sources: { whatsapp: { status: "ok" }, outlook: { status: "blind" } } })).toEqual({
+      title: "Watcher needs attention",
+      copy: "WhatsApp or Outlook is not watching for AOG messages.",
+      tone: "bad",
+    });
+    expect(watchingSummary({ sources: { whatsapp: { status: "ok" }, outlook: { status: "ok" } } })).toEqual({
+      title: "Watching",
+      copy: "This machine is actively watching for AOG messages.",
+      tone: "ok",
+    });
   });
 });

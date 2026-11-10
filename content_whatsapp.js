@@ -164,7 +164,7 @@
     search.dispatchEvent(new KeyboardEvent("keyup", enterInit));
   }
 
-  async function waitForChatActive(chatName, timeoutMs = 6000) {
+  async function waitForChatActive(chatName, timeoutMs = 3000) {
     const start = Date.now();
     let currentName = "";
     while (Date.now() - start < timeoutMs) {
@@ -189,46 +189,49 @@
 
   async function openChatAndDraft(chatName, text = "") {
     await refreshConfig();
-    await searchAndOpenChat(chatName);
-    await waitForChatActive(chatName);
-    clearSearchBox();
-    const activeChat = activeConversationName(document, selectors);
-    const decision = draftDecision({ activeChat, targetChat: chatName, coordGroup: config?.coord_group, text });
-    if (!decision.ok) throw new Error(decision.error);
-    if (!decision.shouldDraft) return { ok: true, chat: activeChat, drafted: false };
-    const composer = first(document, selectors.composer);
-    if (!composer) throw new Error("WhatsApp composer not found");
-    composer.focus();
-    document.execCommand("insertText", false, text);
-    composer.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: text }));
-    return { ok: true, chat: activeChat, drafted: true };
+    try {
+      await searchAndOpenChat(chatName);
+      await waitForChatActive(chatName);
+      const activeChat = activeConversationName(document, selectors);
+      const composer = first(document, selectors.composer);
+      const decision = draftDecision({ activeChat, targetChat: chatName, coordGroup: config?.coord_group, text, composerText: composer?.textContent });
+      if (!decision.ok) throw new Error(decision.error);
+      if (!decision.shouldDraft) return { ok: true, chat: activeChat, drafted: false };
+      if (!composer) throw new Error("WhatsApp composer not found");
+      composer.focus();
+      document.execCommand("insertText", false, text);
+      composer.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: text }));
+      return { ok: true, chat: activeChat, drafted: true };
+    } finally {
+      clearSearchBox();
+    }
   }
 
   async function sendPeerTag(text) {
     await refreshConfig();
     const coordName = config?.coord_group || "";
     if (!coordName) throw new Error("Coord group not configured");
-    await searchAndOpenChat(coordName);
-    await waitForChatActive(coordName);
-    if (messageExistsInCoordGroup(text)) {
-      clearSearchBox();
+    try {
+      await searchAndOpenChat(coordName);
+      await waitForChatActive(coordName);
+      if (messageExistsInCoordGroup(text)) return true;
+      const composer = first(document, selectors.composer);
+      if (!composer) throw new Error("WhatsApp composer not found");
+      composer.focus();
+      document.execCommand("insertText", false, text);
+      composer.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: text }));
+      await new Promise((resolve) => setTimeout(resolve, 200));
+      const send = first(document, selectors.sendButton);
+      const clickable = send?.closest("button") ?? send;
+      if (!clickable) throw new Error("WhatsApp send button not found");
+      clickable.click();
+      if (!(await verifyMessageSent(text, 3000))) {
+        throw new Error("Peer tag click completed but message did not appear in coord group within 3s. Possible WhatsApp composer desync.");
+      }
       return true;
+    } finally {
+      clearSearchBox();
     }
-    const composer = first(document, selectors.composer);
-    if (!composer) throw new Error("WhatsApp composer not found");
-    composer.focus();
-    document.execCommand("insertText", false, text);
-    composer.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: text }));
-    await new Promise((resolve) => setTimeout(resolve, 200));
-    const send = first(document, selectors.sendButton);
-    const clickable = send?.closest("button") ?? send;
-    if (!clickable) throw new Error("WhatsApp send button not found");
-    clickable.click();
-    if (!(await verifyMessageSent(text, 3000))) {
-      throw new Error("Peer tag click completed but message did not appear in coord group within 3s. Possible WhatsApp composer desync.");
-    }
-    clearSearchBox();
-    return true;
   }
 
   runtime.addRuntimeMessageListener((message, _sender, sendResponse) => {

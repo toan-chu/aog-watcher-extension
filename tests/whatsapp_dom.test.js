@@ -89,4 +89,22 @@ describe("WhatsApp DOM helpers", () => {
   it("opens the target but does not draft when the greeting is empty", () => {
     expect(globalThis.AOG_WHATSAPP_DOM.draftDecision({ activeChat: "AOG CX", targetChat: "aog cx", coordGroup: "AOG Coord", text: "  " })).toEqual({ ok: true, shouldDraft: false });
   });
+
+  it("refuses to draft a customer greeting into the coordination group", () => {
+    expect(globalThis.AOG_WHATSAPP_DOM.draftDecision({ activeChat: "AOG Coord", targetChat: "aog coord", coordGroup: "AOG Coord", text: "Hello" })).toEqual({
+      ok: false,
+      shouldDraft: false,
+      error: "The coordination group cannot receive a customer draft.",
+    });
+  });
+
+  it("keeps an existing composer draft unchanged", () => {
+    expect(globalThis.AOG_WHATSAPP_DOM.draftDecision({
+      activeChat: "AOG CX",
+      targetChat: "aog cx",
+      coordGroup: "AOG Coord",
+      text: "Hello",
+      composerText: "Existing operator draft",
+    })).toEqual({ ok: true, shouldDraft: false });
+  });
 });

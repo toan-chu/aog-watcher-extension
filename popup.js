@@ -1,7 +1,7 @@
-import { eventSentence, formatAgo, formatClock24, popupMode } from "./lib/popup_view.js";
+import { eventSentence, formatAgo, formatClock24, popupMode, watchingSummary } from "./lib/popup_view.js";
 
 const ids = ["versionValue", "stateBadge", "readyBadge", "dryRunBadge", "testModeBadge", "tonightTab", "searchTab", "helpTab", "tonightPanel", "searchPanel", "helpPanel",
-  "offShiftScreen", "watchingScreen", "ringingScreen", "roleValue", "startShiftButton", "shiftStatusHint", "endShiftButton", "whatsappDot", "whatsappValue",
+  "offShiftScreen", "watchingScreen", "watchingTitle", "watchingCopy", "ringingScreen", "roleValue", "startShiftButton", "shiftStatusHint", "endShiftButton", "whatsappDot", "whatsappValue",
   "outlookDot", "outlookValue", "sharepointDot", "sharepointValue", "peerDot", "peerValue", "soundDot", "soundValue", "latestEventValue", "preflight",
   "preflightList", "testSoundButton", "soundOkButton", "watchSystemAlerts", "watchUnknownChats", "watchUnknownList", "recentEvents", "acceptButton", "alertPanel",
   "alertTitle", "alertMeta", "backupCountdown", "systemAlerts", "unknownChats", "unknownList", "searchChatInput", "helpButton", "leakSource", "leakWhat", "leakAt",
@@ -107,6 +107,11 @@ function renderUnknown(list = []) {
 }
 
 function renderSources(status) {
+  const summary = watchingSummary(status);
+  elements.watchingTitle.textContent = summary.title;
+  elements.watchingTitle.className = `screen-title screen-title--watching-${summary.tone}`;
+  elements.watchingCopy.textContent = summary.copy;
+  elements.watchingCopy.className = `watching-copy${summary.tone === "bad" ? " watching-copy--bad" : ""}`;
   for (const source of ["whatsapp", "outlook"]) {
     const value = status.sources?.[source];
     const checked = formatAgo(status.health?.[source]?.last_seen);

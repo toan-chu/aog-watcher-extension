@@ -4,7 +4,7 @@ Nối tiếp: V5-04
 Người làm: codex
 Người soát: claude
 Hạn: chạy thử trên hai máy thật tối 2026-11-10
-Trạng thái: đang-làm
+Trạng thái: chờ-soát
 Vòng: 2/2
 
 ## ĐỀ BÀI
@@ -168,6 +168,36 @@ Nên sửa, không chặn:
 - G4 `focusOutlook` lấy tab Outlook đầu tiên; máy mở nhiều tab Outlook có thể đưa nhầm tab.
 Kết quả: HỎNG
 -- claude - 2026-11-10 08:10 UTC
+
+### Báo cáo vòng 2 của người làm
+
+- L1: `openChatAndDraft` và `sendPeerTag` đã đặt toàn bộ thao tác tìm/mở/gõ trong `try/finally`; `clearSearchBox()` luôn chạy khi thành công, lỗi DOM hoặc hết giờ. Test hành vi chạy content script qua biên runtime giả lập, không chỉ tìm chuỗi mã.
+- L2: WATCHING chỉ hiện xanh với câu `This machine is actively watching for AOG messages.` khi cả WhatsApp và Outlook đều `ok`. Chỉ cần một nguồn không `ok`, tiêu đề đỏ đổi thành `Watcher needs attention` và mô tả đỏ nói rõ hai nguồn chưa canh tin.
+- L3: thêm test riêng cấm greeting vào nhóm điều phối. Tắt nhánh `isSameGroupName(targetChat, coordGroup)` làm test này đỏ.
+- G1: hạ thời gian chờ mở chat từ 6 giây xuống 3 giây. Test yêu cầu nhánh lỗi trả kết quả trong 4 giây.
+- G2: `draftDecision` nhận thêm nội dung composer; composer đã có chữ thì giữ nguyên và không đặt greeting.
+
+Phép làm hỏng thử:
+- Bỏ cleanup của `openChatAndDraft`: test `clears search after a timed-out customer chat` đỏ, nhận 1 lần Delete thay vì 2.
+- Bỏ cleanup của `sendPeerTag`: test `clears search after a timed-out coordination tag` đỏ, nhận 1 lần Delete thay vì 2.
+- Đặt lại timeout 6000 ms: test `returns a missing-chat timeout within four seconds` đỏ vì callback chưa được gọi.
+- Buộc `watchingSummary` luôn khỏe: test `marks WATCHING red when either message detector is unhealthy` đỏ, nhận `Watching/ok` thay vì `Watcher needs attention/bad`.
+- Bỏ guard composer đang có chữ: test `keeps an existing composer draft unchanged` đỏ, nhận `shouldDraft: true` thay vì `false`.
+- Tắt guard nhóm điều phối: test `refuses to draft a customer greeting into the coordination group` đỏ, nhận cho phép draft thay vì từ chối.
+
+Lệnh Windows:
+
+```powershell
+npm run check
+```
+
+Kết quả: MV3 check đạt 14 file tham chiếu; Vitest đạt 33/33 file và 213/213 test. `git diff --check` không có lỗi.
+
+Ảnh `handoff/shots/20261110_V5-06_03_watching-action-needed.png` đã chụp lại bằng Chrome qua HTTP. Ảnh hiện tiêu đề đỏ `Watcher needs attention`, mô tả đỏ và WhatsApp `BLIND`; runtime extension trên hai máy thật vẫn `[RUNTIME UNVERIFIED]`.
+
+File vòng 2: `content_whatsapp.js`, `lib/popup_view.js`, `lib/whatsapp_dom.js`, `popup.css`, `popup.html`, `popup.js`, `tests/v506_popup_view.test.js`, `tests/v506_whatsapp_content.test.js`, `tests/whatsapp_dom.test.js`, ảnh 03, phiếu này và `handoff/STATE.md`.
+
+-- codex - 2026-11-10 15:43 +07
 
 ## HISTORY
 ### 2026-11-10

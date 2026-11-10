@@ -3,71 +3,80 @@
 ![License MIT](https://img.shields.io/badge/license-MIT-green)
 ![JavaScript ES2022](https://img.shields.io/badge/JavaScript-ES2022-yellow)
 ![Chrome MV3](https://img.shields.io/badge/Chrome%20%2F%20Edge-Manifest%20V3-orange)
-![SharePoint](https://img.shields.io/badge/data-SharePoint%20List-4d148c)
-![Tests 181 passing](https://img.shields.io/badge/tests-181%20passing-brightgreen)
+![SharePoint](https://img.shields.io/badge/data-SharePoint%20Lists-4d148c)
 
-> **AOG Watcher canh WhatsApp và Outlook để hai người trực đêm không bỏ lỡ yêu cầu khẩn cấp, tự báo khi chính nó hỏng, và ghi ca trực lên SharePoint của group AOG.**
-> Mở ca → kiểm tra đầu ca → có tin thì reo → người chính Accept hoặc leo thang sang máy dự phòng → sáng ra dòng ca trực và hộp đen ghi rõ từng tin, từng lần miss và nguyên nhân.
+> AOG Watcher monitors WhatsApp Web and Outlook for urgent night-shift messages, rings the right operator, escalates to the Backup machine, and records operational evidence in SharePoint.
 
-## 🎯 Ai làm gì
+The popup stays focused on the current situation:
 
-| Vai trò | Việc cần làm | Cần biết code? |
-|---|---|---|
-| Người trực | Dán link SharePoint lần đầu, mở 2 tab, Bắt đầu ca, làm checklist, Accept | Không |
-| Trưởng team | Tạo bảng SharePoint một lần, giữ danh sách nhóm và cài đặt chung | Không |
-| Người bảo trì | Cập nhật bộ nhận diện giao diện khi WhatsApp/Outlook đổi, chạy kiểm tra | Có |
+- **OFF SHIFT:** tonight's role, Start shift, and folded 24-hour shift times.
+- **WATCHING:** live evidence that WhatsApp, Outlook, SharePoint, the partner machine and the test ring are working.
+- **RINGING:** Accept at the top, the customer group or email subject, and the countdown until Backup is called.
 
-## 🔄 Luồng chạy
+## Why it is useful
 
-```text
-WhatsApp Web ──┐                       ┌──> chuông máy chính ── Accept ──> báo máy kia (SharePoint)
-               ├──> Watcher (2 máy) ───┤                        └ không Accept ──> máy dự phòng reo
-Outlook Web ───┘        │              └──> tự kiểm: nguồn mù? máy kia mất liên lạc? quên mở ca?
-                        ▼
-          SharePoint AOG: Ca trực · Nhóm chung · Hộp đen · Cài đặt chung
-```
+The valuable shortcut is jump-to-chat. When an operator accepts a WhatsApp alert, AOG Watcher first stops the ring and notifies the partner machine, then opens the exact customer chat and places a configurable greeting in the composer. The operator reviews and sends it manually.
 
-Không có server riêng. Extension dùng chính đăng nhập Microsoft công ty trong trình duyệt để đọc/ghi SharePoint. SharePoint lỗi thì vẫn canh và reo, hai máy báo nhau qua nhóm điều phối WhatsApp.
+**AOG Watcher never sends a customer message automatically.** It refuses to place text when the open chat does not match the target, and it never places a customer greeting in the coordination group.
 
-## 🚀 Cài đặt
+For Outlook alerts, Accept only brings Outlook to the front. Drafting an email response is not connected yet.
 
-1. Tải repo (**Code → Download ZIP**), giải nén vào một thư mục cố định.
-2. Mở `chrome://extensions` hoặc `edge://extensions` → bật **Developer mode** → **Load unpacked** → chọn thư mục vừa giải nén → ghim icon.
-3. Chuột phải icon → **Options** → bấm **Đăng nhập & kiểm tra** (site mặc định: CX SharePoint `trustanavn.sharepoint.com/sites/cx9`) → điền **Tên hiển thị** → **Lưu**.
+## Install
 
-Trưởng team làm thêm một lần: tạo 6 bảng AOG_* và đẩy cài đặt chung — xem [Cẩm nang vận hành](docs/SOP.md), mục A.
+1. Download this repository and extract it to a permanent folder.
+2. Open `chrome://extensions` or `edge://extensions`.
+3. Enable **Developer mode**, select **Load unpacked**, choose the extracted folder, and pin AOG Watcher.
+4. Open **Settings** from the popup.
+5. Confirm the SharePoint site is `https://trustanavn.sharepoint.com/sites/aog`, select **Sign in & check**, enter a unique operator name, and save.
+6. Open and sign in to WhatsApp Web and the AOG mailbox in Outlook Web.
 
-## 📋 Dùng thế nào
+The team lead creates the four SharePoint lists once with `tools/Setup-AogSharePoint.ps1`:
 
-1. Mở sẵn WhatsApp Web và Outlook Web ở đúng hộp AOG.
-2. Tới giờ ca: mở popup → **Bắt đầu ca** → làm theo **Kiểm tra đầu ca** tới khi huy hiệu hiện **SẴN SÀNG**.
-3. Máy reo → bấm **ACCEPT — I'LL HANDLE IT**; khoảng 10 phút sau trả lời **Xong** hoặc **Cần thêm thời gian**.
-4. Chat lạ nhắn → **Thêm vào danh sách chung** (nhóm khách) hoặc **Bỏ qua** (chat cá nhân).
-5. Hết ca → **Kết thúc ca**. Dòng ca trực đêm nay trên SharePoint tự có giờ vào/ra, tin đã Accept; ghi chú thêm ở cột Notes.
+| List | Purpose |
+|---|---|
+| `AOG_Groups` | Shared customer chats and their active status |
+| `AOG_Settings` | Shared operational settings |
+| `AOG_Shifts` | Roster and one operational row per operator per night |
+| `AOG_Log` | Events, machine heartbeats and peer signals |
 
-Chi tiết từng bước: [Cẩm nang vận hành](docs/SOP.md), mục B–C.
+See the [operating procedure](docs/SOP.md) for setup and verification details.
 
-## ❓ Hỏng thì làm gì
+## Run a shift
 
-- **Ô đỏ "Watcher đang MÙ" / "Không thấy tab" / "Sai hộp thư":** bấm **Đã biết**, tải lại tab hoặc mở đúng hộp AOG; ô đỏ tự mất khi đã sửa.
-- **SharePoint đỏ:** Watcher vẫn canh và reo; mở SharePoint trong trình duyệt để đăng nhập lại. Dữ liệu tự ghi bù.
-- **"Máy trực cùng mất liên lạc":** gọi người trực cùng.
-- **Có tin mà không reo:** popup → **Có tin bị lọt?** → ghi nhận; hệ thống tự ghi nguyên nhân.
-- **Sau khi cập nhật extension:** tải lại tab WhatsApp và Outlook.
+1. Open WhatsApp Web and Outlook Web at the AOG mailbox.
+2. Open AOG Watcher. On **Tonight**, check the role and 24-hour shift times, then select **Start shift**.
+3. In **WATCHING**, follow each red action until the badge is **READY**. The checklist never stops monitoring; it only reports readiness.
+4. When **RINGING** appears, select **ACCEPT — I'LL HANDLE IT**.
+5. For WhatsApp, verify the correct chat and the prepared greeting, then send it yourself. For Outlook, the Outlook tab is brought forward.
+6. Select a recent event to reopen its source without placing a greeting.
+7. At the end of the shift, select **End shift** twice to confirm.
 
-Bảng chẩn đoán đầy đủ: [Cẩm nang vận hành](docs/SOP.md), mục D–E.
+## Popup tabs
 
-## 🛠️ Phát triển
+- **Tonight:** the current OFF SHIFT, WATCHING or RINGING screen.
+- **Search:** pre-fills the currently open WhatsApp chat. Shipment search is a placeholder and is not connected yet.
+- **Help:** opens this README and keeps diagnostic and missed-message tools available.
+- **Settings:** opens machine and shared settings, including the WhatsApp greeting. Leave the greeting blank to place nothing after Accept.
 
-Yêu cầu Node.js và npm. Extension dùng JavaScript ES2022, Manifest V3, không có dependency production hay build step.
+## When something is wrong
+
+- **WhatsApp or Outlook is red:** open or reload the named tab. For Outlook, confirm the AOG mailbox is open.
+- **SharePoint is red:** open the AOG site and sign in again. Monitoring and ringing continue; queued writes retry later.
+- **Partner machine lost:** contact the other operator and confirm their browser and shift are active.
+- **Wrong chat opened:** AOG Watcher leaves the composer unchanged and reports the mismatch. Open the correct chat or retry the alert from Recent events.
+- **Extension context invalidated:** reload the WhatsApp and Outlook tabs after updating the extension.
+
+## Development
+
+Requirements: Node.js and npm. The extension uses JavaScript ES2022 and Manifest V3, with no production dependency or build step.
 
 ```powershell
 npm install
 npm run check
 ```
 
-`npm run check` kiểm tra các file manifest tham chiếu rồi chạy toàn bộ test Vitest. Kiến trúc hiện tại nằm ở [handoff/MAP.md](handoff/MAP.md); quy tắc làm việc nằm ở [handoff/RULES.md](handoff/RULES.md).
+`npm run check` validates Manifest V3 references and runs the Vitest suite. Architecture and working rules live in [handoff/MAP.md](handoff/MAP.md) and [handoff/RULES.md](handoff/RULES.md).
 
-## 📄 Giấy phép
+## License
 
-[MIT](LICENSE).
+[MIT](LICENSE)

@@ -350,6 +350,52 @@ async function sendPeerTextViaWhatsApp(text) {
   throw new Error(lastError);
 }
 
+async function focusTab(tab) {
+  await chrome.tabs.update(tab.id, { active: true });
+  if (tab.windowId !== undefined && chrome.windows?.update) await chrome.windows.update(tab.windowId, { focused: true });
+}
+
+async function openWhatsAppChat(chatName, draftText = "") {
+  const tabs = await chrome.tabs.query({ url: "https://web.whatsapp.com/*" });
+  let lastError = "No WhatsApp Web tab found";
+  for (const tab of tabs) {
+    try {
+      const result = await chrome.tabs.sendMessage(tab.id, { type: MESSAGE.OPEN_WHATSAPP_CHAT, chat_name: chatName, draft_text: draftText });
+      if (!result?.ok) { lastError = result?.error || lastError; continue; }
+      await focusTab(tab);
+      return result;
+    } catch (error) { lastError = error.message; }
+  }
+  throw new Error(lastError);
+}
+
+async function getActiveWhatsAppChat() {
+  const tabs = await chrome.tabs.query({ url: "https://web.whatsapp.com/*" });
+  for (const tab of tabs) {
+    try {
+      const result = await chrome.tabs.sendMessage(tab.id, { type: MESSAGE.GET_ACTIVE_WHATSAPP_CHAT });
+      if (result?.ok) return result.chat || "";
+    } catch { /* try the next WhatsApp tab */ }
+  }
+  throw new Error("Open WhatsApp Web before using Search");
+}
+
+async function focusOutlook() {
+  const tabs = await chrome.tabs.query({ url: ["https://outlook.office.com/*", "https://outlook.office365.com/*", "https://outlook.live.com/*", "https://outlook.cloud.microsoft/*"] });
+  if (!tabs.length) throw new Error("No Outlook tab found");
+  await focusTab(tabs[0]);
+  return { ok: true };
+}
+
+async function openAlertTarget(target, draftText = "") {
+  if (target?.source === ALERT_SOURCE.WHATSAPP) {
+    if (!target.group_name) throw new Error("The WhatsApp chat name is missing");
+    return openWhatsAppChat(target.group_name, draftText);
+  }
+  if (target?.source === ALERT_SOURCE.EMAIL || target?.source === "outlook") return focusOutlook();
+  throw new Error("This event has no source to open");
+}
+
 async function sendPeer(tag, alert, config) {
   const payload = {
     alert_id: alert.alert_id, source: alert.source, timestamp: new Date().toISOString(), from_role: state.session?.role,
@@ -750,6 +796,7 @@ async function status() {
   const evaluation = await getKey(K.SOURCE_EVAL, { sources: {} });
   const team = await getKey(K.TEAM_GROUPS, []);
   const sharepoint = await getKey(K.SP_STATUS, {});
+  const soundConfirmedAt = await getKey(K.SOUND_CONFIRMED_AT, 0);
   return {
     version: APP_VERSION,
     app_state: state.app_state,
@@ -764,6 +811,8 @@ async function status() {
     test_mode: Boolean(config.test_mode),
     test_role: config.test_role ?? ROLE.PRIMARY,
     dry_run: Boolean(config.dry_run),
+    backup_call_at: state.current_alert ? Date.parse(state.current_alert.detected_at) + timing(config).primary_timeout_seconds * 1000 : null,
+    sound_confirmed_at: soundConfirmedAt,
     health: healthRecords,
     sources: evaluation.sources ?? {},
     preflight: await getKey(K.PREFLIGHT, null),
@@ -820,8 +869,15 @@ async function handleMessage(message) {
         const followups = (await getKey(K.FOLLOWUPS, [])).filter((item) => item.alert_id !== alert.alert_id);
         await setKey(K.FOLLOWUPS, [...followups, createFollowup(alert, { askAfterMinutes: Number(config.followup_after_minutes) || 10 })]);
       }
+      if (alert && state.current_alert?.alert_id !== alert.alert_id) {
+        try { await openAlertTarget(alert, alert.source === ALERT_SOURCE.WHATSAPP ? config.whatsapp_greeting : ""); }
+        catch (error) { return { ok: false, error: `Accepted, but the source could not be opened: ${error.message}` }; }
+      }
       return {};
     }
+    case MESSAGE.OPEN_ALERT_TARGET: return openAlertTarget(message.target, message.draft_text ?? "");
+    case MESSAGE.OPEN_WHATSAPP_CHAT: return openWhatsAppChat(message.chat_name, message.draft_text ?? "");
+    case MESSAGE.GET_ACTIVE_WHATSAPP_CHAT: return { chat: await getActiveWhatsAppChat() };
     case MESSAGE.START_SHIFT: await startShift(); return {};
     case MESSAGE.END_SHIFT: await endCurrentShift(); return {};
     case MESSAGE.UPDATE_SHIFT_SLOTS: {

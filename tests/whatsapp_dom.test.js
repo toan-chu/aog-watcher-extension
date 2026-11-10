@@ -77,4 +77,16 @@ describe("WhatsApp DOM helpers", () => {
   it("normalizes names before comparing active group", () => {
     expect(globalThis.AOG_WHATSAPP_DOM.isSameGroupName(" AOG   Coord ", "aog coord")).toBe(true);
   });
+
+  it("refuses to draft when the active chat is not the target chat", () => {
+    expect(globalThis.AOG_WHATSAPP_DOM.draftDecision({ activeChat: "Wrong group", targetChat: "AOG CX", coordGroup: "AOG Coord", text: "Hello" })).toEqual({
+      ok: false,
+      shouldDraft: false,
+      error: 'WhatsApp opened "Wrong group" instead of "AOG CX". Nothing was typed.',
+    });
+  });
+
+  it("opens the target but does not draft when the greeting is empty", () => {
+    expect(globalThis.AOG_WHATSAPP_DOM.draftDecision({ activeChat: "AOG CX", targetChat: "aog cx", coordGroup: "AOG Coord", text: "  " })).toEqual({ ok: true, shouldDraft: false });
+  });
 });

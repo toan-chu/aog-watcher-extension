@@ -65,10 +65,11 @@ describe("V5-03 site and clock defaults", () => {
   });
 
   it("formats displayed times in 24-hour English independent of Windows locale", () => {
-    for (const path of ["popup.js", "settings.js", "service_worker.js"]) {
+    for (const path of ["settings.js", "service_worker.js"]) {
       expect(uiSources[path]).toContain('"en-GB"');
       expect(uiSources[path]).toContain("hour12: false");
       expect(uiSources[path]).not.toContain('"vi-VN"');
     }
+    expect(uiSources["popup.js"]).not.toContain("toLocaleTimeString");
   });
 });

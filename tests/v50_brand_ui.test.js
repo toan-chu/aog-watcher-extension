@@ -32,8 +32,9 @@ describe("V5-02 Trustana brand UI", () => {
     for (const id of ids) expect(popupHtml).toContain(`id="${id}"`);
   });
 
-  it("orders the popup by urgency: system alerts, current alert, unknown chats, then shift", () => {
-    const order = ["systemAlerts", "alertPanel", "unknownChats", "shiftSetup", "preflight"].map((id) => popupHtml.indexOf(`id="${id}"`));
-    expect([...order].sort((a, b) => a - b)).toEqual(order);
+  it("keeps the three contextual screens and three navigation tabs", () => {
+    for (const id of ["offShiftScreen", "watchingScreen", "ringingScreen", "tonightTab", "searchTab", "helpTab"]) {
+      expect(popupHtml).toContain(`id="${id}"`);
+    }
   });
 });

@@ -1,93 +1,118 @@
-# AOG Watcher 5.0 — Cẩm nang vận hành (SOP)
+# AOG Watcher 5.0 — Operating Procedure
 
-Tài liệu này dùng cho bản 5.0.0 trở đi. Nguồn sự thật về kiến trúc: `handoff/MAP.md`.
+This procedure applies to AOG Watcher 5.0 and later. The architecture source of truth is `handoff/MAP.md`.
 
-Extension Chrome/Edge canh WhatsApp Web và Outlook Web trong ca đêm, reo khi có tin AOG, leo thang sang máy dự phòng, tự báo khi chính nó hỏng, và ghi ca trực vào SharePoint của group AOG.
+AOG Watcher monitors WhatsApp Web and Outlook Web during the night shift, rings for AOG messages, escalates to the Backup machine, reports monitoring failures, and records shift evidence in SharePoint.
 
----
+## A. Team lead: one-time setup
 
-## A. Trưởng team — làm một lần
+1. Confirm every operator has edit access to `https://trustanavn.sharepoint.com/sites/aog`.
+2. Run `tools/Setup-AogSharePoint.ps1` with the approved PnP PowerShell sign-in method.
+3. Confirm these four lists exist:
 
-1. Dữ liệu AOG nằm trong site CX: `https://trustanavn.sharepoint.com/sites/cx9` (đã là mặc định trong extension). Mọi người trực phải có quyền **sửa** trên các bảng AOG_*.
-2. Cài extension trên máy mình (mục B.1), mở **Cài đặt**.
-3. Mục **1. SharePoint AOG**: link site CX đã điền sẵn → bấm **Đăng nhập & kiểm tra**.
-   - Đúng: hiện tên + email công ty của mình.
-   - Sai "từ chối quyền / yêu cầu đăng nhập": bấm **Mở SharePoint**, đăng nhập bằng email công ty, quay lại bấm kiểm tra lần nữa.
-4. Mở **Dành cho trưởng team** → bấm **Tạo bảng**. Extension tạo 6 bảng trên trang:
-
-   | Bảng | Dùng cho |
+   | List | Purpose |
    |---|---|
-   | AOG_Shifts | **Ca trực** — mỗi đêm 1 dòng cho cả 2 người: điểm danh, giờ vào/ra, tin đã Accept, ghi chú |
-   | AOG_Groups | **Nhóm chung** — danh sách nhóm WhatsApp khách; thêm/xoá dòng trực tiếp |
-   | AOG_Events | **Hộp đen** — từng tin, ai Accept, leo thang, nguyên nhân miss |
-   | AOG_Settings | **Cài đặt chung** — hộp AOG, nhóm điều phối, thời gian leo thang… |
-   | AOG_Machines | Máy dùng: nhịp tim từng máy (không cần sửa) |
-   | AOG_Signals | Máy dùng: hai máy nhắn nhau Accept/leo thang (không cần sửa) |
+   | `AOG_Groups` | Shared customer chats, customer identity and active status |
+   | `AOG_Settings` | Shared mailbox, coordination and timing settings |
+   | `AOG_Shifts` | Planned roster and one actual shift row per operator per night |
+   | `AOG_Log` | Operational events, machine heartbeats and peer signals |
 
-5. Điền mục 3–5 trong Cài đặt (nhóm điều phối, đường dẫn hộp AOG, thời gian) → **Lưu** → bấm **Đẩy cài đặt chung**. Từ giờ mọi máy nối vào SharePoint tự lấy các cài đặt này.
-6. Nhập danh sách nhóm khách hiện có vào bảng **AOG_Groups** (mỗi dòng một tên nhóm, cột Title, đúng tên hiển thị trên WhatsApp).
+4. Run the setup script a second time. It must report that there is nothing to create and must not duplicate lists or columns.
+5. Add the current customer chats to `AOG_Groups`. The chat title must match the title shown in WhatsApp.
+6. Open AOG Watcher **Settings**, select **Sign in & check**, enter the coordination group and Outlook mailbox path, then publish the approved shared settings.
 
-Muốn xem như **một file Excel nhiều tab**: tạo file Excel trên SharePoint → Data → Get Data → From Online Services → SharePoint Online List → chọn các bảng AOG_*; mỗi bảng thành một tab, bấm Refresh để cập nhật. File này chỉ để xem; máy vẫn ghi vào bảng.
+## B. Operator: first-time setup
 
-## B. Người trực — setup lần đầu
+1. Open `chrome://extensions` or `edge://extensions`, enable **Developer mode**, select **Load unpacked**, choose the extension folder, and pin AOG Watcher.
+2. Open **Settings** from the popup.
+3. Confirm the SharePoint link is `https://trustanavn.sharepoint.com/sites/aog` and select **Sign in & check**.
+4. Enter a unique display name for this machine.
+5. Review **WhatsApp greeting**. The default is:
 
-1. **Cài extension:** mở `chrome://extensions` (hoặc `edge://extensions`) → bật **Developer mode** → **Load unpacked** → chọn thư mục extension → ghim icon.
-   - Đúng: icon trăng khuyết xuất hiện trên thanh công cụ.
-   - Cập nhật bản mới: thay thư mục, bấm nút tải lại trên thẻ extension, rồi **tải lại tab WhatsApp và Outlook**.
-2. Chuột phải icon → **Options** (Cài đặt):
-   - Link site CX đã điền sẵn → **Đăng nhập & kiểm tra** → thấy email công ty của mình là đúng.
-   - Điền **Tên hiển thị** (khác người trực cùng) → **Lưu**.
-   - Không cần chép nhóm hay cài đặt gì khác — đã tự lấy từ SharePoint.
-3. Mở sẵn 2 tab trong cùng trình duyệt: **WhatsApp Web** (đã quét QR) và **Outlook Web ở đúng hộp AOG**.
+   ```text
+   Well received. We are checking and will revert shortly.
+   ```
 
-## C. Mỗi đêm
+   AOG Watcher places this text in the customer composer after Accept. It never selects Send. Leave the setting blank when no draft should be placed.
+6. Save Settings.
+7. Open WhatsApp Web and sign in. Open Outlook Web at the AOG mailbox.
+8. After updating or reloading the extension, reload both web tabs so their content scripts use the current version.
 
-### Vào ca
+## C. Start a shift
 
-1. Tới giờ ca, máy tự nhắc. Quá 10 phút chưa mở ca → máy reo và báo máy kia.
-2. Mở popup → kiểm tra giờ 2 slot → bấm **Bắt đầu ca**.
-3. Làm theo **Kiểm tra đầu ca** trong popup tới khi huy hiệu góc phải là **SẴN SÀNG**:
-   - ✓ WhatsApp Web đang canh · ✓ Outlook ở hộp AOG · ✓ SharePoint · ✓ Cắm sạc
-   - Bấm **Thử chuông** → nghe thấy thì bấm **Nghe rõ**. Không nghe thấy → kiểm tra âm lượng/loa rồi thử lại.
-   - Dòng ✗ đỏ ghi đúng việc cần sửa.
-4. Mở bảng **AOG_Shifts** trên SharePoint nếu muốn ghi chú đầu ca (cột Notes của dòng đêm nay).
+1. Open the popup and stay on **Tonight**.
+2. On **OFF SHIFT**, confirm tonight's role.
+3. Expand **Tonight's shift times** only when the schedule needs checking. Times always use `HH:mm` in 24-hour format.
+4. Select **Start shift**.
+5. The popup changes to **WATCHING**. Confirm the evidence rows:
+   - WhatsApp and Outlook show when they were last checked.
+   - SharePoint is connected.
+   - The partner machine is on shift.
+   - The test ring was heard and shows its confirmation time.
+   - The latest event is a normal English sentence, not an internal event code.
+6. If the pre-shift check is not ready, complete each red action exactly as written. Select **Test ring**, listen, then select **I hear it**.
 
-Checklist chưa đạt **không** tắt việc canh tin; nó chỉ báo cho máy kia biết máy này chưa sẵn sàng và được ghi vào dòng ca trực.
+The pre-shift check does not block monitoring. It reports readiness and tells the operator what to fix.
 
-### Trong ca
+## D. Handle an alert
 
-| Thấy gì | Làm gì |
+### WhatsApp
+
+1. When the popup changes to **RINGING**, read the customer chat name and Backup countdown.
+2. Select **ACCEPT — I'LL HANDLE IT** at the top.
+3. AOG Watcher stops the ring and records Accept.
+4. AOG Watcher notifies the partner machine with `HANDLED`. If SharePoint is unavailable, it sends the fallback tag to the coordination group first.
+5. Only after those steps, AOG Watcher opens the target customer chat.
+6. It verifies that the active chat title matches the target and that the target is not the coordination group.
+7. If the configured greeting is not blank, it places the greeting in the composer.
+8. Review the chat and draft, then select Send yourself.
+
+**Safety rule:** AOG Watcher never sends a customer message automatically. If WhatsApp opens the wrong chat, the composer remains unchanged and the popup reports that nothing was typed.
+
+### Outlook
+
+1. Select **ACCEPT — I'LL HANDLE IT**.
+2. AOG Watcher completes Accept and brings the Outlook tab forward.
+3. Open the correct email and compose the reply manually. Automatic email draft preparation is not connected yet.
+
+### Unknown chat and system alerts
+
+- During RINGING, system alerts and unknown-chat decisions appear below Accept.
+- Select **Add to shared list** only for a customer chat that every machine should watch.
+- Select **Ignore** for personal or irrelevant chats.
+- Select **Dismiss** to silence a system warning; fix the stated cause so the warning can clear.
+
+## E. Recent events, Search and Help
+
+- Recent events are English sentences. Select a WhatsApp event to open its chat without placing a greeting. Select an Outlook event to bring Outlook forward.
+- **Search** reads the chat currently open in WhatsApp and pre-fills it in the search field. The shipment list is not connected yet; no SharePoint shipment query runs in this version.
+- **Help** provides the public README link, Diagnostics, and **Missed a message?**.
+- **Settings** is always available at the bottom of the popup.
+
+## F. End a shift
+
+1. On **WATCHING**, select **End shift**.
+2. Select **Confirm end shift?** within five seconds.
+3. Confirm the popup returns to **OFF SHIFT** and SharePoint receives the checkout data when connected.
+
+## G. SharePoint failure
+
+- Monitoring, ringing, Accept and escalation continue when SharePoint is unavailable.
+- Peer coordination falls back to the WhatsApp coordination group.
+- The fallback tag is sent before AOG Watcher opens a customer chat, so `[AOG-HANDLED]` cannot be left in a customer composer.
+- Queued data stays in the local outbox and retries after SharePoint reconnects.
+- To recover, open `https://trustanavn.sharepoint.com/sites/aog`, sign in with the company account, and recheck Settings.
+
+## H. Quick diagnosis
+
+| Symptom | Action |
 |---|---|
-| Máy reo, popup có tin | Bấm **ACCEPT — I'LL HANDLE IT**. Máy kia được báo, ghi vào cột Accept của mình trên dòng ca trực |
-| Sau Accept ~10 phút hỏi "Đã xử lý xong chưa?" | Bấm **Xong** hoặc **Cần thêm thời gian**. Không trả lời 5 phút → reo lại và báo máy kia |
-| "Chat lạ vừa nhắn" | **Thêm vào danh sách chung** (nhóm khách → ghi lên SharePoint, mọi máy nhận) hoặc **Bỏ qua** (chat cá nhân → chỉ máy này thôi reo) |
-| Ô đỏ "Watcher đang MÙ" / "Không thấy tab" / "Sai hộp thư" | Bấm **Đã biết** để tắt chuông, rồi sửa: tải lại tab, mở lại đúng hộp AOG. Ô đỏ tự mất khi đã sửa xong |
-| "Máy trực cùng mất liên lạc" | Gọi người trực cùng. Máy kia ngủ, hết pin, mất mạng hoặc đã đóng trình duyệt |
-| "Máy kia chưa mở ca" | Gọi người trực cùng |
-| Phát hiện có tin mà Watcher không reo | Popup → **Có tin bị lọt?** → chọn nguồn, tên nhóm/tiêu đề, giờ → **Ghi nhận**. Hệ thống tự ghi nguyên nhân |
+| WhatsApp shows red | Open or reload WhatsApp Web. |
+| Outlook shows red | Open Outlook Web at the configured AOG mailbox and reload it. |
+| Test ring is red | Select Test ring, check Windows volume and speakers, then select I hear it. |
+| Partner machine is lost | Contact the other operator and confirm their browser and shift are active. |
+| The wrong WhatsApp chat opened | Do not type or send. Read the popup error, open the correct chat and retry from Recent events. |
+| A customer chat appears as unknown | Match its exact WhatsApp title in `AOG_Groups`, or select Add to shared list. |
+| Extension context invalidated | Reload WhatsApp and Outlook after reloading the extension. |
 
-Mỗi tin miss có đúng một nguyên nhân trong hộp đen: **Cài đặt** (chưa mở ca, sai hộp thư, tab đóng, chưa thử chuông) · **Máy** (ngủ/mất mạng, không phát được âm thanh) · **Người** (reo đủ thời gian không ai Accept) · **Watcher** (tin đến mà Watcher không thấy, hoặc Watcher đang mù).
-
-### Ra ca
-
-1. Popup → **Kết thúc ca** → bấm lần nữa để xác nhận.
-2. Dòng ca trực đêm nay tự có giờ ra ca, số tin, số miss và danh sách Accept. Ghi chú thêm vào cột Notes nếu cần.
-
-## D. Khi SharePoint lỗi
-
-- Popup dòng **SharePoint AOG** đỏ. Watcher **vẫn canh và vẫn reo** bình thường.
-- Hai máy tự chuyển sang báo nhau qua **nhóm điều phối WhatsApp** (tag `[AOG-HANDLED]`), như bản 4.3.
-- Dữ liệu hộp đen và ca trực được giữ trên máy, tự ghi lên SharePoint khi kết nối lại.
-- Sửa: mở SharePoint trong trình duyệt, đăng nhập lại bằng email công ty.
-
-## E. Chẩn đoán nhanh
-
-| Triệu chứng | Kiểm tra |
-|---|---|
-| Không reo | Huy hiệu có SẴN SÀNG không? Có ô đỏ nào không? Mục **Chẩn đoán** có số dòng > 0 không? |
-| Reo cho chat cá nhân | Bấm **Bỏ qua** trên chat đó |
-| Nhóm khách bị nhận nhầm là chat lạ | Tên trong AOG_Groups phải khớp tên nhóm trên WhatsApp; hoặc bấm **Thêm vào danh sách chung** |
-| Cài đặt chung tự đổi lại | Máy lấy cài đặt chung từ AOG_Settings; sửa ở đó (hoặc sửa trên máy trưởng team rồi **Đẩy cài đặt chung**) |
-| "Extension context invalidated" | Tải lại tab WhatsApp và Outlook sau khi cập nhật extension |
-
-Báo lỗi: ghi giờ, ảnh popup (mở mục Chẩn đoán), và dòng liên quan trong AOG_Events.
+When reporting a problem, include the local time, a popup screenshot, the source tab involved, and the corresponding row from `AOG_Log` when available.

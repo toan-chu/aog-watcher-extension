@@ -1,14 +1,18 @@
 // Behavioural test of service_worker.js with in-memory chrome.* and a fake SharePoint.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-function createChrome() {
+function createChrome({ browserTabs = [], tabResponder = async () => ({ ok: true }) } = {}) {
   const store = {};
   const listeners = { message: [], alarm: [], installed: [], idle: [] };
   const alarms = new Map();
   const sent = [];
   const notifications = [];
+  const tabMessages = [];
+  const tabUpdates = [];
+  const windowUpdates = [];
   const chrome = {
     _store: store, _alarms: alarms, _sent: sent, _notifications: notifications, _listeners: listeners,
+    _tabMessages: tabMessages, _tabUpdates: tabUpdates, _windowUpdates: windowUpdates,
     storage: { local: {
       async get(keys) {
         const list = Array.isArray(keys) ? keys : [keys];
@@ -34,7 +38,13 @@ function createChrome() {
     notifications: { create: async (id, opts) => notifications.push({ id, ...opts }), clear: async () => true },
     offscreen: { createDocument: async () => {} },
     idle: { queryState: (_t, cb) => cb("idle"), onStateChanged: { addListener: (fn) => listeners.idle.push(fn) } },
-    tabs: { query: async () => [], sendMessage: async () => ({ ok: true }), create: async () => {} },
+    tabs: {
+      query: async () => browserTabs,
+      sendMessage: async (tabId, message) => { tabMessages.push({ tabId, message }); return tabResponder(message, tabId); },
+      update: async (tabId, options) => { tabUpdates.push({ tabId, options }); return {}; },
+      create: async () => {},
+    },
+    windows: { update: async (windowId, options) => { windowUpdates.push({ windowId, options }); return {}; } },
   };
   return chrome;
 }
@@ -72,9 +82,9 @@ function fakeSharePoint() {
   return { lists, rows, fetch };
 }
 
-async function boot({ config = {}, sharepoint = null } = {}) {
+async function boot({ config = {}, sharepoint = null, browserTabs = [], tabResponder } = {}) {
   vi.resetModules();
-  const chrome = createChrome();
+  const chrome = createChrome({ browserTabs, tabResponder });
   globalThis.chrome = chrome;
   if (sharepoint) globalThis.fetch = sharepoint.fetch;
   const { DEFAULT_CONFIG } = await import("../lib/constants.js");
@@ -127,6 +137,37 @@ describe("service worker 5.0 behaviour", () => {
     expect(chrome._notifications.some((item) => item.title === "Source problem")).toBe(true);
     const dismissed = await send({ type: "DISMISS_SYSTEM_ALERT", key: "source:whatsapp" });
     expect(dismissed.status.system_alerts[0].dismissed).toBe(true);
+  });
+
+  it("Accept finishes handling and sends the fallback tag before a failed WhatsApp jump", async () => {
+    const browserTabs = [{ id: 7, windowId: 3, url: "https://web.whatsapp.com/" }];
+    const tabResponder = async (message) => message.type === "SEND_PEER_TAG"
+      ? { ok: true }
+      : { ok: false, error: 'WhatsApp opened "Wrong group" instead of "AOG CX". Nothing was typed.' };
+    const { chrome, send } = await boot({ config: { coord_group: "AOG Coord" }, browserTabs, tabResponder });
+    await send({ type: "START_SHIFT" });
+    await send({ type: "ALERT_DETECTED", alert: { source: "whatsapp", group_name: "AOG CX", unread_count: 1 } });
+
+    const accepted = await send({ type: "ACCEPT_CURRENT" });
+
+    expect(accepted.status.app_state).toBe("IDLE");
+    expect(accepted.ok).toBe(false);
+    expect(accepted.error).toContain("Nothing was typed");
+    expect(chrome._tabMessages.map((item) => item.message.type).filter((type) => type !== "REBASELINE")).toEqual(["SEND_PEER_TAG", "OPEN_WHATSAPP_CHAT"]);
+    expect(chrome._tabUpdates).toEqual([]);
+  });
+
+  it("passes an empty greeting through as an empty draft and then focuses WhatsApp", async () => {
+    const browserTabs = [{ id: 7, windowId: 3, url: "https://web.whatsapp.com/" }];
+    const { chrome, send } = await boot({ config: { whatsapp_greeting: "" }, browserTabs });
+    await send({ type: "START_SHIFT" });
+    await send({ type: "ALERT_DETECTED", alert: { source: "whatsapp", group_name: "AOG CX", unread_count: 1 } });
+
+    const accepted = await send({ type: "ACCEPT_CURRENT" });
+
+    expect(accepted.status.app_state).toBe("IDLE");
+    expect(chrome._tabMessages.at(-1).message).toMatchObject({ type: "OPEN_WHATSAPP_CHAT", chat_name: "AOG CX", draft_text: "" });
+    expect(chrome._tabUpdates).toEqual([{ tabId: 7, options: { active: true } }]);
   });
 
   it("healthy sources + confirmed sound → READY without a power check", async () => {

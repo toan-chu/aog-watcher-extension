@@ -17,6 +17,7 @@ async function load() {
   byId("sharepointSiteUrl").value = config.sharepoint_site_url ?? "";
   byId("selfDisplayName").value = config.self_display_name;
   byId("coordGroup").value = config.coord_group;
+  byId("whatsappGreeting").value = config.whatsapp_greeting ?? "";
   byId("unknownChatAlert").checked = config.unknown_chat_alert !== false;
   byId("customerGroups").value = (config.customer_groups ?? []).join("\n");
   byId("ignoredChats").value = (config.ignored_chats ?? []).join("\n");
@@ -62,6 +63,7 @@ async function save({ quiet = false } = {}) {
     sharepoint_site_url: site,
     self_display_name: byId("selfDisplayName").value.trim(),
     coord_group: coordGroup,
+    whatsapp_greeting: byId("whatsappGreeting").value.trim(),
     unknown_chat_alert: byId("unknownChatAlert").checked,
     customer_groups: customerGroups,
     ignored_chats: uniqueNames(lines(byId("ignoredChats").value)),

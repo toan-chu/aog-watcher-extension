@@ -12,17 +12,17 @@ describe("popup safety copy", () => {
     expect(popupJs).not.toContain("confirm(");
   });
 
-  it("renders recent event time in locale-independent 24-hour time and not raw UTC slice", () => {
-    expect(popupJs).toContain('toLocaleTimeString("en-GB", { hour12: false })');
-    expect(popupJs).not.toContain("slice(11, 19)");
+  it("renders recent event time through the locale-independent clock helper", () => {
+    expect(popupJs).toContain("formatClock24(event.timestamp, { seconds: true })");
+    expect(popupJs).not.toContain("toLocaleTimeString");
   });
 
   it("color-codes and truncates recent event context", () => {
     expect(popupJs).toContain("recent-event--ok");
     expect(popupJs).toContain("recent-event--danger");
     expect(popupJs).toContain("recent-event--warn");
-    expect(popupJs).toContain("shortText(text, 60)");
-    expect(popupJs).toContain("title: text");
+    expect(popupJs).toContain("shortText(sentence, 60)");
+    expect(popupJs).toContain("title: sentence");
   });
 });
 
@@ -36,8 +36,8 @@ describe("popup 5.0", () => {
   });
 
   it("never shows a source as green unless the blind detector says ok", () => {
-    expect(popupJs).toContain('value.status === "ok"');
-    expect(popupJs).toContain("BLIND — cannot read");
+    expect(popupJs).toContain('value?.status === "ok"');
+    expect(popupJs).toContain("BLIND — reload the tab");
   });
 
   it("has start-of-shift checklist with sound test confirmation and leak report", () => {
@@ -45,6 +45,10 @@ describe("popup 5.0", () => {
     expect(popupJs).toContain("SOUND_CONFIRMED");
     expect(popupJs).toContain("REPORT_LEAK");
     expect(popupJs).not.toContain("REPORT_BATTERY");
+  });
+
+  it("provides Tonight, Search and Help without connecting shipment search early", () => {
+    for (const label of ["Tonight", "Search", "Help", "Shipment list is not connected yet"]) expect(popupHtml).toContain(label);
   });
 
   it("no longer exports CSV from the popup", () => {

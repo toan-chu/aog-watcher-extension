@@ -1,8 +1,9 @@
-Cập nhật: 2026-11-10 10:46 UTC+7 - bởi codex
+Cập nhật: 2026-11-10 14:47 UTC+7 - bởi codex
 Chỉ huy:   claude [COWORK-EXEC] (Codex bận, Chairman giải trừ 2026-09-28)
 
 ## Việc đang mở
 
+V5-06 - người làm codex - chờ-soát - vòng 1/2
 V5-04 - người làm codex - chờ-soát - vòng 1/2
 V5-03 - người làm codex - chờ-soát - vòng 1/2
 V5-01  chờ-nghiệm-thu  AOG Watcher 5.0.0 (code xong, 176/176 test; runtime chưa kiểm)

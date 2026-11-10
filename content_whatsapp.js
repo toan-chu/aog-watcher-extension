@@ -1,6 +1,6 @@
 (() => {
   const selectors = globalThis.AOG_WHATSAPP_SELECTORS;
-  const { activeConversationName, all, chatRowName, first, isSameGroupName, normalized } = globalThis.AOG_WHATSAPP_DOM;
+  const { activeConversationName, all, chatRowName, draftDecision, first, isSameGroupName, normalized } = globalThis.AOG_WHATSAPP_DOM;
   const runtime = globalThis.AOG_CONTENT_RUNTIME;
   const lastUnreadByGroup = new Map();
   const seenTags = new Set();
@@ -142,9 +142,8 @@
   // WhatsApp Web blocks synthetic click events on sidebar rows (anti-automation).
   // The only reliable way to switch conversation programmatically is via the search box:
   // type the group name, then press Enter to open the first match.
-  async function searchAndOpenCoord() {
-    const coordName = config?.coord_group || "";
-    if (!coordName) throw new Error("Coord group not configured");
+  async function searchAndOpenChat(chatName) {
+    if (!chatName) throw new Error("WhatsApp chat name is missing");
     const search = first(document, selectors.searchBox);
     if (!search) throw new Error("WhatsApp search box not found");
 
@@ -155,8 +154,8 @@
     document.execCommand("delete", false, null);
     await new Promise((resolve) => setTimeout(resolve, 100));
 
-    document.execCommand("insertText", false, coordName);
-    search.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: coordName }));
+    document.execCommand("insertText", false, chatName);
+    search.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: chatName }));
     await new Promise((resolve) => setTimeout(resolve, 600));
 
     // Press Enter to open first match.
@@ -165,15 +164,15 @@
     search.dispatchEvent(new KeyboardEvent("keyup", enterInit));
   }
 
-  async function waitForCoordGroupActive(timeoutMs = 6000) {
+  async function waitForChatActive(chatName, timeoutMs = 6000) {
     const start = Date.now();
     let currentName = "";
     while (Date.now() - start < timeoutMs) {
       currentName = activeConversationName(document, selectors);
-      if (isSameGroupName(currentName, config?.coord_group)) return true;
+      if (isSameGroupName(currentName, chatName)) return true;
       await new Promise((resolve) => setTimeout(resolve, 150));
     }
-    throw new Error(`Timed out waiting for coord group "${config?.coord_group || "not configured"}" to become active. Currently active: "${currentName || "unknown"}"`);
+    throw new Error(`Timed out waiting for WhatsApp chat "${chatName}" to become active. Currently active: "${currentName || "unknown"}"`);
   }
 
   // Clear the search box after we're done so user's UI is not left in search mode.
@@ -188,10 +187,29 @@
     } catch { /* ignore */ }
   }
 
+  async function openChatAndDraft(chatName, text = "") {
+    await refreshConfig();
+    await searchAndOpenChat(chatName);
+    await waitForChatActive(chatName);
+    clearSearchBox();
+    const activeChat = activeConversationName(document, selectors);
+    const decision = draftDecision({ activeChat, targetChat: chatName, coordGroup: config?.coord_group, text });
+    if (!decision.ok) throw new Error(decision.error);
+    if (!decision.shouldDraft) return { ok: true, chat: activeChat, drafted: false };
+    const composer = first(document, selectors.composer);
+    if (!composer) throw new Error("WhatsApp composer not found");
+    composer.focus();
+    document.execCommand("insertText", false, text);
+    composer.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: text }));
+    return { ok: true, chat: activeChat, drafted: true };
+  }
+
   async function sendPeerTag(text) {
     await refreshConfig();
-    await searchAndOpenCoord();
-    await waitForCoordGroupActive();
+    const coordName = config?.coord_group || "";
+    if (!coordName) throw new Error("Coord group not configured");
+    await searchAndOpenChat(coordName);
+    await waitForChatActive(coordName);
     if (messageExistsInCoordGroup(text)) {
       clearSearchBox();
       return true;
@@ -218,6 +236,14 @@
       baselineReady = false;
       lastUnreadByGroup.clear();
       syncBaseline().then(() => { scheduleScan(); sendResponse({ ok: true }); }).catch((error) => sendResponse({ ok: false, error: error.message }));
+      return true;
+    }
+    if (message.type === "GET_ACTIVE_WHATSAPP_CHAT") {
+      sendResponse({ ok: true, chat: activeConversationName(document, selectors) });
+      return false;
+    }
+    if (message.type === "OPEN_WHATSAPP_CHAT") {
+      openChatAndDraft(message.chat_name, message.draft_text).then(sendResponse).catch((error) => sendResponse({ ok: false, error: error.message }));
       return true;
     }
     if (message.type !== "SEND_PEER_TAG") return false;

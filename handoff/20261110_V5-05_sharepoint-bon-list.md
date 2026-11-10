@@ -121,7 +121,24 @@ Sai thì làm lại: tạo cột mới đúng kiểu và sửa chỗ ghi tương
 ```
 
 Soát:
-Kết quả:
+- Đã soát diff commit `9a7b96e` trên máy Windows của user, bao gồm bổ sung khớp dòng ca theo tên khi lịch chưa có email.
+- Lệnh `npm run check` đạt MV3 check 14 file tham chiếu, 33/33 file test và 213/213 test. Con số gồm 6 test V5-06 vòng 2 đã có trong cùng cây; riêng test V5-05 là 15 test SharePoint, 23 test logic, 8 test service worker và 8 test static.
+- Đã lặp lại bảy phép làm hỏng. Cả bảy đều đỏ đúng nhánh, sau đó hoàn nguyên và chạy lại 213/213 xanh:
+  - Bỏ lọc `Active`: test `stops watching a group the team lead switched off` đỏ vì `Old customer` vẫn được canh.
+  - Bỏ `RecordType: Machine` khỏi khớp heartbeat: test `keeps one heartbeat row per machine` đỏ vì dòng Event bị ghi đè.
+  - Bỏ điều kiện tuổi khi dọn log: test `removes log rows older than the keep period` đỏ, dọn 5 dòng thay vì 2.
+  - Chỉ khớp dòng ca theo ngày: test `finds the operator's own row by email, or by name when the email is unknown` đỏ vì thiếu email/tên.
+  - Bỏ `RecordType: Signal` khỏi truy vấn tín hiệu: test `reads only new, recent signals` đỏ vì dòng Event bị đọc như tín hiệu.
+  - Bỏ fallback theo tên: test logic dòng ca đỏ vì `shiftRowFallbackMatch` trả `null`.
+  - Cho fallback nhận cả dòng đã có email: test `fills in the row the shift lead scheduled by name` đỏ vì dòng của người trùng tên bị ghi đè.
+- Truy vấn đọc Signal lọc `RecordType = Signal`; truy vấn đọc Machine và khớp heartbeat lọc `RecordType = Machine`. Hai thao tác cố ý xuyên ba loại là `latestSignalId` (chỉ lấy ID mới nhất làm mốc, không diễn giải nội dung) và `purgeOldLog` (dọn Event/Signal/Machine theo tuổi và đọc `RecordType` để giữ heartbeat sống). Không có dòng Event nào được diễn giải thành Signal hoặc Machine.
+- `writeShiftRow` lấy danh tính của chính máy, khớp `ShiftDate + Email`; chỉ khi không thấy email mới fallback sang `ShiftDate + OperatorName`, và chỉ nhận dòng có `Email` trống. Mọi lần ghi dòng ca đều đưa vào outbox.
+- `purgeLog` tự bắt lỗi recycle, ghi `LOG_PURGE_FAILED` local và trả về bình thường; `syncTeam` sau đó vẫn đặt SharePoint `ok`. Lỗi dọn log không làm SharePoint hiện đỏ.
+- `git diff 40709e4 9a7b96e -- lib/state_machine.js lib/peer_protocol.js lib/escalation.js` trả về rỗng. State machine, peer protocol và escalation timer không đổi.
+- `[RUNTIME UNVERIFIED]` KS-2 đến KS-7 vẫn cần chạy trên hai máy thật. Kết quả soát mã không thay thế bằng chứng này, nên phiếu chưa đóng.
+
+Kết quả: ĐẠT PHẦN MÃ; giữ `chờ-soát` cho KS-2 đến KS-7 trên hai máy thật.
+-- codex - 2026-11-10 15:49 +07
 
 ## HISTORY
 ### 2026-11-10

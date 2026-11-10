@@ -8,7 +8,7 @@ import { classifyMiss, MISS_CAUSE } from "../lib/miss_cause.js";
 import { answerFollowup, createFollowup, tickFollowups } from "../lib/followup.js";
 import { completeOp, dueOps, enqueueOp, failOp } from "../lib/outbox.js";
 import { applySharedSettings, changedKeys, parseSettingsRows, SHARED_KEYS } from "../lib/shared_settings.js";
-import { ackLog, shiftDate, shiftRowFields } from "../lib/shift_row.js";
+import { acceptLog, shiftDate, shiftRowFields } from "../lib/shift_row.js";
 
 const MIN = 60_000;
 
@@ -138,7 +138,7 @@ describe("miss cause", () => {
   });
 });
 
-describe("follow-up after ACK", () => {
+describe("follow-up after Accept", () => {
   const alert = { alert_id: "a1", group_name: "Runway ABC", source: "whatsapp" };
   it("asks after the delay, then goes overdue without an answer", () => {
     let list = [createFollowup(alert, { now: 0, askAfterMinutes: 10 })];
@@ -200,8 +200,8 @@ describe("night shift row", () => {
     const session = { shift_id: "s1", started_at: new Date(2026, 6, 28, 22, 5).toISOString() };
     const events = [
       { shift_id: "s1", event_type: "DETECTED" },
-      { shift_id: "s1", event_type: "ACK", group_name: "Runway ABC", timestamp: new Date(2026, 6, 28, 23, 10).toISOString() },
-      { shift_id: "other", event_type: "ACK", group_name: "X" },
+      { shift_id: "s1", event_type: "ACCEPT", group_name: "Runway ABC", timestamp: new Date(2026, 6, 28, 23, 10).toISOString() },
+      { shift_id: "other", event_type: "ACCEPT", group_name: "X" },
     ];
     const fields = shiftRowFields({ session, role: "backup", name: "B", email: "b@x.vn", ready: true, events });
     expect(fields.ShiftDate).toBe("2026-07-28");
@@ -209,6 +209,6 @@ describe("night shift row", () => {
     expect(fields.BackupReady).toBe("Sẵn sàng");
     expect(Object.keys(fields).some((key) => key.startsWith("Primary"))).toBe(false);
     expect(fields.AlertCount).toBe("1");
-    expect(ackLog(events, "s1")).toMatch(/23:10 Runway ABC/);
+    expect(acceptLog(events, "s1")).toMatch(/23:10 Runway ABC/);
   });
 });

@@ -151,13 +151,13 @@ async function clearTimers(name, alertId) {
 // ---------- system alerts (independent from the AOG state machine) ----------
 async function getSystemAlerts() { return getKey(K.SYSTEM_ALERTS, {}); }
 async function ringingSystemAlerts() {
-  return Object.values(await getSystemAlerts()).filter((item) => item.ring && !item.acknowledged);
+  return Object.values(await getSystemAlerts()).filter((item) => item.ring && !item.dismissed);
 }
 async function raiseSystemAlert(key, { kind, title, message, ring = true, rearm = false }) {
   const alerts = await getSystemAlerts();
   const existing = alerts[key];
   if (existing && !rearm) return false;
-  alerts[key] = { key, kind, title, message, ring, acknowledged: false, created_at: new Date().toISOString() };
+  alerts[key] = { key, kind, title, message, ring, dismissed: false, created_at: new Date().toISOString() };
   await setKey(K.SYSTEM_ALERTS, alerts);
   await appendServiceEvent({ event_type: "SYSTEM_ALERT", kind, detail_key: key, title, message });
   await notify(`sys-${key}`, title, message);
@@ -165,12 +165,12 @@ async function raiseSystemAlert(key, { kind, title, message, ring = true, rearm 
   broadcastStatus();
   return true;
 }
-async function clearSystemAlert(key, { acknowledged = false } = {}) {
+async function clearSystemAlert(key, { dismissed = false } = {}) {
   const alerts = await getSystemAlerts();
   if (!alerts[key]) return;
-  if (acknowledged) {
-    alerts[key] = { ...alerts[key], acknowledged: true };
-    await appendServiceEvent({ event_type: "SYSTEM_ALERT_ACK", kind: alerts[key].kind, detail_key: key });
+  if (dismissed) {
+    alerts[key] = { ...alerts[key], dismissed: true };
+    await appendServiceEvent({ event_type: "SYSTEM_ALERT_DISMISSED", kind: alerts[key].kind, detail_key: key });
   } else {
     delete alerts[key];
   }
@@ -405,7 +405,7 @@ async function appendServiceEvent(record) {
   const config = await getConfig();
   const eventRecord = { ...record, timestamp: record.timestamp ?? new Date().toISOString() };
   const detectedById = new Map();
-  if (eventRecord.event_type === "ACK" && eventRecord.alert_id && eventRecord.response_time_ms === undefined) {
+  if (eventRecord.event_type === "ACCEPT" && eventRecord.alert_id && eventRecord.response_time_ms === undefined) {
     for (const event of await getEventLog()) if (event.event_type === "DETECTED" && event.alert_id === eventRecord.alert_id) detectedById.set(event.alert_id, event.timestamp);
   }
   if (eventRecord.event_type === "MISSED" && !eventRecord.miss_cause) {
@@ -810,10 +810,10 @@ async function handleMessage(message) {
       await hydrate();
       if (state.session) await refreshPreflight(await getConfig());
       return {};
-    case MESSAGE.ACK_CURRENT: {
+    case MESSAGE.ACCEPT_CURRENT: {
       await hydrate();
       const alert = state.current_alert;
-      await dispatch({ type: "ALERT_ACK" });
+      await dispatch({ type: "ALERT_ACCEPT" });
       const config = await getConfig();
       if (alert && state.current_alert?.alert_id !== alert.alert_id) await writeShiftRow(config, state.session);
       if (alert && state.current_alert?.alert_id !== alert.alert_id && config.followup_enabled) {
@@ -833,7 +833,7 @@ async function handleMessage(message) {
       if (message.connected) await recordSourceHealth(message.source, message.stats ?? null);
       return {};
     case MESSAGE.UNKNOWN_CHAT_DECISION: return decideUnknownChat(message.name, message.decision);
-    case MESSAGE.SYSTEM_ALERT_ACK: await clearSystemAlert(message.key, { acknowledged: true }); return {};
+    case MESSAGE.DISMISS_SYSTEM_ALERT: await clearSystemAlert(message.key, { dismissed: true }); return {};
     case MESSAGE.FOLLOWUP_ANSWER: {
       const config = await getConfig();
       await setKey(K.FOLLOWUPS, answerFollowup(await getKey(K.FOLLOWUPS, []), message.alert_id, message.answer, { snoozeMinutes: Number(config.followup_after_minutes) || 10 }));

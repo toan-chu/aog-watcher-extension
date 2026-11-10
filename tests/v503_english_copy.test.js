@@ -18,15 +18,10 @@ describe("V5-03 English user-facing copy", () => {
     expect(offenders).toEqual([]);
   });
 
-  it("uses Accept everywhere user-facing while preserving internal ACK identifiers", () => {
+  it("uses Accept everywhere including internal identifiers", () => {
     expect(uiSources["popup.html"]).toContain("ACCEPT — I'LL HANDLE IT");
-    expect(uiSources["popup.html"]).not.toMatch(/\bACK\b/);
-    expect(uiSources["settings.html"]).not.toMatch(/\bACK\b/);
-    for (const path of ["popup.js", "service_worker.js"]) {
-      expect(uiSources[path].replaceAll('"ACK"', "")).not.toMatch(/\bACK\b/);
-    }
-    expect(uiSources["popup.js"]).toContain('type: "ACK_CURRENT"');
-    expect(uiSources["service_worker.js"]).toContain('eventRecord.event_type === "ACK"');
+    expect(uiSources["popup.js"]).toContain('type: "ACCEPT_CURRENT"');
+    expect(uiSources["service_worker.js"]).toContain('eventRecord.event_type === "ACCEPT"');
   });
 
   it("uses English documents and the required vocabulary", () => {

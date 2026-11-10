@@ -17,12 +17,12 @@ Extension Chrome/Edge canh WhatsApp Web và Outlook Web trong ca đêm, reo khi 
 
    | Bảng | Dùng cho |
    |---|---|
-   | AOG_Shifts | **Ca trực** — mỗi đêm 1 dòng cho cả 2 người: điểm danh, giờ vào/ra, tin đã ACK, ghi chú |
+   | AOG_Shifts | **Ca trực** — mỗi đêm 1 dòng cho cả 2 người: điểm danh, giờ vào/ra, tin đã Accept, ghi chú |
    | AOG_Groups | **Nhóm chung** — danh sách nhóm WhatsApp khách; thêm/xoá dòng trực tiếp |
-   | AOG_Events | **Hộp đen** — từng tin, ai ACK, leo thang, nguyên nhân miss |
+   | AOG_Events | **Hộp đen** — từng tin, ai Accept, leo thang, nguyên nhân miss |
    | AOG_Settings | **Cài đặt chung** — hộp AOG, nhóm điều phối, thời gian leo thang… |
    | AOG_Machines | Máy dùng: nhịp tim từng máy (không cần sửa) |
-   | AOG_Signals | Máy dùng: hai máy nhắn nhau ACK/leo thang (không cần sửa) |
+   | AOG_Signals | Máy dùng: hai máy nhắn nhau Accept/leo thang (không cần sửa) |
 
 5. Điền mục 3–5 trong Cài đặt (nhóm điều phối, đường dẫn hộp AOG, thời gian) → **Lưu** → bấm **Đẩy cài đặt chung**. Từ giờ mọi máy nối vào SharePoint tự lấy các cài đặt này.
 6. Nhập danh sách nhóm khách hiện có vào bảng **AOG_Groups** (mỗi dòng một tên nhóm, cột Title, đúng tên hiển thị trên WhatsApp).
@@ -58,20 +58,20 @@ Checklist chưa đạt **không** tắt việc canh tin; nó chỉ báo cho máy
 
 | Thấy gì | Làm gì |
 |---|---|
-| Máy reo, popup có tin | Bấm **ACK — TÔI NHẬN XỬ LÝ**. Máy kia được báo, ghi vào cột ACK của mình trên dòng ca trực |
-| Sau ACK ~10 phút hỏi "Đã xử lý xong chưa?" | Bấm **Xong** hoặc **Cần thêm thời gian**. Không trả lời 5 phút → reo lại và báo máy kia |
+| Máy reo, popup có tin | Bấm **ACCEPT — I'LL HANDLE IT**. Máy kia được báo, ghi vào cột Accept của mình trên dòng ca trực |
+| Sau Accept ~10 phút hỏi "Đã xử lý xong chưa?" | Bấm **Xong** hoặc **Cần thêm thời gian**. Không trả lời 5 phút → reo lại và báo máy kia |
 | "Chat lạ vừa nhắn" | **Thêm vào danh sách chung** (nhóm khách → ghi lên SharePoint, mọi máy nhận) hoặc **Bỏ qua** (chat cá nhân → chỉ máy này thôi reo) |
 | Ô đỏ "Watcher đang MÙ" / "Không thấy tab" / "Sai hộp thư" | Bấm **Đã biết** để tắt chuông, rồi sửa: tải lại tab, mở lại đúng hộp AOG. Ô đỏ tự mất khi đã sửa xong |
 | "Máy trực cùng mất liên lạc" | Gọi người trực cùng. Máy kia ngủ, hết pin, mất mạng hoặc đã đóng trình duyệt |
 | "Máy kia chưa mở ca" | Gọi người trực cùng |
 | Phát hiện có tin mà Watcher không reo | Popup → **Có tin bị lọt?** → chọn nguồn, tên nhóm/tiêu đề, giờ → **Ghi nhận**. Hệ thống tự ghi nguyên nhân |
 
-Mỗi tin miss có đúng một nguyên nhân trong hộp đen: **Cài đặt** (chưa mở ca, sai hộp thư, tab đóng, chưa thử chuông) · **Máy** (ngủ/mất mạng, không phát được âm thanh) · **Người** (reo đủ thời gian không ai ACK) · **Watcher** (tin đến mà Watcher không thấy, hoặc Watcher đang mù).
+Mỗi tin miss có đúng một nguyên nhân trong hộp đen: **Cài đặt** (chưa mở ca, sai hộp thư, tab đóng, chưa thử chuông) · **Máy** (ngủ/mất mạng, không phát được âm thanh) · **Người** (reo đủ thời gian không ai Accept) · **Watcher** (tin đến mà Watcher không thấy, hoặc Watcher đang mù).
 
 ### Ra ca
 
 1. Popup → **Kết thúc ca** → bấm lần nữa để xác nhận.
-2. Dòng ca trực đêm nay tự có giờ ra ca, số tin, số miss và danh sách ACK. Ghi chú thêm vào cột Notes nếu cần.
+2. Dòng ca trực đêm nay tự có giờ ra ca, số tin, số miss và danh sách Accept. Ghi chú thêm vào cột Notes nếu cần.
 
 ## D. Khi SharePoint lỗi
 

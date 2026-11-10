@@ -24,7 +24,7 @@ describe("V5-02 Trustana brand UI", () => {
   it("keeps status colours distinct from the brand orange", () => {
     const token = (name) => popupCss.match(new RegExp(`--${name}: (#[0-9a-f]{6})`))[1];
     for (const name of ["ok", "warn", "danger"]) expect(token(name)).not.toBe("#ff6200");
-    expect(popupCss).toMatch(/\.ack:not\(:disabled\) \{[^}]*var\(--danger\)/);
+    expect(popupCss).toMatch(/\.accept:not\(:disabled\) \{[^}]*var\(--danger\)/);
   });
 
   it("keeps every element id the popup script needs", () => {

@@ -24,7 +24,7 @@
 * { box-sizing: border-box; }
 body { margin: 0; width: 380px; overflow-x: hidden; background: var(--bg); color: var(--ink); font: 14px/1.45 var(--font-body); }
 button, select, input { font: inherit; }
-h1, h2, .eyebrow, .state, .ready, .tag, .ack, .cta { font-family: var(--font-head); }
+h1, h2, .eyebrow, .state, .ready, .tag, .accept, .cta { font-family: var(--font-head); }
 button:focus-visible, select:focus-visible, input:focus-visible, summary:focus-visible { outline: 2px solid var(--brand-orange); outline-offset: 2px; }
 
 /* Header */
@@ -53,21 +53,21 @@ body.is-alerting .brandbar { background: linear-gradient(135deg, #b0162f, var(--
 .system-alerts:empty { display: none; }
 .sys { border: 1px solid var(--danger); border-left-width: 5px; background: #fdecee; border-radius: 6px; padding: 10px 12px; display: grid; gap: 6px; }
 .sys--quiet { border-color: var(--warn); background: #fdf6e3; }
-.sys--ack { opacity: .65; }
+.sys--dismissed { opacity: .65; }
 .sys strong { font: 700 13px/1.3 var(--font-head); }
 .sys span { color: var(--ink); font-size: 13px; }
 .sys__actions { display: flex; gap: 8px; flex-wrap: wrap; }
 
-/* Current alert + ACK */
+/* Current alert + Accept */
 .alert-panel { display: grid; gap: 4px; border-left: 5px solid var(--line); }
 .alert-panel__label { margin: 0; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; }
 .alert-panel strong { font: 700 16px/1.3 var(--font-head); }
 .alert-panel span { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .alert-panel--active { border-color: var(--danger); background: #fdecee; }
 .alert-panel--active strong { color: var(--danger); }
-.ack { margin-top: 8px; width: 100%; min-height: 50px; border: 0; border-radius: 5px; background: var(--surface-2); color: #9a8db0; font-size: 15px; font-weight: 700; cursor: not-allowed; }
-.ack:not(:disabled) { background: var(--danger); color: #fff; cursor: pointer; box-shadow: 0 0 0 3px rgb(215 38 61 / 22%); }
-.ack:not(:disabled):hover { filter: brightness(1.1); }
+.accept { margin-top: 8px; width: 100%; min-height: 50px; border: 0; border-radius: 5px; background: var(--surface-2); color: #9a8db0; font-size: 15px; font-weight: 700; cursor: not-allowed; }
+.accept:not(:disabled) { background: var(--danger); color: #fff; cursor: pointer; box-shadow: 0 0 0 3px rgb(215 38 61 / 22%); }
+.accept:not(:disabled):hover { filter: brightness(1.1); }
 
 /* Buttons */
 .sys__actions button, .unknown button, .preflight__actions button, .leak__form button { border: 1px solid var(--heading); color: var(--heading); border-radius: 4px; background: transparent; color: var(--ink); padding: 7px 11px; cursor: pointer; font-size: 13px; }

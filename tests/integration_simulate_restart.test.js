@@ -9,10 +9,10 @@ const detect = () => ({ type: "ALERT_DETECTED", payload: { alert, within_shift: 
 describe("service worker restart simulation", () => {
   it("does not persist handled queue entries across restart, so repeated alert_id can wake again", () => {
     const firstDetection = reduce(createInitialState({ role: "primary" }), detect());
-    const acked = reduce(firstDetection.state, { type: "ALERT_ACK" }).state;
-    expect(acked.queue.findById(alert.alert_id).status).toBe("HANDLED");
+    const accepted = reduce(firstDetection.state, { type: "ALERT_ACCEPT" }).state;
+    expect(accepted.queue.findById(alert.alert_id).status).toBe("HANDLED");
 
-    const stored = serializeRuntimeState(acked);
+    const stored = serializeRuntimeState(accepted);
     expect(stored).not.toHaveProperty("queue");
 
     const restarted = hydrateRuntimeState(stored, { role: "primary" });

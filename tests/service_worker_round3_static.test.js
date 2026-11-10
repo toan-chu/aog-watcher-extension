@@ -17,7 +17,7 @@ describe("service worker Round 3 wiring", () => {
     expect(serviceWorker).toContain("SHIFT_ENDED");
   });
 
-  it("backfills ACK response time from persisted event log, not an in-memory map", () => {
+  it("backfills Accept response time from persisted event log, not an in-memory map", () => {
     expect(serviceWorker).not.toContain("detectedAtByAlertId");
     expect(serviceWorker).toContain("for (const event of await getEventLog())");
   });

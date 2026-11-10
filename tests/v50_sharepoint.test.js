@@ -36,7 +36,7 @@ describe("sharepoint client", () => {
       [/POST .*items$/, { status: 201, body: { Id: 7 } }],
     ]);
     const client = createSharePointClient({ siteUrl: SITE, fetchImpl: impl });
-    const created = await client.addItem(SP_LISTS.EVENTS, { Title: "ACK" });
+    const created = await client.addItem(SP_LISTS.EVENTS, { Title: "ACCEPT" });
     expect(created.Id).toBe(7);
     const write = calls.find((call) => call.url.endsWith("/items"));
     expect(write.init.credentials).toBe("include");

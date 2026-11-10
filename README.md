@@ -7,21 +7,21 @@
 ![Tests 181 passing](https://img.shields.io/badge/tests-181%20passing-brightgreen)
 
 > **AOG Watcher canh WhatsApp và Outlook để hai người trực đêm không bỏ lỡ yêu cầu khẩn cấp, tự báo khi chính nó hỏng, và ghi ca trực lên SharePoint của group AOG.**
-> Mở ca → kiểm tra đầu ca → có tin thì reo → người chính ACK hoặc leo thang sang máy dự phòng → sáng ra dòng ca trực và hộp đen ghi rõ từng tin, từng lần miss và nguyên nhân.
+> Mở ca → kiểm tra đầu ca → có tin thì reo → người chính Accept hoặc leo thang sang máy dự phòng → sáng ra dòng ca trực và hộp đen ghi rõ từng tin, từng lần miss và nguyên nhân.
 
 ## 🎯 Ai làm gì
 
 | Vai trò | Việc cần làm | Cần biết code? |
 |---|---|---|
-| Người trực | Dán link SharePoint lần đầu, mở 2 tab, Bắt đầu ca, làm checklist, ACK | Không |
+| Người trực | Dán link SharePoint lần đầu, mở 2 tab, Bắt đầu ca, làm checklist, Accept | Không |
 | Trưởng team | Tạo bảng SharePoint một lần, giữ danh sách nhóm và cài đặt chung | Không |
 | Người bảo trì | Cập nhật bộ nhận diện giao diện khi WhatsApp/Outlook đổi, chạy kiểm tra | Có |
 
 ## 🔄 Luồng chạy
 
 ```text
-WhatsApp Web ──┐                       ┌──> chuông máy chính ── ACK ──> báo máy kia (SharePoint)
-               ├──> Watcher (2 máy) ───┤                        └ không ACK ──> máy dự phòng reo
+WhatsApp Web ──┐                       ┌──> chuông máy chính ── Accept ──> báo máy kia (SharePoint)
+               ├──> Watcher (2 máy) ───┤                        └ không Accept ──> máy dự phòng reo
 Outlook Web ───┘        │              └──> tự kiểm: nguồn mù? máy kia mất liên lạc? quên mở ca?
                         ▼
           SharePoint AOG: Ca trực · Nhóm chung · Hộp đen · Cài đặt chung
@@ -41,9 +41,9 @@ Trưởng team làm thêm một lần: tạo 6 bảng AOG_* và đẩy cài đ�
 
 1. Mở sẵn WhatsApp Web và Outlook Web ở đúng hộp AOG.
 2. Tới giờ ca: mở popup → **Bắt đầu ca** → làm theo **Kiểm tra đầu ca** tới khi huy hiệu hiện **SẴN SÀNG**.
-3. Máy reo → bấm **ACK — TÔI NHẬN XỬ LÝ**; khoảng 10 phút sau trả lời **Xong** hoặc **Cần thêm thời gian**.
+3. Máy reo → bấm **ACCEPT — I'LL HANDLE IT**; khoảng 10 phút sau trả lời **Xong** hoặc **Cần thêm thời gian**.
 4. Chat lạ nhắn → **Thêm vào danh sách chung** (nhóm khách) hoặc **Bỏ qua** (chat cá nhân).
-5. Hết ca → **Kết thúc ca**. Dòng ca trực đêm nay trên SharePoint tự có giờ vào/ra, tin đã ACK; ghi chú thêm ở cột Notes.
+5. Hết ca → **Kết thúc ca**. Dòng ca trực đêm nay trên SharePoint tự có giờ vào/ra, tin đã Accept; ghi chú thêm ở cột Notes.
 
 Chi tiết từng bước: [Cẩm nang vận hành](docs/SOP.md), mục B–C.
 

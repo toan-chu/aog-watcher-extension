@@ -1,4 +1,4 @@
-const ids = ["versionValue", "stateBadge", "readyBadge", "dryRunBadge", "testModeBadge", "systemAlerts", "alertPanel", "alertTitle", "alertMeta", "ackButton",
+const ids = ["versionValue", "stateBadge", "readyBadge", "dryRunBadge", "testModeBadge", "systemAlerts", "alertPanel", "alertTitle", "alertMeta", "acceptButton",
   "unknownChats", "unknownList", "roleValue", "queueValue", "groupsValue", "whatsappDot", "whatsappValue", "outlookDot", "outlookValue", "sharepointDot",
   "sharepointValue", "peerDot", "peerValue", "preflight", "preflightList", "testSoundButton", "soundOkButton", "shiftSetup", "startShiftButton",
   "shiftStatusHint", "endShiftButton", "leakSource", "leakWhat", "leakAt", "leakButton", "diagnosticsRows", "recentEvents", "sharepointButton",
@@ -33,13 +33,13 @@ function resetEndShiftConfirm() {
   elements.endShiftButton.textContent = "End shift";
 }
 function eventClass(eventType) {
-  if (eventType === "ACK" || eventType === "PEER_HANDLED" || eventType === "FOLLOWUP_DONE") return "recent-event--ok";
+  if (eventType === "ACCEPT" || eventType === "PEER_HANDLED" || eventType === "FOLLOWUP_DONE") return "recent-event--ok";
   if (["MISSED", "LEAK_REPORTED", "SYSTEM_ALERT", "FOLLOWUP_OVERDUE"].includes(eventType)) return "recent-event--danger";
   if (String(eventType ?? "").startsWith("DRY_RUN") || String(eventType ?? "").startsWith("SKIPPED") || eventType === "UNKNOWN_CHAT") return "recent-event--warn";
   return "recent-event--neutral";
 }
 function eventLabel(eventType) {
-  return String(eventType ?? "").replaceAll("_", " ").replaceAll("ACK", "ACCEPT");
+  return String(eventType ?? "").replaceAll("_", " ");
 }
 function setDot(name, level, text) {
   elements[`${name}Dot`].className = level === "ok" ? "online" : (level === "warn" ? "warn" : (level === "bad" ? "bad" : ""));
@@ -67,12 +67,12 @@ function renderSystemAlerts(list = []) {
         el("button", { type: "button", className: "primary", textContent: "Done", onclick: () => act({ type: "FOLLOWUP_ANSWER", alert_id: alertId, answer: "done" }, "Recorded as done.") }),
         el("button", { type: "button", textContent: "Need more time", onclick: () => act({ type: "FOLLOWUP_ANSWER", alert_id: alertId, answer: "snooze" }, "Watcher will ask again later.") }),
       );
-    } else if (!item.acknowledged) {
-      actions.append(el("button", { type: "button", className: "primary", textContent: "Dismiss", onclick: () => act({ type: "SYSTEM_ALERT_ACK", key: item.key }, "Alert sound dismissed. The red warning remains until the issue is fixed.") }));
+    } else if (!item.dismissed) {
+      actions.append(el("button", { type: "button", className: "primary", textContent: "Dismiss", onclick: () => act({ type: "DISMISS_SYSTEM_ALERT", key: item.key }, "Alert sound dismissed. The red warning remains until the issue is fixed.") }));
     }
     const classes = ["sys"];
     if (!item.ring) classes.push("sys--quiet");
-    if (item.acknowledged) classes.push("sys--ack");
+    if (item.dismissed) classes.push("sys--dismissed");
     return el("div", { className: classes.join(" ") }, [el("strong", { textContent: item.title }), el("span", { textContent: item.message }), actions]);
   }));
 }
@@ -131,7 +131,7 @@ function renderPreflight(status) {
 function render(status) {
   lastStatus = status;
   const active = status.app_state === "ALERTING";
-  document.body.classList.toggle("is-alerting", active || (status.system_alerts ?? []).some((item) => item.ring && !item.acknowledged));
+  document.body.classList.toggle("is-alerting", active || (status.system_alerts ?? []).some((item) => item.ring && !item.dismissed));
   elements.versionValue.textContent = status.version ?? "5.0";
   elements.stateBadge.textContent = active ? "RINGING" : "IDLE";
   elements.stateBadge.className = `state ${active ? "state--alerting" : "state--idle"}`;
@@ -142,7 +142,7 @@ function render(status) {
   const alert = status.current_alert;
   elements.alertTitle.textContent = active ? `${alert.unknown_chat ? "Unknown chat · " : ""}${alert.group_name || alert.subject || "AOG alert"}` : "No messages";
   elements.alertMeta.textContent = active ? `${alert.source === "email" ? "Outlook" : "WhatsApp"} · ${alert.sender || `${alert.unread_count || 1} unread messages`}` : "Watcher is monitoring.";
-  elements.ackButton.disabled = !active;
+  elements.acceptButton.disabled = !active;
 
   renderSystemAlerts(status.system_alerts);
   renderUnknown(status.unknown_chats);
@@ -217,11 +217,11 @@ async function saveSlots() {
 
 slotRows.forEach((row) => row.addEventListener("change", async () => { if (await saveSlots()) showFeedback("Shift times saved."); }));
 
-elements.ackButton.addEventListener("click", async () => {
-  elements.ackButton.disabled = true;
-  elements.ackButton.textContent = "ACCEPTING…";
-  await act({ type: "ACK_CURRENT" }, "Accepted. The partner machine has been notified.");
-  elements.ackButton.textContent = "ACCEPT — I'LL HANDLE IT";
+elements.acceptButton.addEventListener("click", async () => {
+  elements.acceptButton.disabled = true;
+  elements.acceptButton.textContent = "ACCEPTING…";
+  await act({ type: "ACCEPT_CURRENT" }, "Accepted. The partner machine has been notified.");
+  elements.acceptButton.textContent = "ACCEPT — I'LL HANDLE IT";
 });
 
 elements.startShiftButton.addEventListener("click", async () => {

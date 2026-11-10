@@ -109,13 +109,13 @@ describe("service worker 5.0 behaviour", () => {
     expect(response.status.recent_events.at(-1).event_type).toBe("SKIPPED_NO_SHIFT");
   });
 
-  it("ACK creates a follow-up question; missing tabs raise a red source alert on tick", async () => {
+  it("Accept creates a follow-up question; missing tabs raise a red source alert on tick", async () => {
     const { chrome, send, alarm, settle } = await boot();
     await send({ type: "START_SHIFT" });
     await send({ type: "ALERT_DETECTED", alert: { source: "email", sender: "ops@airline.com", subject: "AOG A321", message_id: "m1" } });
-    const acked = await send({ type: "ACK_CURRENT" });
-    expect(acked.status.app_state).toBe("IDLE");
-    expect(acked.status.followups).toHaveLength(1);
+    const accepted = await send({ type: "ACCEPT_CURRENT" });
+    expect(accepted.status.app_state).toBe("IDLE");
+    expect(accepted.status.followups).toHaveLength(1);
     alarm("aog:tick");
     await settle();
     const status = (await send({ type: "GET_STATUS" })).status;
@@ -125,6 +125,8 @@ describe("service worker 5.0 behaviour", () => {
     expect(status.system_alerts.map((item) => item.key)).toEqual(["source:whatsapp"]);
     expect(status.preflight.ready).toBe(false);
     expect(chrome._notifications.some((item) => item.title === "Source problem")).toBe(true);
+    const dismissed = await send({ type: "DISMISS_SYSTEM_ALERT", key: "source:whatsapp" });
+    expect(dismissed.status.system_alerts[0].dismissed).toBe(true);
   });
 
   it("healthy sources + confirmed sound → READY without a power check", async () => {
@@ -141,14 +143,14 @@ describe("service worker 5.0 behaviour", () => {
     expect(status.system_alerts).toEqual([]);
   });
 
-  it("with SharePoint: ACK is sent as a signal, a peer ESCALATED signal is received, black box + night row are written", async () => {
+  it("with SharePoint: Accept is sent as a signal, a peer ESCALATED signal is received, black box + night row are written", async () => {
     const sp = fakeSharePoint();
     const { send, alarm, settle } = await boot({ config: { sharepoint_site_url: "https://acme.sharepoint.com/sites/AOG" }, sharepoint: sp });
     alarm("aog:tick"); await settle();                     // first sync: sets signal cursor, identity, machine row
     expect(sp.rows("AOG_Machines")).toHaveLength(1);
     await send({ type: "START_SHIFT" });
     await send({ type: "ALERT_DETECTED", alert: { source: "email", sender: "ops@airline.com", subject: "AOG A321", message_id: "m1" } });
-    await send({ type: "ACK_CURRENT" });
+    await send({ type: "ACCEPT_CURRENT" });
     const handled = sp.rows("AOG_Signals").find((row) => row.SignalType === "HANDLED");
     expect(handled).toBeTruthy();
     // peer sends ESCALATED for an alert this (primary) machine does not have → logged, no crash
@@ -156,11 +158,11 @@ describe("service worker 5.0 behaviour", () => {
     alarm("aog:tick"); await settle();
     const status = (await send({ type: "GET_STATUS" })).status;
     expect(status.system_alerts.some((item) => item.kind === "peer_shift")).toBe(true);
-    expect(sp.rows("AOG_Events").some((row) => row.EventType === "ACK")).toBe(true);
+    expect(sp.rows("AOG_Events").some((row) => row.EventType === "ACCEPT")).toBe(true);
     const night = sp.rows("AOG_Shifts");
     expect(night).toHaveLength(1);
     expect(night[0].PrimaryEmail).toBe("hoai@acme.vn");
-    expect(night[0].PrimaryAckLog).toMatch(/AOG A321/);
+    expect(night[0].PrimaryAcceptLog).toMatch(/AOG A321/);
     expect(status.sharepoint.ok).toBe(true);
   });
 

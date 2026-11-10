@@ -12,7 +12,7 @@ import { createSharePointClient, normalizeSiteUrl } from "./lib/sharepoint_clien
 import { SP_LISTS } from "./lib/sp_schema.js";
 import {
   BLACKBOX_EVENTS, SIGNAL, checkSchema, ensureSchema, eventFields, executeOp, latestSignalId,
-  pullMachines, pullSignals, pullTeamGroups, signalFields, upsertByKey,
+  pullMachines, pullSignals, pullTeamGroups, purgeOldLog, signalFields, upsertMachine,
 } from "./lib/team_sync.js";
 import { enqueueOp, dueOps, completeOp, failOp } from "./lib/outbox.js";
 import { addName, classifyChat, CHAT_CLASS, effectiveGroups, removeName } from "./lib/groups.js";
@@ -23,7 +23,7 @@ import { evaluatePeers, wasOfflineAt } from "./lib/heartbeat.js";
 import { classifyMiss } from "./lib/miss_cause.js";
 import { answerFollowup, createFollowup, tickFollowups } from "./lib/followup.js";
 import { applySharedSettings, changedKeys, publishSharedSettings, pullSharedSettings } from "./lib/shared_settings.js";
-import { shiftDate, shiftRowFields } from "./lib/shift_row.js";
+import { shiftRowFallbackMatch, shiftRowFields, shiftRowMatch } from "./lib/shift_row.js";
 import {
   appendEventLog, clearShiftBaseline, endShiftSession, getConfig, getEventLog, getKey, getMachineId,
   getRoleSession, getRuntimeState, getShiftBaseline, getShiftSessions, getSourceHealth, isAlertEscalated,
@@ -225,11 +225,11 @@ async function sendSignal(type, { alertId = "", source = "", payload = {} } = {}
   if (!spConfigured(config)) return false;
   const fields = signalFields({ type, alertId, source, fromMachine: await getMachineId(), payload });
   try {
-    await spClient(config).addItem(SP_LISTS.SIGNALS, fields);
+    await spClient(config).addItem(SP_LISTS.LOG, fields);
     return true;
   } catch (error) {
     await setSpStatus({ ok: false, error: englishSharePointError(error.message) });
-    await queueWrite({ kind: "add", list: SP_LISTS.SIGNALS, fields });
+    await queueWrite({ kind: "add", list: SP_LISTS.LOG, fields });
     return false;
   }
 }
@@ -256,7 +256,7 @@ async function heartbeat(config, problems) {
   const client = spClient(config);
   const cache = await getKey(K.SP_ITEM_CACHE, {});
   const fields = await machineFields(config, { problems });
-  const result = await upsertByKey(client, SP_LISTS.MACHINES, "MachineId", fields.MachineId, fields, cache);
+  const result = await upsertMachine(client, fields, cache);
   await setKey(K.SP_ITEM_CACHE, result.cache);
 }
 
@@ -307,9 +307,25 @@ async function syncTeam(config, { problems = [], forceGroups = false } = {}) {
         await appendEventLog({ event_type: "SHARED_SETTINGS_APPLIED", keys: changed.join(",") });
       }
     }
+    await purgeLog(client);
     await setSpStatus({ ok: true, configured: true, error: "" });
   } catch (error) {
     await setSpStatus({ ok: false, configured: true, error: englishSharePointError(error.message) });
+  }
+}
+
+// Housekeeping for AOG_Log. Runs at most once a day (sooner while a backlog remains).
+// A failure here must never mark SharePoint as broken: the watch and the black box do not depend on it.
+async function purgeLog(client) {
+  if (Date.now() < (await getKey(K.LOG_PURGE_AT, 0))) return;
+  const batch = 100;
+  try {
+    const removed = await purgeOldLog(client, { keepDays: (await getConfig()).log_keep_days ?? 90, batch });
+    await setKey(K.LOG_PURGE_AT, Date.now() + (removed >= batch ? GROUP_PULL_MS : 24 * 3_600_000));
+    if (removed) await appendEventLog({ event_type: "LOG_PURGED", removed });
+  } catch (error) {
+    await setKey(K.LOG_PURGE_AT, Date.now() + 24 * 3_600_000);
+    await appendEventLog({ event_type: "LOG_PURGE_FAILED", error: englishSharePointError(error.message) });
   }
 }
 
@@ -466,7 +482,7 @@ async function appendServiceEvent(record) {
   await appendEventLog(enriched);
   if (BLACKBOX_EVENTS.has(enriched.event_type)) {
     const who = await identity();
-    await queueWrite({ kind: "add", list: SP_LISTS.EVENTS, fields: eventFields(enriched, { machineId: await getMachineId(), email: who.email }) });
+    await queueWrite({ kind: "add", list: SP_LISTS.LOG, fields: eventFields(enriched, { machineId: await getMachineId(), email: who.email }) });
   }
 }
 
@@ -596,9 +612,10 @@ async function writeShiftRow(config, session, { ended = false } = {}) {
   if (!session?.shift_id) return;
   const who = await identity();
   const preflight = await getKey(K.PREFLIGHT, null);
-  const role = session.initial_role ?? session.role;
-  const fields = shiftRowFields({ session, role, name: config.self_display_name || who.name, email: who.email, ready: preflight ? preflight.ready : null, events: await getEventLog(), ended });
-  await queueWrite({ kind: "upsert", list: SP_LISTS.SHIFTS, key_field: "ShiftDate", key_value: shiftDate(session.started_at), fields, shared: true });
+  const name = config.self_display_name || who.name;
+  const fields = shiftRowFields({ session, name, email: who.email, ready: preflight ? preflight.ready : null, events: await getEventLog(), ended });
+  const who2 = { session, name, email: who.email };
+  await queueWrite({ kind: "upsert", list: SP_LISTS.SHIFTS, match: shiftRowMatch(who2), fallback_match: shiftRowFallbackMatch(who2), claim_field: "Email", fields });
 }
 
 async function startShift() {

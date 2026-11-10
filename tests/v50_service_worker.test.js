@@ -65,10 +65,12 @@ function fakeSharePoint() {
     if (method === "GET") {
       let result = [...rows(title)];
       const filter = u.searchParams.get("$filter") ?? "";
-      const gt = filter.match(/^Id gt (\d+)$/);
-      if (gt) result = result.filter((row) => row.Id > Number(gt[1]));
-      const eq = filter.match(/^(\w+) eq '(.*)'$/);
-      if (eq) result = result.filter((row) => String(row[eq[1]]) === eq[2]);
+      for (const clause of filter ? filter.split(" and ") : []) {
+        const gt = clause.match(/^Id gt (\d+)$/);
+        if (gt) result = result.filter((row) => row.Id > Number(gt[1]));
+        const eq = clause.match(/^(\w+) eq '(.*)'$/);
+        if (eq) result = result.filter((row) => String(row[eq[1]]) === eq[2]);
+      }
       const order = u.searchParams.get("$orderby");
       if (order === "Id desc") result.sort((a, b) => b.Id - a.Id);
       return json(200, { value: result.slice(0, Number(u.searchParams.get("$top")) || 100) });
@@ -188,22 +190,26 @@ describe("service worker 5.0 behaviour", () => {
     const sp = fakeSharePoint();
     const { send, alarm, settle } = await boot({ config: { sharepoint_site_url: "https://acme.sharepoint.com/sites/AOG" }, sharepoint: sp });
     alarm("aog:tick"); await settle();                     // first sync: sets signal cursor, identity, machine row
-    expect(sp.rows("AOG_Machines")).toHaveLength(1);
+    const log = (type) => sp.rows("AOG_Log").filter((row) => row.RecordType === type);
+    expect(log("Machine")).toHaveLength(1);
     await send({ type: "START_SHIFT" });
     await send({ type: "ALERT_DETECTED", alert: { source: "email", sender: "ops@airline.com", subject: "AOG A321", message_id: "m1" } });
     await send({ type: "ACCEPT_CURRENT" });
-    const handled = sp.rows("AOG_Signals").find((row) => row.SignalType === "HANDLED");
+    const handled = log("Signal").find((row) => row.EventType === "HANDLED");
     expect(handled).toBeTruthy();
-    // peer sends ESCALATED for an alert this (primary) machine does not have → logged, no crash
-    sp.rows("AOG_Signals").push({ Id: 999, SignalType: "SHIFT_NOT_STARTED", AlertId: "", FromMachine: "peer-1", SentAt: new Date().toISOString(), Payload: JSON.stringify({ operator: "Toàn", night: "x" }) });
+    // peer sends a signal → this machine raises the matching system alert
+    sp.rows("AOG_Log").push({ Id: 999, RecordType: "Signal", EventType: "SHIFT_NOT_STARTED", AlertId: "", MachineId: "peer-1", At: new Date().toISOString(), Detail: JSON.stringify({ operator: "Toàn", night: "x" }) });
     alarm("aog:tick"); await settle();
     const status = (await send({ type: "GET_STATUS" })).status;
     expect(status.system_alerts.some((item) => item.kind === "peer_shift")).toBe(true);
-    expect(sp.rows("AOG_Events").some((row) => row.EventType === "ACCEPT")).toBe(true);
+    expect(log("Event").some((row) => row.EventType === "ACCEPT")).toBe(true);
+    expect(log("Machine")).toHaveLength(1);                // heartbeat updates its own row, event rows with the same MachineId are left alone
     const night = sp.rows("AOG_Shifts");
     expect(night).toHaveLength(1);
-    expect(night[0].PrimaryEmail).toBe("hoai@acme.vn");
-    expect(night[0].PrimaryAcceptLog).toMatch(/AOG A321/);
+    expect(night[0].Email).toBe("hoai@acme.vn");
+    expect(night[0].AcceptedCount).toBe(1);
+    expect(night[0].AcceptLog).toMatch(/AOG A321/);
+    for (const title of ["AOG_Events", "AOG_Signals", "AOG_Machines"]) expect(sp.lists[title]).toBeUndefined();
     expect(status.sharepoint.ok).toBe(true);
   });
 

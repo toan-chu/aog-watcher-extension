@@ -4,8 +4,8 @@ Nối tiếp: V5-04
 Người làm: codex
 Người soát: claude
 Hạn: chạy thử trên hai máy thật tối 2026-11-10
-Trạng thái: chờ-soát
-Vòng: 1/2
+Trạng thái: đang-làm
+Vòng: 2/2
 
 ## ĐỀ BÀI
 Kỳ vọng của user (2026-11-10):
@@ -145,7 +145,29 @@ Các ảnh được chụp bằng Chromium thật từ trang popup phục vụ q
 `[RUNTIME UNVERIFIED]` Luồng hai máy thật, HANDLED qua peer và DOM WhatsApp/Outlook với tài khoản thật phải được user hoặc claude chạy tối 2026-11-10 theo 10 bước trên. Unit/integration test và ảnh Chromium không thể chứng minh phần này.
 
 Soát:
-Kết quả:
+Đã soát commit `edf7502` (kèm `40709e4`). Chạy trên bản sao sạch Linux của `40709e4`, không phải Windows: `npm run check` đạt MV3, 32/32 tệp, 202/202 test. Kết luận hành vi trên Chrome thật vẫn là `[RUNTIME UNVERIFIED]`.
+
+Phần đạt:
+- Mục 1: trong `service_worker.js`, `openAlertTarget` chỉ chạy sau `await dispatch({ type: "ALERT_ACCEPT" })`, sau ghi dòng ca và tạo follow-up. Mở chat lỗi thì trả `Accepted, but the source could not be opened`, trạng thái Accept giữ nguyên. Làm hỏng thử của người soát (gọi mở chat trước dispatch): 3 test đỏ.
+- Mục 2 và 4: `openChatAndDraft` chỉ `insertText` vào composer, không có thao tác gửi; greeting trống trả `drafted: false`. Làm hỏng thử của người soát (thêm bấm nút gửi vào helper): 1 test đỏ.
+- Mục 5: mọi lối vào service worker (message, alarm, idle) đều đi qua `enqueue` (dòng 937–958), nên gửi tag nhóm điều phối và mở chat khách không chạy xen nhau; tag chỉ gửi sau khi `waitForChatActive(coordName)` đạt.
+- Mục 6 và 10: sáu ảnh đúng trạng thái; nút Accept nằm trên cùng ở ảnh 04; Search và Help đúng yêu cầu.
+- Mục 7: `lib/state_machine.js`, `peer_protocol.js`, `escalation.js` và các tệp SharePoint của V5-05 không đổi giữa `3fb70dd` và `edf7502`.
+- Mục 8: README và SOP không còn chữ tiếng Việt, không còn `cx9`; ô giờ ca là ô chữ 24 giờ; câu sự kiện không lộ mã.
+- Mục 9: lặp lại bốn phép làm hỏng thử trong AUDIT, cả bốn đỏ đúng test đã nêu.
+
+Lỗi phải sửa trước khi chạy thử:
+- L1 (cao) `content_whatsapp.js` dòng 190–194, `openChatAndDraft`: khi `waitForChatActive` hết 6 giây và ném lỗi, `clearSearchBox()` ở dòng 194 không chạy. Ô tìm kiếm WhatsApp còn nguyên tên chat, danh sách bên trái ở chế độ kết quả tìm. Bộ quét đọc `#pane-side [role='row']` nên chỉ thấy các dòng khớp; chat khác có tin mới sẽ không reo cho tới khi có người xoá ô tìm, trong khi nguồn vẫn có thể báo xanh vì `rows_seen > 0`. `sendPeerTag` (dòng 208–209) có cùng lỗ từ trước. Tái hiện: gửi `OPEN_WHATSAPP_CHAT` với tên chat không tồn tại, chờ 6 giây, ô tìm kiếm còn chữ. Sửa: bọc cả hai hàm bằng `try/finally` gọi `clearSearchBox()`, kèm phép thử. Hậu quả trên DOM thật là suy luận từ mã, `[RUNTIME UNVERIFIED]`; việc thiếu dọn dẹp ở nhánh lỗi là chắc chắn.
+- L2 (cao) `popup.html` dòng 59–60 và `popup.css` dòng 47: tiêu đề `Watching` luôn xanh và câu `This machine is actively watching for AOG messages.` là chữ tĩnh. Ảnh `20261110_V5-06_03_watching-action-needed.png` cho thấy WhatsApp đang `BLIND` mà tiêu đề vẫn xanh và vẫn nói đang canh. Trái luật sản phẩm "không bao giờ hiển thị nguồn tin màu xanh khi bộ phát hiện mù chưa báo ok" và trái kỳ vọng "chỉ hiện bằng chứng máy đang canh". Sửa: khi WhatsApp hoặc Outlook không `ok`, tiêu đề và câu mô tả đổi sang trạng thái lỗi màu đỏ; kèm phép thử và chụp lại ảnh 03.
+- L3 (trung bình) Không phép thử nào giữ nhánh cấm draft vào nhóm điều phối. Làm hỏng thử của người soát: đổi `if (isSameGroupName(targetChat, coordGroup))` trong `lib/whatsapp_dom.js` thành `if (false)` → vẫn 202/202 đạt. Thêm phép thử cho mục 3 của yêu cầu soát.
+
+Nên sửa, không chặn:
+- G1 Lệnh Accept giữ hàng đợi của service worker trong lúc mở chat; nhánh lỗi mất tới khoảng 6,7 giây cho mỗi tab WhatsApp. Trong lúc đó tin mới và timer leo thang phải chờ. Đề xuất hạ thời gian chờ của lệnh mở chat xuống 3 giây.
+- G2 Greeting được chèn tại con trỏ kể cả khi ô nhập của chat đó đã có bản nháp, nên hai đoạn chữ dính vào nhau. Đề xuất: ô nhập đã có chữ thì không đặt gì.
+- G3 `[RUNTIME UNVERIFIED]` Tên chat lấy từ thuộc tính `title` của dòng, còn tên chat đang mở lấy từ `textContent` của tiêu đề. Nếu tên nhóm có emoji, hai chuỗi có thể khác nhau và mọi lần mở chat đó sẽ rơi vào nhánh lỗi. Cần thử một nhóm có emoji trong đêm chạy thử.
+- G4 `focusOutlook` lấy tab Outlook đầu tiên; máy mở nhiều tab Outlook có thể đưa nhầm tab.
+Kết quả: HỎNG
+-- claude - 2026-11-10 08:10 UTC
 
 ## HISTORY
 ### 2026-11-10

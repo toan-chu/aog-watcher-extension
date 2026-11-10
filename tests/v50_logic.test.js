@@ -8,7 +8,7 @@ import { classifyMiss, MISS_CAUSE } from "../lib/miss_cause.js";
 import { answerFollowup, createFollowup, tickFollowups } from "../lib/followup.js";
 import { completeOp, dueOps, enqueueOp, failOp } from "../lib/outbox.js";
 import { applySharedSettings, changedKeys, parseSettingsRows, SHARED_KEYS } from "../lib/shared_settings.js";
-import { acceptLog, shiftDate, shiftRowFields } from "../lib/shift_row.js";
+import { acceptLog, shiftDate, shiftRowFallbackMatch, shiftRowFields, shiftRowMatch } from "../lib/shift_row.js";
 
 const MIN = 60_000;
 
@@ -162,7 +162,7 @@ describe("follow-up after Accept", () => {
 
 describe("outbox", () => {
   it("queues, backs off on failure and completes", () => {
-    let queue = enqueueOp([], { kind: "add", list: "AOG_Events", fields: { Title: "x" } }, { now: 0 });
+    let queue = enqueueOp([], { kind: "add", list: "AOG_Log", fields: { Title: "x" } }, { now: 0 });
     const id = queue[0].id;
     expect(dueOps(queue, { now: 0 })).toHaveLength(1);
     queue = failOp(queue, id, { now: 0, error: "offline" });
@@ -196,19 +196,30 @@ describe("night shift row", () => {
     expect(shiftDate(evening)).toBe("2026-07-28");
     expect(shiftDate(early)).toBe("2026-07-28");
   });
-  it("writes only the columns of this machine's role", () => {
-    const session = { shift_id: "s1", started_at: new Date(2026, 6, 28, 22, 5).toISOString() };
+  it("writes one row per operator with payroll numbers", () => {
+    const start = new Date(2026, 6, 28, 22, 0);
+    const session = { shift_id: "s1", started_at: start.toISOString() };
     const events = [
       { shift_id: "s1", event_type: "DETECTED" },
+      { shift_id: "s1", event_type: "DETECTED" },
       { shift_id: "s1", event_type: "ACCEPT", group_name: "Runway ABC", timestamp: new Date(2026, 6, 28, 23, 10).toISOString() },
+      { shift_id: "s1", event_type: "MISSED" },
       { shift_id: "other", event_type: "ACCEPT", group_name: "X" },
     ];
-    const fields = shiftRowFields({ session, role: "backup", name: "B", email: "b@x.vn", ready: true, events });
-    expect(fields.ShiftDate).toBe("2026-07-28");
-    expect(fields.BackupName).toBe("B");
-    expect(fields.BackupReady).toBe("Sẵn sàng");
-    expect(Object.keys(fields).some((key) => key.startsWith("Primary"))).toBe(false);
-    expect(fields.AlertCount).toBe("1");
+    const open = shiftRowFields({ session, name: "B", email: "b@x.vn", ready: true, events });
+    expect(open).toMatchObject({ ShiftDate: "2026-07-28", OperatorName: "B", Email: "b@x.vn", Ready: "Ready", AlertCount: 2, AcceptedCount: 1, MissCount: 1 });
+    expect(open.CheckOut).toBeUndefined();
+    expect(Object.keys(open).some((key) => key.startsWith("Primary") || key.startsWith("Backup") || key.startsWith("Slot"))).toBe(false);
+    const closed = shiftRowFields({ session, name: "B", email: "b@x.vn", ready: false, events, ended: true, now: new Date(start.getTime() + 4.5 * 3_600_000) });
+    expect(closed.Hours).toBe(4.5);
+    expect(closed.Ready).toBe("Not ready");
     expect(acceptLog(events, "s1")).toMatch(/23:10 Runway ABC/);
+  });
+  it("finds the operator's own row by email, or by name when the email is unknown", () => {
+    const session = { shift_id: "s1", started_at: new Date(2026, 6, 29, 2, 40).toISOString() };
+    expect(shiftRowMatch({ session, name: "B", email: "b@x.vn" })).toEqual({ ShiftDate: "2026-07-28", Email: "b@x.vn" });
+    expect(shiftRowMatch({ session, name: "B", email: "" })).toEqual({ ShiftDate: "2026-07-28", OperatorName: "B" });
+    expect(shiftRowFallbackMatch({ session, name: "B", email: "b@x.vn" })).toEqual({ ShiftDate: "2026-07-28", OperatorName: "B" });
+    expect(shiftRowFallbackMatch({ session, name: "B", email: "" })).toBeNull();
   });
 });

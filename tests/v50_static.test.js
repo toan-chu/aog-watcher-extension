@@ -47,8 +47,8 @@ describe("5.0 wiring", () => {
     for (const word of ["sharepoint", "followup", "preflight", "unknown_chat", "system"]) expect(stateMachine.toLowerCase()).not.toContain(word);
   });
 
-  it("the shared night row is upserted as a shared row", () => {
-    expect(worker).toContain('key_field: "ShiftDate"');
-    expect(worker).toContain("shared: true");
+  it("the shift row is upserted per operator, never as a row shared by two machines", () => {
+    expect(worker).toContain("match: shiftRowMatch(");
+    expect(worker).not.toContain("shared: true");
   });
 });

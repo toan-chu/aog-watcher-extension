@@ -18,8 +18,9 @@ Popup / Settings --------------------------/    |  state machine (giữ từ 4.3
                                    lib/team_sync.js + lib/outbox.js
                                                 |  (đọc/ghi ngầm, cookie đăng nhập sẵn)
                                                 v
-                               SharePoint site AOG: 6 List
-          AOG_Groups | AOG_Shifts | AOG_Events | AOG_Machines | AOG_Signals | AOG_Settings
+                               SharePoint site AOG: 4 List
+                 AOG_Groups | AOG_Settings | AOG_Shifts | AOG_Log
+        (AOG_Log gộp 3 loại dòng theo cột RecordType: Event, Signal, Machine)
                                                 |
                    SharePoint lỗi/chưa cấu hình → peer fallback: tag WhatsApp cũ
 ```
@@ -31,7 +32,7 @@ Popup / Settings --------------------------/    |  state machine (giữ từ 4.3
 | Detection | Đọc DOM, baseline theo ca, phát hiện chat lạ, thống kê sức khoẻ | `content_*.js`, `lib/*selectors.js`, `lib/whatsapp_dom.js`, `lib/filter.js` |
 | Coordination | Alert lifecycle, ACK, timer leo thang (không đổi so với 4.3) | `lib/state_machine.js`, `lib/alert_queue.js` |
 | Peer transport | Gửi/nhận HANDLED/ESCALATED; SharePoint trước, WhatsApp tag dự phòng | `lib/team_sync.js`, `lib/peer_protocol.js`, `lib/peer_dispatch_guard.js` |
-| Team data | Client SharePoint REST, schema 6 List, cài đặt chung, outbox thử lại | `lib/sharepoint_client.js`, `lib/sp_schema.js`, `lib/outbox.js`, `lib/team_sync.js`, `lib/shared_settings.js`, `lib/shift_row.js` |
+| Team data | Client SharePoint REST, schema 4 List, cài đặt chung, outbox thử lại, sổ ca mỗi người một dòng mỗi đêm, tự dọn AOG_Log | `lib/sharepoint_client.js`, `lib/sp_schema.js`, `lib/outbox.js`, `lib/team_sync.js`, `lib/shared_settings.js`, `lib/shift_row.js` |
 | Groups | Danh sách hiệu lực = nhóm team ∪ nhóm cá nhân − nhóm bỏ qua | `lib/groups.js` |
 | Self-check | Mù nguồn, kiểm tra đầu ca, nhắc mở ca, nhịp tim máy kia, nguyên nhân miss | `lib/blind_detector.js`, `lib/preflight.js`, `lib/shift_reminder.js`, `lib/heartbeat.js`, `lib/miss_cause.js` |
 | Follow-up | Hỏi lại sau ACK, leo thang lại khi không trả lời | `lib/followup.js` |
@@ -45,7 +46,9 @@ Popup / Settings --------------------------/    |  state machine (giữ từ 4.3
 - State machine 4.3 giữ nguyên; tính năng mới nằm ở effect layer và service worker.
 - System alert (mù nguồn, máy kia mất liên lạc, quên mở ca, follow-up quá hạn) reo độc lập với state machine và có nút "Đã biết".
 - Không bao giờ chặn việc canh tin vì checklist chưa đạt; checklist chỉ quyết định trạng thái "Sẵn sàng" gửi cho máy kia.
-- Mọi ghi SharePoint đi qua outbox (lưu local, thử lại theo alarm) để hộp đen không mất khi mạng lỗi.
+- Mọi ghi SharePoint đi qua outbox (lưu local, thử lại theo alarm) để hộp đen không mất khi mạng lỗi. Ngoại lệ: việc dọn dòng cũ của AOG_Log gọi thẳng, vì lỗi thì hôm sau tự chạy lại.
+- Bảng do người sửa (AOG_Groups) chỉ bắt buộc cột Title; thiếu cột phụ như Active thì máy vẫn đọc.
+- Mỗi máy chỉ ghi dòng AOG_Shifts của chính người trực trên máy đó (khớp theo ShiftDate và Email), không có dòng nào hai máy cùng ghi.
 - Nhóm lạ vẫn reo; "Bỏ qua" chỉ có hiệu lực trên máy bấm.
 - Preset không bao giờ chép tên, vai trò/slot, test mode, dry-run, nhóm bỏ qua, machine id.
 

@@ -1,8 +1,8 @@
-Cập nhật: 2026-11-10 07:47 UTC - bởi codex
+Cập nhật: 2026-11-10 08:22 UTC - bởi claude
 
 ## Việc đang mở
-V5-06 - người làm codex - chờ-soát - vòng 1/2
-V5-05 - người làm claude - đang-làm - vòng 1/2
+V5-06 - người làm codex - đang-làm - vòng 2/2
+V5-05 - người làm claude - chờ-soát - vòng 1/2
 RF-04 - người làm claude - chờ-soát - vòng 1/2
 RF-03 - người làm claude - chờ-soát - vòng 1/2
 V5-01 - người làm claude - chờ-soát - vòng 1/2
@@ -28,7 +28,7 @@ RF-01 - đóng-đạt - 2026-09-28
 ## Bẫy đã biết
 - Tải lại extension MV3 có thể để lại content script cũ; lời gọi runtime dài hạn phải đi qua guard.
 - Nguồn vừa gửi alert được tính là còn sống; đừng chỉ dựa vào nhịp CONTENT_HEALTH.
-- Dòng ca trực dùng chung hai máy: luôn upsert vào dòng cũ nhất của đêm (`shared: true`).
+- AOG_Log chứa ba loại dòng; mọi truy vấn phải lọc theo `RecordType`, vì dòng Event cũng mang `MachineId`.
 - CSS có `display` riêng sẽ đè thuộc tính `hidden`; cần luật `[hidden] { display: none !important }`.
 
 ## Báo lỗi giả

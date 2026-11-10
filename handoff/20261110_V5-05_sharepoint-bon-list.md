@@ -3,7 +3,7 @@ Mạch: V5 - AOG Watcher 5.0
 Nối tiếp: V5-04
 Người làm: claude
 Người soát: codex
-Trạng thái: đang-làm
+Trạng thái: chờ-soát
 Vòng: 1/2
 
 ## ĐỀ BÀI
@@ -42,10 +42,12 @@ Kịch bản test:
 - [x] File PnP `tools/Setup-AogSharePoint.ps1` (bản 1.0) tạo 4 bảng, chạy lại được, không xoá gì.
 - [x] User chạy file trên site AOG ngày 2026-11-10: 4 bảng đủ cột (nửa đầu KS-1).
 - [ ] User chạy lại lần hai để thấy "Nothing to do" (nửa sau KS-1).
-- [ ] Cập nhật `handoff/MAP.md` theo 4 bảng trước khi sửa mã.
-- [ ] Lớp dữ liệu: schema 4 bảng, AOG_Log gộp Event/Signal/Machine, sổ ca mỗi người một dòng, lọc nhóm theo Active, tự dọn log.
-- [ ] Chuỗi còn tiếng Việt trong `lib/sharepoint_client.js`, `lib/team_sync.js`, `lib/shift_row.js` đổi sang tiếng Anh.
-- [ ] Phép thử kèm phép làm hỏng thử; `npm run check`.
+- [x] Cập nhật `handoff/MAP.md` theo 4 bảng.
+- [x] Lớp dữ liệu: schema 4 bảng, AOG_Log gộp Event/Signal/Machine, sổ ca mỗi người một dòng, lọc nhóm theo Active, tự dọn log.
+- [x] Chuỗi còn tiếng Việt trong `lib/sharepoint_client.js`, `lib/team_sync.js`, `lib/shift_row.js` đổi sang tiếng Anh.
+- [x] Phép thử kèm phép làm hỏng thử; `npm run check` trên bản sao Linux.
+- [ ] Chạy KS-2..KS-7 trên hai máy Windows thật. `[RUNTIME UNVERIFIED]`
+- [ ] Người soát (codex) soát mã và chạy `npm run check` trên Windows.
 
 ## AUDIT
 Báo cáo của người làm:
@@ -63,7 +65,54 @@ Lists on this site:
   AOG_Log        17/17 columns present
 ```
 
+- 2026-11-10, lớp dữ liệu 4 bảng:
+  - `lib/sp_schema.js`: 4 bảng đúng như file PnP; thêm kiểu cột Number, Boolean, Choice và chỉ mục cho nút Create lists trong extension.
+  - `lib/team_sync.js`: tín hiệu hai máy, nhịp tim máy và hộp đen cùng ghi vào AOG_Log, phân biệt bằng `RecordType`; nhóm có `Active = No` bị bỏ qua, bảng không có cột `Active` vẫn đọc được; thêm `purgeOldLog` đưa dòng cũ vào thùng rác của site.
+  - `lib/shift_row.js`: mỗi người một dòng mỗi đêm, khớp theo `ShiftDate` và `Email` (không có email thì theo tên); ghi `Hours`, `AlertCount`, `AcceptedCount`, `MissCount` dạng số.
+  - `lib/sharepoint_client.js`: thông báo lỗi tiếng Anh; thêm `recycleItem`.
+  - `lib/shared_settings.js`, `lib/constants.js`: cài đặt chung mới `log_keep_days` (mặc định 90).
+  - `service_worker.js`: chỉ đổi chỗ gọi lớp dữ liệu (ghi vào AOG_Log, dòng ca theo người, gọi dọn log mỗi ngày một lần). Không đổi state machine, giao thức hai máy, timer.
+  - `settings.html`: sửa đúng một chữ "six" thành "four" trong câu mô tả nút Create lists. Tệp này thuộc phiếu V5-06 của codex; claude sửa vì con số sai là hệ quả trực tiếp của phiếu này.
+  - Phép thử: `tests/v50_sharepoint.test.js`, `tests/v50_logic.test.js`, `tests/v50_service_worker.test.js`, `tests/v50_static.test.js`.
+- Lệnh và kết quả, bản sao Linux của cây làm việc (HEAD `40709e4` cộng thay đổi của phiếu này), ngày 2026-11-10:
+
+```text
+> npm run check
+MV3 check passed (14 referenced files).
+Test Files  32 passed (32)
+Tests  206 passed (206)
+```
+
+- Làm hỏng thử (cố ý làm hỏng → đỏ, rồi hoàn nguyên → 206/206):
+
+```text
+bỏ lọc Active                              → 1 failed (stops watching a group the team lead switched off ...)
+nhịp tim máy không khớp theo RecordType    → 1 failed (keeps one heartbeat row per machine ...)
+dọn log không xét tuổi dòng                → 1 failed (removes log rows older than the keep period ...)
+dòng ca chỉ khớp theo ngày                 → 1 failed (finds the operator's own row by email ...)
+đọc tín hiệu không lọc RecordType          → 1 failed (reads only new, recent signals ... ignores event rows)
+```
+
+- 2026-11-10, bổ sung sau khi user đưa lịch trực chỉ có tên, không có email: khi không có dòng nào khớp `ShiftDate` và `Email`, máy nhận dòng cũ nhất khớp `ShiftDate` và `OperatorName` mà cột `Email` còn trống, rồi điền email vào. Dòng cùng tên đã có email của người khác thì không đụng. Tệp đổi thêm: `lib/team_sync.js` (`upsertByMatch` nhận `fallbackMatch`, `claimField`), `lib/shift_row.js` (`shiftRowFallbackMatch`), `service_worker.js` (một dòng trong `writeShiftRow`), hai tệp test. Sau bổ sung: 32 tệp, 207 test đạt. Làm hỏng thử: bỏ nhánh fallback → 1 test đỏ; nhận cả dòng đã có email → 1 test đỏ.
+- Điều kiện để khớp theo tên: tên hiển thị gõ trong Settings của máy phải đúng y tên trong cột `OperatorName` của lịch.
+- Lệch so với đề bài: không.
+- `README.md` đã nêu đủ 4 bảng (codex viết trong V5-06); không cần sửa thêm.
+- Bẫy cũ "dòng ca trực dùng chung hai máy" trong STATE.md không còn đúng; đã thay bằng bẫy mới.
+
 Giả định kỹ thuật:
+
+```
+[GIẢ ĐỊNH KỸ THUẬT] Dọn AOG_Log bằng cách đưa dòng vào thùng rác của site, gọi thẳng không qua outbox, tối đa 100 dòng mỗi lần.
+Vì sao chọn: thùng rác cho phép lấy lại trong trường hợp dọn nhầm; lỗi dọn không được làm SharePoint bị báo đỏ.
+Sai thì làm lại: đổi `recycleItem` sang xoá hẳn, hoặc đưa lệnh dọn vào outbox; chỉ sửa `purgeOldLog` và `purgeLog`.
+```
+
+```
+[GIẢ ĐỊNH KỸ THUẬT] SharePoint so khớp `Email eq '...'` không phân biệt hoa thường, nên dòng trưởng ca tạo sẵn với email viết hoa vẫn được máy tìm thấy.
+Vì sao chọn: tránh thêm một bước đọc hết dòng của đêm để tự so.
+Sai thì làm lại: đọc các dòng theo ShiftDate rồi so email đã chuẩn hoá trong `upsertByMatch`.
+```
+
 
 ```
 [GIẢ ĐỊNH KỸ THUẬT] Cột do máy ghi giữ kiểu chữ; chỉ các cột số của sổ ca (Hours, AlertCount, AcceptedCount, MissCount) là kiểu số, và cột người chọn (ChatType, Active, Slot1Role, Slot2Role) là kiểu lựa chọn.
@@ -79,4 +128,4 @@ Kết quả:
 Failure: file PnP bản 1.1 dừng ngay ở bảng đầu tiên vì claude giả định `Get-PnPList` trả về rỗng khi bảng chưa có, không kiểm bằng tài liệu hay file mẫu của user. Sửa ở bản 1.2.
 Báo lỗi giả: không
 Lessons: lệnh PnP tra một thứ chưa tồn tại thì ném lỗi; luôn bọc try/catch như các file PnP sẵn có của user.
--- claude - 2026-11-10 07:23 UTC
+-- claude - 2026-11-10 08:22 UTC

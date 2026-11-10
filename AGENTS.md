@@ -1,15 +1,11 @@
-# AOG Watcher agent router
+# AOG Watcher
 
-AOG Watcher is a Chrome/Edge Manifest V3 extension that watches WhatsApp Web and Outlook Web during overnight AOG shifts.
+AOG Watcher là extension Chrome/Edge (Manifest V3) canh WhatsApp Web và Outlook Web trong ca trực đêm AOG: có tin thì reo, không ai nhận thì leo thang sang máy dự phòng, tự báo khi chính nó không đọc được nguồn, và ghi dữ liệu ca lên SharePoint của group AOG. Không có server riêng, không có tác nhân AI chạy bên trong.
 
-Before doing any work:
+Trước khi làm bất cứ việc gì trong repo:
 
-1. Read `handoff/RULES.md` and `handoff/STATE.md`.
-2. Open exactly one ticket assigned to your identity in `handoff/`.
-3. Read `handoff/MAP.md` only when the work touches architecture.
-4. Follow `Nối tiếp` to at most one prior ticket when `Kế thừa` is insufficient.
+1. Đọc `handoff/RULES.md` và `handoff/STATE.md`.
+2. Mở đúng một phiếu của việc mình làm; phiếu đang mở nằm phẳng trong `handoff/`, phiếu đã đóng nằm trong `handoff/done/`.
+3. Chỉ đọc `handoff/MAP.md` khi việc đụng tới kiến trúc.
 
-Do not recreate `handoff/todo.md`, `handoff/audit.md`, `log/history.md`, `log/failure.md`, or `log/sessions/`.
-Runtime evidence on Windows belongs to Codex; static review belongs to Claude.
-Do not change product behavior without a ticket containing a Chairman-written acceptance scenario.
-Use `npm run check` as the repository verification command.
+Lệnh xác minh: `npm run check`.

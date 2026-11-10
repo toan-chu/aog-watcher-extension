@@ -1,6 +1,6 @@
 # AOG Watcher 5.0.0 - kiến trúc
 
-Nguồn sự thật: file này. Cập nhật trước khi sửa code cấp kiến trúc (V5-01, 2026-09-28).
+Chỉ mô tả hiện trạng. Mọi thay đổi kiến trúc vẽ ở đây trước khi đổi mã; lý do nằm trong phiếu gây ra thay đổi.
 
 ## Mục đích
 
@@ -18,8 +18,8 @@ Popup / Settings --------------------------/    |  state machine (giữ từ 4.3
                                    lib/team_sync.js + lib/outbox.js
                                                 |  (đọc/ghi ngầm, cookie đăng nhập sẵn)
                                                 v
-                               SharePoint site AOG: 5 List
-                  AOG_Groups | AOG_Shifts | AOG_Events | AOG_Machines | AOG_Signals
+                               SharePoint site AOG: 6 List
+          AOG_Groups | AOG_Shifts | AOG_Events | AOG_Machines | AOG_Signals | AOG_Settings
                                                 |
                    SharePoint lỗi/chưa cấu hình → peer fallback: tag WhatsApp cũ
 ```
@@ -31,7 +31,7 @@ Popup / Settings --------------------------/    |  state machine (giữ từ 4.3
 | Detection | Đọc DOM, baseline theo ca, phát hiện chat lạ, thống kê sức khoẻ | `content_*.js`, `lib/*selectors.js`, `lib/whatsapp_dom.js`, `lib/filter.js` |
 | Coordination | Alert lifecycle, ACK, timer leo thang (không đổi so với 4.3) | `lib/state_machine.js`, `lib/alert_queue.js` |
 | Peer transport | Gửi/nhận HANDLED/ESCALATED; SharePoint trước, WhatsApp tag dự phòng | `lib/team_sync.js`, `lib/peer_protocol.js`, `lib/peer_dispatch_guard.js` |
-| Team data | Client SharePoint REST, schema 5 List, outbox thử lại | `lib/sharepoint_client.js`, `lib/sp_schema.js`, `lib/outbox.js`, `lib/team_sync.js` |
+| Team data | Client SharePoint REST, schema 6 List, cài đặt chung, outbox thử lại | `lib/sharepoint_client.js`, `lib/sp_schema.js`, `lib/outbox.js`, `lib/team_sync.js`, `lib/shared_settings.js`, `lib/shift_row.js` |
 | Groups | Danh sách hiệu lực = nhóm team ∪ nhóm cá nhân − nhóm bỏ qua | `lib/groups.js` |
 | Self-check | Mù nguồn, kiểm tra đầu ca, nhắc mở ca, nhịp tim máy kia, nguyên nhân miss | `lib/blind_detector.js`, `lib/preflight.js`, `lib/shift_reminder.js`, `lib/heartbeat.js`, `lib/miss_cause.js` |
 | Follow-up | Hỏi lại sau ACK, leo thang lại khi không trả lời | `lib/followup.js` |
@@ -55,4 +55,4 @@ Popup / Settings --------------------------/    |  state machine (giữ từ 4.3
 npm run check
 ```
 
-Live behavior (SharePoint thật, hai máy, WhatsApp/Outlook thật) cần nghiệm thu thủ công; mọi kết luận runtime trên Windows gắn `[RUNTIME CHƯA KIỂM]` cho tới khi Chairman xác nhận.
+Hành vi thật (SharePoint thật, hai máy, WhatsApp/Outlook thật) cần chạy thử bằng tay trên máy Windows; mọi kết luận runtime chưa có lệnh hoặc ảnh từ máy thật gắn `[RUNTIME UNVERIFIED]`.

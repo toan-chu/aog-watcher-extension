@@ -23,7 +23,7 @@ Dọn repo AOG Watcher sang cấu trúc handoff mới để sẵn sàng nhận �
 
 **Kịch bản nghiệm thu**
 
-Chairman mở repo sau khi dọn dẹp: chỉ còn một phòng điều phối theo chuẩn mới, tài liệu cũ có nơi tra cứu rõ ràng, và extension vẫn vượt cùng lệnh kiểm tra như trước. Không file chức năng nào được thay đổi.
+user mở repo sau khi dọn dẹp: chỉ còn một phòng điều phối theo chuẩn mới, tài liệu cũ có nơi tra cứu rõ ràng, và extension vẫn vượt cùng lệnh kiểm tra như trước. Không file chức năng nào được thay đổi.
 
 ## TODO
 
@@ -36,7 +36,7 @@ Chairman mở repo sau khi dọn dẹp: chỉ còn một phòng điều phối t
 - [x] Sweep toàn repo tìm đường dẫn legacy còn sót.
 - [x] Chạy lại kiểm tra và xác minh diff không đổi file chức năng.
 - [x] Bàn giao chờ nghiệm thu.
-- [x] Theo override của Chairman, archive scaffold `memory/` cũ và cập nhật snapshot.
+- [x] Theo override của user, archive scaffold `memory/` cũ và cập nhật snapshot.
 
 ## AUDIT
 
@@ -55,7 +55,7 @@ Chairman mở repo sau khi dọn dẹp: chỉ còn một phòng điều phối t
 
 ### Bổ sung sau bàn giao
 
-- Authorization: Chairman ngày 2026-09-28 cho phép đưa các file/folder cũ, bao gồm scaffold `memory/source/`, vào archive để repo về form mới.
+- Authorization: user ngày 2026-09-28 cho phép đưa các file/folder cũ, bao gồm scaffold `memory/source/`, vào archive để repo về form mới.
 - Hypothesis: `memory/` chỉ là scaffold rỗng, không phải runtime dependency; archive nguyên trạng sẽ không đổi chức năng extension.
 - Cách kiểm tra: quét consumer ngoài handoff/memory, đối chiếu Git blob trước/sau move, kiểm tra functional diff và chạy `npm run check`.
 - Kết quả trước thao tác: Git chỉ theo dõi bốn README scaffold; quét product source không có consumer nào tham chiếu `memory/`.
@@ -70,7 +70,7 @@ Chairman mở repo sau khi dọn dẹp: chỉ còn một phòng điều phối t
 - Di chuyển bốn file coordination đã retire và 15 artifact cũ vào archive; 19/19 file archive khớp nguyên Git blob cũ.
 - Giữ `docs/SOP.md` là tài liệu sản phẩm; chuyển blueprint v4.3 thành `handoff/docs/SPEC-aog-watcher-v43.md` và chỉ cập nhật status đã implement.
 - Chuẩn hóa README theo luồng nghiệp vụ, role table, cài đặt, cách dùng và xử lý lỗi.
-- Xác định `memory/` không được code tham chiếu và sản phẩm không có agent loop. Sau override của Chairman, đã chuyển nguyên scaffold vào `handoff/archive/legacy-scaffold/memory/`; 4/4 Git blob khớp bản gốc.
+- Xác định `memory/` không được code tham chiếu và sản phẩm không có agent loop. Sau override của user, đã chuyển nguyên scaffold vào `handoff/archive/legacy-scaffold/memory/`; 4/4 Git blob khớp bản gốc.
 
 **Lệnh và output**
 
@@ -102,7 +102,7 @@ Sweep ngoài archive chỉ còn hai nhắc đúng chủ ý: lệnh cấm tái t�
 
 **Sai lệch so với ĐỀ BÀI:** none.
 
-**Câu hỏi mở cho Chairman:** có mở ticket riêng cho live overnight acceptance v4.3 hay không.
+**Câu hỏi mở cho user:** có mở ticket riêng cho live overnight acceptance v4.3 hay không.
 
 ### Claude's review
 
@@ -110,9 +110,9 @@ Chưa có.
 
 ### Acceptance signature
 
-ĐẠT - Chairman xác nhận repo đã về scaffold handoff mới, legacy được archive và không có thay đổi chức năng.
+ĐẠT - user xác nhận repo đã về scaffold handoff mới, legacy được archive và không có thay đổi chức năng.
 
--- chairman - 2026-09-28 10:56 UTC+7
+-- user - 2026-09-28 10:56 UTC+7
 
 ## HISTORY
 

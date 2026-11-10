@@ -3,7 +3,7 @@ Mạch: V5 - AOG Watcher 5.0
 Nối tiếp: V5-03
 Người làm: codex
 Người soát: claude
-Trạng thái: chờ-soát
+Trạng thái: đóng-đạt
 Vòng: 1/2
 
 ## ĐỀ BÀI
@@ -127,7 +127,23 @@ Sai thì làm lại: thêm một migration dữ liệu một lần cho local eve
 ```
 
 Soát:
-Kết quả: chờ claude soát vòng 1/2.
+- Đã đọc toàn bộ diff mã sản phẩm của commit `3fb70dd` (lib, popup, service worker). Thay đổi chỉ là đổi tên: action `ALERT_ACCEPT`, message `ACCEPT_CURRENT`, event `ACCEPT`, lý do `self_accept`, cột `PrimaryAcceptLog`/`BackupAcceptLog`, và nhóm `Dismiss` cho cảnh báo hệ thống. Thứ tự effect trong state machine (dừng chuông, huỷ timer, gửi `HANDLED`, ghi log, mở tin kế) không đổi; timer leo thang và peer protocol không đổi.
+- Chạy lại trên bản sao sạch của commit `3fb70dd` (Linux, `git archive` rồi `npm ci`):
+
+```text
+> npm run check
+Test Files  30 passed (30)
+Tests  189 passed (189)
+```
+
+- Quét thuật ngữ cũ bằng đúng biểu thức của người làm trên js/html/css/md/json ngoài `handoff/`, `assets/`, `node_modules/`: rỗng. Quét rộng hơn mọi từ chứa "ack" không phân biệt hoa thường: chỉ còn backup, background, fallback, feedback, callback, black box, backoff, playback và tương tự; không có định danh nào mang nghĩa cũ.
+- Làm hỏng thử của người soát: đổi `case "ALERT_ACCEPT"` trong `lib/state_machine.js` về tên cũ → 8 phép thử đỏ ở 4 tệp (state machine, restart simulation, service worker 5.0, cổng thuật ngữ); khôi phục → 189/189 đạt.
+- Giả định "không migration": đồng ý. Site `/sites/aog` chưa có bảng nào, và bản 5.0 chưa từng chạy thật. Trên máy đang dùng 4.3, event cũ trong log cục bộ chỉ ảnh hưởng hiển thị: mục Recent events có thể còn hiện tên event cũ của ca sáng cùng ngày cho tới khi sang ngày mới. Không ảnh hưởng chuông, response time hay dòng ca trực, vì các phép tính đó lọc theo `shift_id` của ca hiện tại.
+- Ghi nhận ngoài phạm vi phiếu này, không tính vào kết quả: còn chuỗi tiếng Việt trong `lib/sharepoint_client.js`, `lib/team_sync.js` và `lib/shift_row.js` (thông báo lỗi SharePoint, giá trị cột Ready, định dạng giờ `vi-VN`). Ba tệp này claude giữ theo ranh giới của V5-03; claude sẽ xử lý trong phiếu lớp dữ liệu SharePoint.
+- Ghi nhận nhỏ: trong `tests/v504_accept_terminology.test.js`, biến `self` dùng dấu `\\` nên chỉ tự loại trừ đúng trên Windows; trên Linux tệp vẫn được quét nhưng vẫn đạt vì mẫu viết bằng mã unicode. Không cần sửa.
+- `[RUNTIME UNVERIFIED]` Chưa ai bấm nút Accept và Dismiss trên Chrome/Edge thật; kết luận dưới đây dựa trên phép thử tự động. Phép thử trên trình duyệt thật gộp vào đêm chạy thử 5.0.
+Kết quả: ĐẠT
+-- claude - 2026-11-10 04:35 UTC
 
 ## HISTORY
 ### 2026-11-10

@@ -9,7 +9,7 @@ Frozen material retained during RF-01. Do not use these files as the current wor
 - `log/history.md` -> `legacy-coordination/log-history.md`
 - `log/failure.md` -> `legacy-coordination/log-failure.md`
 - Closed build specs, reviews, audits, and sample exports from root `docs/` -> `legacy-docs/`
-- Non-agentic root `memory/` scaffold -> `legacy-scaffold/memory/`, moved under Chairman override recorded in RF-01
+- Non-agentic root `memory/` scaffold -> `legacy-scaffold/memory/`, moved under user override recorded in RF-01
 - The implemented v4.3 specification -> `../docs/SPEC-aog-watcher-v43.md`
 - The operator manual remains a product document at `../../docs/SOP.md`
 

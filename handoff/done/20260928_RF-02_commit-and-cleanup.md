@@ -23,7 +23,7 @@ Chốt sổ phần reform RF-01 vào lịch sử repo và dọn nốt luật đ�
 
 **Kịch bản nghiệm thu**
 
-Chairman xem repo: lịch sử có một mốc riêng cho reform RF-01, không còn thay đổi nào treo ngoài Git, luật chết đã gỡ, extension vẫn qua cùng lệnh kiểm tra. Không file chức năng nào bị đổi. (Chairman giao bằng lời ngày 2026-09-28: "dọn dẹp rồi ký chung".)
+user xem repo: lịch sử có một mốc riêng cho reform RF-01, không còn thay đổi nào treo ngoài Git, luật chết đã gỡ, extension vẫn qua cùng lệnh kiểm tra. Không file chức năng nào bị đổi. (user giao bằng lời ngày 2026-09-28: "dọn dẹp rồi ký chung".)
 
 ## TODO
 
@@ -32,7 +32,7 @@ Chairman xem repo: lịch sử có một mốc riêng cho reform RF-01, không c
 - [x] Gỡ luật `memory/source/` khỏi `RULES.md`.
 - [x] Ghi quy tắc giải trừ `[COWORK-EXEC]` vào `RULES.md`.
 - [x] Cập nhật `STATE.md`.
-- [x] Chairman ký nghiệm thu chung.
+- [x] user ký nghiệm thu chung.
 
 ## AUDIT
 
@@ -46,8 +46,8 @@ Chairman xem repo: lịch sử có một mốc riêng cho reform RF-01, không c
 **Đã làm**
 
 - Commit reform RF-01 nguyên trạng, không sửa nội dung: 7 file thêm, 1 file sửa (README), 24 file đổi chỗ vào archive.
-- Gỡ luật `memory/source/` đã hết hiệu lực; thêm quy tắc giải trừ `[COWORK-EXEC]` theo yêu cầu Chairman.
-- `STATE.md`: chỉ huy chuyển sang `claude [COWORK-EXEC]` cho đợt nâng cấp sắp mở.
+- Gỡ luật `memory/source/` đã hết hiệu lực; thêm quy tắc giải trừ `[COWORK-EXEC]` theo yêu cầu user.
+- `STATE.md`: người làm chuyển sang `claude [COWORK-EXEC]` cho đợt nâng cấp sắp mở.
 
 **Lệnh và output**
 
@@ -63,15 +63,15 @@ handoff/STATE.md
 handoff/20260928_RF-02_commit-and-cleanup.md
 ```
 
-`[RUNTIME CHƯA KIỂM]` Kiểm tra chạy trên Linux, chưa chạy lại trên máy Windows. Không có file chức năng thay đổi nên rủi ro thấp.
+`[RUNTIME UNVERIFIED]` Kiểm tra chạy trên Linux, chưa chạy lại trên máy Windows. Không có file chức năng thay đổi nên rủi ro thấp.
 
 **Sai lệch so với ĐỀ BÀI:** none.
 
 ### Acceptance signature
 
-ĐẠT - Chairman ủy quyền bằng lời trong hội thoại 2026-09-28 ("Ký giúp tôi"); claude ghi hộ.
+ĐẠT - user ủy quyền bằng lời trong hội thoại 2026-09-28 ("Ký giúp tôi"); claude ghi hộ.
 
--- chairman (claude ghi hộ) - 2026-09-28
+-- user (claude ghi hộ) - 2026-09-28
 
 ## HISTORY
 
@@ -79,7 +79,7 @@ handoff/20260928_RF-02_commit-and-cleanup.md
 
 Failure: lệnh `git status` đầu phiên chạy trong môi trường không có quyền xoá, để lại `.git/index.lock` rỗng. Đã xin quyền xoá và xoá đúng file đó; sau đó mọi lệnh đọc Git dùng `--no-optional-locks`.
 
-Failure: `npm run check` trong thư mục repo hỏng vì `node_modules` là bản cài cho Windows. Chạy trên bản sao sạch thay vì cài lại vào thư mục của Chairman.
+Failure: `npm run check` trong thư mục repo hỏng vì `node_modules` là bản cài cho Windows. Chạy trên bản sao sạch thay vì cài lại vào thư mục của user.
 
 Báo lỗi giả: không.
 

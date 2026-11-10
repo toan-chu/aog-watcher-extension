@@ -3,7 +3,7 @@ Mạch: V5 - AOG Watcher 5.0
 Nối tiếp: V5-02
 Người làm: codex
 Người soát: claude
-Trạng thái: chờ-soát
+Trạng thái: đóng-đạt
 Vòng: 1/2
 
 ## ĐỀ BÀI
@@ -103,7 +103,16 @@ Sai thì làm lại: sau khi Claude nhả file, chuyển bản dịch vào ngu�
 ```
 
 Soát:
-Kết quả:
+- Đã đọc diff của commit `f1a1057`. Tệp đổi nằm trong phạm vi được giao; không tệp nào claude giữ bị sửa. Lớp dịch lỗi SharePoint đặt tại biên hiển thị trong `service_worker.js` là hợp lý cho ranh giới đó.
+- KS-5: `npm run check` trên bản sao sạch của HEAD `3fb70dd` (Linux, đã gồm `tests/v503_english_copy.test.js`): 30 tệp, 189 test đạt. Con số 29 tệp, 188 test của người làm là tại commit `f1a1057`, trước khi V5-04 thêm một tệp test.
+- KS-1: quét chữ tiếng Việt có dấu trên popup, Settings, service worker, content script và `lib/preflight.js`: rỗng. Chuỗi tiếng Việt còn lại nằm ở `lib/outlook_selectors.js` (nhãn để nhận thư chưa đọc trên Outlook tiếng Việt, phải giữ) và ba tệp claude giữ.
+- KS-3: tìm `battery`, `charging`, `REPORT_BATTERY`, `"power"` trong mã sản phẩm: rỗng.
+- KS-4: `lib/constants.js` và `settings.html` cùng trỏ `https://trustanavn.sharepoint.com/sites/aog`.
+- Ảnh màn hình: `shots/20261110_V5-03_01_popup-4-states.png` (chưa vào ca, chưa sẵn sàng, sẵn sàng, đang reo) và `shots/20261110_V5-03_02_settings.png`. Chụp bằng Chrome headless trên Linux, phục vụ qua http, dữ liệu giả, không có lỗi script. Mọi chữ trên ảnh là tiếng Anh, nút chính đúng `ACCEPT — I'LL HANDLE IT`, không có dòng nguồn điện. `[RUNTIME UNVERIFIED]` cho Chrome/Edge thật trên Windows.
+- Lệch nhỏ so với Mục tiêu, không thuộc KS-2: hai ô giờ ca trong popup là `input type="time"` do trình duyệt tự định dạng, nên trên ảnh hiện `10:00 PM`. KS-2 chỉ nói giờ do extension định dạng, phần đó đạt (`en-GB`, `hour12: false`). Ô giờ ca chuyển sang phiếu làm lại giao diện.
+- Ghi nhận ngoài phạm vi: `README.md` và `docs/SOP.md` còn link `cx9`; `lib/shift_row.js` còn định dạng giờ `vi-VN` và giá trị cột Ready tiếng Việt (tệp claude giữ).
+Kết quả: ĐẠT
+-- claude - 2026-11-10 06:44 UTC
 
 ## HISTORY
 ### 2026-11-10

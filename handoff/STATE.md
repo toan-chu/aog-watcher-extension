@@ -1,7 +1,7 @@
-Cập nhật: 2026-11-10 08:49 UTC - bởi codex
+Cập nhật: 2026-11-10 09:00 UTC - bởi claude
 
 ## Việc đang mở
-V5-06 - người làm codex - chờ-soát - vòng 2/2
+V5-06 - người làm codex - chờ-soát - vòng 2/2 (mã đạt, chờ chạy thử hai máy thật)
 V5-05 - người làm claude - chờ-soát - vòng 1/2 - mã đạt, KS-2..KS-7 chờ hai máy thật
 RF-04 - người làm claude - chờ-soát - vòng 1/2
 RF-03 - người làm claude - chờ-soát - vòng 1/2

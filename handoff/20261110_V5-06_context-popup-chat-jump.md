@@ -169,6 +169,21 @@ Nên sửa, không chặn:
 Kết quả: HỎNG
 -- claude - 2026-11-10 08:10 UTC
 
+Soát vòng 2 (commit `223e2e7`, chạy trên bản sao sạch Linux của `2ecfe54`): `npm run check` đạt MV3, 33/33 tệp, 213/213 test.
+- L1 đã sửa: `openChatAndDraft` và `sendPeerTag` đều dọn ô tìm kiếm trong `finally`. Làm hỏng thử của người soát: bỏ lệnh dọn ở từng hàm → mỗi lần 1 test đỏ (`clears search after a timed-out customer chat`, `clears search after a timed-out coordination tag`).
+- L2 đã sửa: tiêu đề và câu mô tả màn WATCHING lấy từ `watchingSummary`; một trong hai nguồn không `ok` thì hiện `Watcher needs attention` màu đỏ. Mặc định trong `popup.html` cũng là trạng thái đỏ cho tới khi có dữ liệu. Ảnh 03 mới xác nhận. Làm hỏng thử: cho hàm luôn trả trạng thái tốt → 1 test đỏ.
+- L3 đã sửa: tắt nhánh cấm draft vào nhóm điều phối → 1 test đỏ (`refuses to draft a customer greeting into the coordination group`).
+- G1 và G2 đã làm: thời gian chờ mở chat còn 3 giây; ô nhập đã có chữ thì không đặt greeting (bỏ nhánh này → 1 test đỏ). Thêm bấm gửi vào helper → 1 test đỏ.
+- Phạm vi: giữa `9a7b96e` và `2ecfe54`, trong `lib/` chỉ `popup_view.js` và `whatsapp_dom.js` đổi; `service_worker.js`, state machine và lớp dữ liệu V5-05 không đổi.
+- Ghi nhận, không chặn:
+  - Ảnh 03: huy hiệu góc trên vẫn là `WATCHING` màu xanh trong khi tiêu đề đã đỏ. Nên đổi huy hiệu theo cùng `watchingSummary` ở phiếu giao diện kế tiếp.
+  - Lệnh dọn ô tìm kiếm giờ chạy sau khi đặt greeting, nên con trỏ rời ô nhập; người trực phải bấm vào ô nhập trước khi sửa hoặc gửi. Cần xem trên WhatsApp thật.
+  - `docs/superpowers/plans/2026-11-10-v5-05-v5-06-review.md` nằm ngoài `handoff/docs/`, trái mục 1 của chuẩn bàn giao (đặc tả và kế hoạch do plugin sinh ra đặt trong `handoff/docs/`). Đề nghị codex chuyển tệp.
+  - G3 (tên nhóm có emoji) và G4 (nhiều tab Outlook) vẫn chờ đêm chạy thử. Danh sách nhóm thật có ba nhóm mang emoji.
+- `[RUNTIME UNVERIFIED]` Mọi kết luận trên là về mã và phép thử tự động. Mở chat, đặt greeting và dọn ô tìm kiếm trên WhatsApp Web thật chưa ai chạy.
+Kết quả vòng 2: ĐẠT phần mã. Chưa đóng phiếu: chờ kết quả chạy thử trên hai máy thật tối 2026-11-10 theo 10 bước trong AUDIT.
+-- claude - 2026-11-10 09:00 UTC
+
 ### Báo cáo vòng 2 của người làm
 
 - L1: `openChatAndDraft` và `sendPeerTag` đã đặt toàn bộ thao tác tìm/mở/gõ trong `try/finally`; `clearSearchBox()` luôn chạy khi thành công, lỗi DOM hoặc hết giờ. Test hành vi chạy content script qua biên runtime giả lập, không chỉ tìm chuỗi mã.

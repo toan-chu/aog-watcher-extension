@@ -1,8 +1,9 @@
-Cập nhật:  2026-09-29 10:58 UTC+7 - bởi claude-ceo
+Cập nhật: 2026-11-10 10:24 UTC+7 - bởi codex
 Chỉ huy:   claude [COWORK-EXEC] (Codex bận, Chairman giải trừ 2026-09-28)
 
 ## Việc đang mở
 
+V5-03 - người làm codex - chờ-soát - vòng 1/2
 V5-01  chờ-nghiệm-thu  AOG Watcher 5.0.0 (code xong, 176/176 test; runtime chưa kiểm)
 V5-02  chờ-nghiệm-thu  vòng 2/2  Popup nền trắng theo Trustana (ảnh shots/…V5-02_05..07)
 RF-03  chờ-nghiệm-thu  vòng 1/2  Tuân Chuẩn Bàn Giao v1.1

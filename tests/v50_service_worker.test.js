@@ -90,14 +90,14 @@ beforeEach(() => { vi.useRealTimers(); });
 afterEach(() => { delete globalThis.chrome; });
 
 describe("service worker 5.0 behaviour", () => {
-  it("unknown chat during shift rings and offers a decision; Bỏ qua stops it for this machine only", async () => {
+  it("unknown chat during shift rings and offers a decision; Ignore stops it for this machine only", async () => {
     const { chrome, send } = await boot();
     await send({ type: "START_SHIFT" });
     const response = await send({ type: "ALERT_DETECTED", alert: { source: "whatsapp", group_name: "Runway New", unknown_chat: true, unread_count: 1, message_text: "", detected_at: new Date().toISOString() } });
     expect(response.status.app_state).toBe("ALERTING");
     expect(response.status.unknown_chats.map((item) => item.name)).toEqual(["Runway New"]);
     const decided = await send({ type: "UNKNOWN_CHAT_DECISION", name: "Runway New", decision: "ignore" });
-    expect(decided.note).toMatch(/không reo/);
+    expect(decided.note).toMatch(/will no longer ring/);
     expect(chrome._store.aog_config.ignored_chats).toEqual(["Runway New"]);
     expect(decided.status.unknown_chats).toEqual([]);
   });
@@ -124,20 +124,20 @@ describe("service worker 5.0 behaviour", () => {
     expect(status.sources.outlook.status).toBe("ok");
     expect(status.system_alerts.map((item) => item.key)).toEqual(["source:whatsapp"]);
     expect(status.preflight.ready).toBe(false);
-    expect(chrome._notifications.some((item) => item.title === "Nguồn tin có vấn đề")).toBe(true);
+    expect(chrome._notifications.some((item) => item.title === "Source problem")).toBe(true);
   });
 
-  it("healthy sources + charger + confirmed sound → SẴN SÀNG", async () => {
+  it("healthy sources + confirmed sound → READY without a power check", async () => {
     const { send, alarm, settle } = await boot();
     await send({ type: "START_SHIFT" });
     await send({ type: "CONTENT_HEALTH", source: "whatsapp", connected: true, stats: { rows_seen: 12 } });
     await send({ type: "CONTENT_HEALTH", source: "outlook", connected: true, stats: { rows_seen: 20, folder_gate: "pass" } });
-    await send({ type: "REPORT_BATTERY", battery: { supported: true, charging: true, level: 1 } });
     await send({ type: "SOUND_CONFIRMED" });
     alarm("aog:tick");
     await settle();
     const status = (await send({ type: "GET_STATUS" })).status;
     expect(status.preflight.ready).toBe(true);
+    expect(status.preflight.items.map((item) => item.key)).not.toContain("power");
     expect(status.system_alerts).toEqual([]);
   });
 

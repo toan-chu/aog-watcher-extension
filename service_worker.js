@@ -117,8 +117,23 @@ async function stopAudio() { await chrome.runtime.sendMessage({ type: MESSAGE.AU
 async function notify(id, title, message) {
   await chrome.notifications.create(id, { type: "basic", iconUrl: "assets/icon128.png", title, message: message || " ", priority: 2, requireInteraction: true }).catch(() => {});
 }
+function englishSharePointError(value) {
+  return String(value ?? "")
+    .replace("SharePoint site URL ch\u01b0a c\u1ea5u h\u00ecnh ho\u1eb7c kh\u00f4ng h\u1ee3p l\u1ec7", "SharePoint site URL is not configured or is invalid")
+    .replace("Kh\u00f4ng k\u1ebft n\u1ed1i \u0111\u01b0\u1ee3c SharePoint:", "Could not connect to SharePoint:")
+    .replace("SharePoint t\u1eeb ch\u1ed1i quy\u1ec1n (ch\u01b0a \u0111\u0103ng nh\u1eadp ho\u1eb7c kh\u00f4ng c\u00f3 quy\u1ec1n v\u00e0o site)", "SharePoint denied access (not signed in or no permission for this site)")
+    .replace("SharePoint y\u00eau c\u1ea7u \u0111\u0103ng nh\u1eadp l\u1ea1i", "SharePoint requires you to sign in again")
+    .replace("SharePoint l\u1ed7i", "SharePoint error")
+    .replace("SharePoint tr\u1ea3 v\u1ec1 d\u1eef li\u1ec7u kh\u00f4ng ph\u1ea3i JSON (c\u00f3 th\u1ec3 l\u00e0 trang \u0111\u0103ng nh\u1eadp)", "SharePoint returned non-JSON data (possibly a sign-in page)")
+    .replace("Kh\u00f4ng l\u1ea5y \u0111\u01b0\u1ee3c m\u00e3 b\u1ea3o m\u1eadt SharePoint", "Could not obtain the SharePoint security token");
+}
+function englishSchemaReport(report = []) {
+  return report.map((line) => line
+    .replace(/^T\u1ea1o b\u1ea3ng /, "Created list ")
+    .replace(/^Th\u00eam c\u1ed9t /, "Added column "));
+}
 async function showWakeNotification(alert) {
-  const prefix = alert.unknown_chat ? "Nhóm lạ · " : "";
+  const prefix = alert.unknown_chat ? "Unknown chat · " : "";
   await notify(`aog-${alert.alert_id}`, "AOG alert", `${prefix}${alert.group_name || alert.subject || "New eligible alert"}`);
 }
 async function queryIdleState(config) {
@@ -213,7 +228,7 @@ async function sendSignal(type, { alertId = "", source = "", payload = {} } = {}
     await spClient(config).addItem(SP_LISTS.SIGNALS, fields);
     return true;
   } catch (error) {
-    await setSpStatus({ ok: false, error: error.message });
+    await setSpStatus({ ok: false, error: englishSharePointError(error.message) });
     await queueWrite({ kind: "add", list: SP_LISTS.SIGNALS, fields });
     return false;
   }
@@ -268,13 +283,13 @@ async function syncTeam(config, { problems = [], forceGroups = false } = {}) {
     for (const peer of peers) {
       const key = `peer:${peer.machine_id}`;
       if (state.session && peer.status === "lost") {
-        await raiseSystemAlert(key, { kind: "peer_lost", title: "Máy trực cùng mất liên lạc", message: `${peer.name || peer.email || "Máy kia"} không gửi tín hiệu từ ${peer.last_beat ? new Date(peer.last_beat).toLocaleTimeString("vi-VN") : "?"} (ngủ, hết pin, mất mạng hoặc đóng trình duyệt).` });
+        await raiseSystemAlert(key, { kind: "peer_lost", title: "Partner machine lost", message: `${peer.name || peer.email || "Partner machine"} has not sent a signal since ${peer.last_beat ? new Date(peer.last_beat).toLocaleTimeString("en-GB", { hour12: false }) : "?"}.` });
       } else {
         await clearSystemAlert(key);
       }
       const blindKey = `peer_src:${peer.machine_id}`;
       if (state.session && peer.on_shift && peer.problems.length) {
-        await raiseSystemAlert(blindKey, { kind: "peer_source", title: "Máy kia đang có vấn đề nguồn", message: `${peer.name}: ${peer.problems.map((item) => item.message).join(" · ")}`, ring: false });
+        await raiseSystemAlert(blindKey, { kind: "peer_source", title: "Partner machine has source problems", message: `${peer.name}: ${peer.problems.map((item) => item.message).join(" · ")}`, ring: false });
       } else await clearSystemAlert(blindKey);
     }
 
@@ -294,7 +309,7 @@ async function syncTeam(config, { problems = [], forceGroups = false } = {}) {
     }
     await setSpStatus({ ok: true, configured: true, error: "" });
   } catch (error) {
-    await setSpStatus({ ok: false, configured: true, error: error.message });
+    await setSpStatus({ ok: false, configured: true, error: englishSharePointError(error.message) });
   }
 }
 
@@ -312,11 +327,11 @@ async function handleSignal(signal, config) {
     await markAlertEscalated(signal.alert_id);
     await dispatch({ type: "PEER_ESCALATED_RECEIVED", payload });
   } else if (signal.type === SIGNAL.SHIFT_NOT_STARTED) {
-    await raiseSystemAlert(`peer_shift:${signal.from}:${signal.payload.night ?? ""}`, { kind: "peer_shift", title: "Máy kia chưa mở ca", message: `${signal.payload.operator || "Máy kia"} đã quá giờ ca nhưng chưa bấm Bắt đầu ca.` });
+    await raiseSystemAlert(`peer_shift:${signal.from}:${signal.payload.night ?? ""}`, { kind: "peer_shift", title: "Partner machine has not started its shift", message: `${signal.payload.operator || "Partner machine"} is past the shift start time but has not selected Start shift.` });
   } else if (signal.type === SIGNAL.FOLLOWUP_OVERDUE) {
-    await raiseSystemAlert(`peer_followup:${signal.alert_id}`, { kind: "peer_followup", title: "Tin AOG chưa được xác nhận xử lý", message: `${signal.payload.operator || "Máy kia"} đã ACK "${signal.payload.title || signal.alert_id}" nhưng không trả lời câu hỏi xử lý xong chưa.` });
+    await raiseSystemAlert(`peer_followup:${signal.alert_id}`, { kind: "peer_followup", title: "AOG message handling has not been confirmed", message: `${signal.payload.operator || "Partner machine"} accepted "${signal.payload.title || signal.alert_id}" but did not confirm whether handling was complete.` });
   } else if (signal.type === SIGNAL.SOURCE_BLIND) {
-    await raiseSystemAlert(`peer_blind:${signal.from}:${signal.source}`, { kind: "peer_source", title: "Máy kia không đọc được nguồn", message: `${signal.payload.operator || "Máy kia"}: ${signal.payload.message || signal.source}`, ring: false });
+    await raiseSystemAlert(`peer_blind:${signal.from}:${signal.source}`, { kind: "peer_source", title: "Partner machine cannot read a source", message: `${signal.payload.operator || "Partner machine"}: ${signal.payload.message || signal.source}`, ring: false });
   }
 }
 
@@ -621,7 +636,7 @@ async function evaluateSelf() {
       const value = evaluation.sources[source];
       const key = `source:${source}`;
       if (value.status === SOURCE_STATUS.OK) { await clearSystemAlert(key); continue; }
-      const raised = await raiseSystemAlert(key, { kind: "source", title: value.status === SOURCE_STATUS.BLIND ? "Watcher đang MÙ" : "Nguồn tin có vấn đề", message: value.message });
+      const raised = await raiseSystemAlert(key, { kind: "source", title: value.status === SOURCE_STATUS.BLIND ? "Watcher is BLIND" : "Source problem", message: value.message });
       if (raised) await sendSignal(SIGNAL.SOURCE_BLIND, { source, payload: { operator: config.self_display_name, message: value.message, status: value.status } });
     }
   }
@@ -634,9 +649,9 @@ async function evaluateSelf() {
     if (!done[doneKey]) {
       done[doneKey] = now;
       await setKey(K.REMINDER_STATE, Object.fromEntries(Object.entries(done).slice(-20)));
-      if (reminder.level === "nudge") await notify(`reminder-${reminder.key}`, "Tới giờ trực AOG", "Mở popup AOG Watcher và bấm Bắt đầu ca.");
+      if (reminder.level === "nudge") await notify(`reminder-${reminder.key}`, "Time to start the AOG shift", "Open the AOG Watcher popup and select Start shift.");
       else {
-        await raiseSystemAlert(`reminder:${reminder.key}`, { kind: "shift_reminder", title: "Chưa bắt đầu ca trực", message: `Đã quá ${config.shift_reminder_grace_minutes || 10} phút sau giờ ca. Bấm Bắt đầu ca ngay. Máy kia đã được báo.` });
+        await raiseSystemAlert(`reminder:${reminder.key}`, { kind: "shift_reminder", title: "Shift not started", message: `${config.shift_reminder_grace_minutes || 10} minutes have passed since the shift start time. Select Start shift now. The partner machine has been notified.` });
         await sendSignal(SIGNAL.SHIFT_NOT_STARTED, { payload: { operator: config.self_display_name, night: reminder.key } });
       }
     }
@@ -650,11 +665,11 @@ async function evaluateSelf() {
       const item = action.followup;
       if (action.type === "ask") {
         await appendServiceEvent({ event_type: "FOLLOWUP_ASKED", alert_id: item.alert_id, source: item.source, group_name: item.title });
-        await raiseSystemAlert(`followup:${item.alert_id}`, { kind: "followup", title: "Đã xử lý xong chưa?", message: `"${item.title}" — bấm Xong hoặc Cần thêm thời gian.`, rearm: true });
+        await raiseSystemAlert(`followup:${item.alert_id}`, { kind: "followup", title: "Is it done?", message: `"${item.title}" — select Done or Need more time.`, rearm: true });
       } else {
         await clearSystemAlert(`followup:${item.alert_id}`);
         await appendServiceEvent({ event_type: "FOLLOWUP_OVERDUE", alert_id: item.alert_id, source: item.source, group_name: item.title });
-        await raiseSystemAlert(`followup_overdue:${item.alert_id}`, { kind: "followup_overdue", title: "Không trả lời câu hỏi xử lý", message: `"${item.title}" đã ACK nhưng chưa xác nhận xử lý xong. Máy kia đã được báo.` });
+        await raiseSystemAlert(`followup_overdue:${item.alert_id}`, { kind: "followup_overdue", title: "Handling status unanswered", message: `"${item.title}" was accepted but completion was not confirmed. The partner machine has been notified.` });
         await sendSignal(SIGNAL.FOLLOWUP_OVERDUE, { alertId: item.alert_id, source: item.source, payload: { operator: config.self_display_name, title: item.title } });
       }
     }
@@ -673,9 +688,8 @@ async function refreshPreflight(config, evaluation = null) {
   const result = runPreflight({
     config,
     sources: evaluation.sources,
-    sharepoint: { configured: spConfigured(config), ok: Boolean(sp.ok), error: sp.error },
+    sharepoint: { configured: spConfigured(config), ok: Boolean(sp.ok), error: englishSharePointError(sp.error) },
     groupsSyncedAt: await getKey(K.TEAM_GROUPS_SYNCED_AT, 0),
-    battery: await getKey(K.BATTERY, null),
     soundConfirmedAt: await getKey(K.SOUND_CONFIRMED_AT, 0),
     shiftStartedAt: Date.parse(state?.session?.started_at ?? "") || 0,
     peers: await getKey(K.PEERS, []),
@@ -699,16 +713,16 @@ async function decideUnknownChat(name, decision) {
       await setKey(K.TEAM_GROUPS, addName(await getKey(K.TEAM_GROUPS, []), name));
       await queueWrite({ kind: "group", name, by: config.self_display_name });
       flushOutbox(config).catch(() => {});
-      note = "Đã thêm vào danh sách chung trên SharePoint";
+      note = "Added to the shared list on SharePoint";
     } else {
       next.customer_groups = addName(config.customer_groups, name);
-      note = "Chưa nối SharePoint — tạm thêm cho máy này";
+      note = "SharePoint is not connected — temporarily added for this machine";
     }
   } else if (decision === "ignore") {
     next.ignored_chats = addName(config.ignored_chats, name);
     next.customer_groups = removeName(config.customer_groups, name);
-    note = "Máy này sẽ không reo cho chat này nữa";
-  } else return { ok: false, error: "Quyết định không hợp lệ" };
+    note = "This machine will no longer ring for this chat";
+  } else return { ok: false, error: "Invalid decision" };
   await setConfig(next);
   await setKey(K.UNKNOWN_CHATS, (await getKey(K.UNKNOWN_CHATS, [])).filter((item) => !isSameGroupName(item.name, name)));
   await appendServiceEvent({ event_type: "UNKNOWN_CHAT_DECISION", group_name: name, decision });
@@ -735,6 +749,7 @@ async function status() {
   const resolved = resolveCurrentRole(config);
   const evaluation = await getKey(K.SOURCE_EVAL, { sources: {} });
   const team = await getKey(K.TEAM_GROUPS, []);
+  const sharepoint = await getKey(K.SP_STATUS, {});
   return {
     version: APP_VERSION,
     app_state: state.app_state,
@@ -752,7 +767,7 @@ async function status() {
     health: healthRecords,
     sources: evaluation.sources ?? {},
     preflight: await getKey(K.PREFLIGHT, null),
-    sharepoint: { ...(await getKey(K.SP_STATUS, {})), configured: spConfigured(config) },
+    sharepoint: { ...sharepoint, error: englishSharePointError(sharepoint.error), configured: spConfigured(config) },
     identity: await identity(),
     peers: await getKey(K.PEERS, []),
     system_alerts: Object.values(await getSystemAlerts()),
@@ -795,9 +810,6 @@ async function handleMessage(message) {
       await hydrate();
       if (state.session) await refreshPreflight(await getConfig());
       return {};
-    case MESSAGE.REPORT_BATTERY:
-      await setKey(K.BATTERY, { ...message.battery, at: Date.now() });
-      return {};
     case MESSAGE.ACK_CURRENT: {
       await hydrate();
       const alert = state.current_alert;
@@ -838,24 +850,24 @@ async function handleMessage(message) {
         await setKey(K.IDENTITY, user);
         const missing = await checkSchema(client);
         return { ok: true, user, missing, site: client.site };
-      } catch (error) { return { ok: false, error: error.message }; }
+      } catch (error) { return { ok: false, error: englishSharePointError(error.message) }; }
     }
     case MESSAGE.SP_SETUP: {
       const config = await getConfig();
       const client = spClient(message.site_url ? { sharepoint_site_url: message.site_url } : config);
       try {
         const report = await ensureSchema(client);
-        return { ok: true, report };
-      } catch (error) { return { ok: false, error: error.message }; }
+        return { ok: true, report: englishSchemaReport(report) };
+      } catch (error) { return { ok: false, error: englishSharePointError(error.message) }; }
     }
     case MESSAGE.SYNC_NOW: await evaluateSelf(); return {};
     case MESSAGE.SP_PUBLISH_SETTINGS: {
       const config = await getConfig();
-      if (!spConfigured(config)) return { ok: false, error: "Chưa nối SharePoint" };
+      if (!spConfigured(config)) return { ok: false, error: "SharePoint is not connected" };
       try {
         const written = await publishSharedSettings(spClient(config), config, { by: config.self_display_name });
         return { ok: true, written };
-      } catch (error) { return { ok: false, error: error.message }; }
+      } catch (error) { return { ok: false, error: englishSharePointError(error.message) }; }
     }
     case MESSAGE.SETTINGS_UPDATED: {
       const config = await getConfig();
@@ -871,7 +883,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   enqueue(async () => {
     if (message.type === MESSAGE.BASELINE_SYNC) { sendResponse(await handleBaselineSync(message)); return; }
     let result = {};
-    try { result = await handleMessage(message); } catch (error) { result = { ok: false, error: error.message }; }
+    try { result = await handleMessage(message); } catch (error) { result = { ok: false, error: englishSharePointError(error.message) }; }
     broadcastStatus();
     sendResponse({ ok: true, ...result, status: await status() });
   });

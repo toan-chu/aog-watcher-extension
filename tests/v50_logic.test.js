@@ -64,7 +64,6 @@ describe("preflight", () => {
     sources: { whatsapp: { status: "ok" }, outlook: { status: "ok" } },
     sharepoint: { configured: true, ok: true },
     groupsSyncedAt: Date.now(),
-    battery: { supported: true, charging: true, level: 0.9 },
     soundConfirmedAt: Date.now(),
     shiftStartedAt: Date.now(),
     peers: [{ on_shift: true, status: "alive", name: "Toàn" }],
@@ -74,11 +73,12 @@ describe("preflight", () => {
     expect(result.ready).toBe(true);
     expect(result.failed).toEqual([]);
   });
-  it("blocks readiness for wrong folder, unplugged charger and unconfirmed sound", () => {
-    const result = runPreflight({ ...good, sources: { ...good.sources, outlook: { status: "wrong_folder", message: "Outlook không ở hộp AOG" } }, battery: { supported: true, charging: false, level: 0.4 }, soundConfirmedAt: 0 });
+  it("blocks readiness for wrong folder and unconfirmed sound without checking power", () => {
+    const result = runPreflight({ ...good, sources: { ...good.sources, outlook: { status: "wrong_folder", message: "Outlook is not in the AOG mailbox" } }, soundConfirmedAt: 0 });
     expect(result.ready).toBe(false);
-    expect(result.failed).toEqual(expect.arrayContaining(["outlook", "power", "sound"]));
-    expect(result.items.find((item) => item.key === "outlook").hint).toContain("hộp AOG");
+    expect(result.failed).toEqual(expect.arrayContaining(["outlook", "sound"]));
+    expect(result.failed).not.toContain("power");
+    expect(result.items.find((item) => item.key === "outlook").hint).toContain("AOG mailbox");
   });
   it("only warns when SharePoint is not configured", () => {
     const result = runPreflight({ ...good, sharepoint: { configured: false } });

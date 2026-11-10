@@ -1,52 +1,52 @@
 <!doctype html>
-<html lang="vi">
+<html lang="en">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>AOG Watcher Settings</title><link rel="stylesheet" href="assets/fonts/fonts.css"><link rel="stylesheet" href="settings.css"></head>
 <body>
   <main>
-    <header class="brandbar"><p>by TRUST<span class="ana">ANA</span> · AOG Watcher 5.0</p><h1>Cài đặt</h1><span>Người mới: dán link SharePoint AOG → bấm "Đăng nhập &amp; kiểm tra" → điền tên. Các cài đặt chung tự lấy về từ SharePoint.</span></header>
+    <header class="brandbar"><p>by TRUST<span class="ana">ANA</span> · AOG Watcher 5.0</p><h1>Settings</h1><span>New user: paste the SharePoint AOG link → select "Sign in &amp; check" → enter your name. Shared settings are fetched automatically from SharePoint.</span></header>
     <form id="settingsForm">
       <section>
         <h2>1. SharePoint AOG</h2>
-        <p class="helper">Mặc định là site CX: https://trustanavn.sharepoint.com/sites/cx9 (dữ liệu AOG nằm trong các bảng AOG_*). Dùng chính tài khoản Microsoft công ty đang đăng nhập trong trình duyệt này.</p>
+        <p class="helper">Default AOG site: https://trustanavn.sharepoint.com/sites/aog (AOG data is stored in the AOG_* lists). Use the same company Microsoft account already signed in to this browser.</p>
         <div class="grid two">
-          <label>Link SharePoint AOG<input id="sharepointSiteUrl" placeholder="https://....sharepoint.com/sites/..."></label>
-          <div class="button-row"><button id="spTest" type="button">Đăng nhập &amp; kiểm tra</button><button id="spOpen" type="button" class="ghost">Mở SharePoint</button></div>
+          <label>SharePoint AOG link<input id="sharepointSiteUrl" placeholder="https://....sharepoint.com/sites/..."></label>
+          <div class="button-row"><button id="spTest" type="button">Sign in &amp; check</button><button id="spOpen" type="button" class="ghost">Open SharePoint</button></div>
         </div>
         <p id="spResult" class="result"></p>
-        <details class="admin"><summary>Dành cho trưởng team (làm một lần)</summary>
-          <p class="helper">"Tạo bảng" tạo 6 bảng AOG_* trên site (cần quyền chủ site). "Đẩy cài đặt chung" ghi các cài đặt dùng chung của máy này lên bảng AOG_Settings để mọi máy tự lấy.</p>
-          <div class="button-row"><button id="spSetup" type="button">Tạo bảng</button><button id="spPublish" type="button" class="ghost">Đẩy cài đặt chung</button></div>
+        <details class="admin"><summary>For the team lead (one-time setup)</summary>
+          <p class="helper">"Create lists" creates the six AOG_* lists on the site and requires site-owner permission. "Publish shared settings" writes this machine's shared settings to AOG_Settings for all machines to fetch.</p>
+          <div class="button-row"><button id="spSetup" type="button">Create lists</button><button id="spPublish" type="button" class="ghost">Publish shared settings</button></div>
         </details>
       </section>
-      <section><h2>2. Người trực</h2><div class="grid two"><label>Tên hiển thị <small>Bắt buộc, khác nhau giữa các máy</small><input id="selfDisplayName" required></label><label></label></div></section>
+      <section><h2>2. Operator</h2><div class="grid two"><label>Display name <small>Required and unique for each machine</small><input id="selfDisplayName" required></label><label></label></div></section>
       <section><h2>3. WhatsApp</h2>
-        <p class="helper">Danh sách nhóm khách chung nằm trên SharePoint (bảng AOG_Groups) — trưởng team sửa/xoá ở đó. <span id="teamGroupsInfo"></span></p>
+        <p class="helper">The shared customer-group list is stored in the AOG_Groups SharePoint list. The team lead edits or deletes entries there. <span id="teamGroupsInfo"></span></p>
         <div class="grid two">
-          <label>Nhóm điều phối <small>Chung · đường dự phòng khi SharePoint lỗi</small><input id="coordGroup"></label>
-          <label class="check"><input id="unknownChatAlert" type="checkbox"><span>Reo cho chat lạ<br><small>Chat chưa có trong danh sách vẫn reo, kèm nút Thêm / Bỏ qua</small></span></label>
-          <label>Nhóm riêng của tôi <small>Mỗi dòng một nhóm, chỉ máy này canh</small><textarea id="customerGroups" rows="5"></textarea></label>
-          <label>Chat đã bỏ qua <small>Máy này không reo cho các chat này</small><textarea id="ignoredChats" rows="5"></textarea></label>
+          <label>Coordination group <small>Shared · fallback route when SharePoint is unavailable</small><input id="coordGroup"></label>
+          <label class="check"><input id="unknownChatAlert" type="checkbox"><span>Ring for unknown chats<br><small>A chat not on the list still rings, with Add to shared list / Ignore actions</small></span></label>
+          <label>My personal groups <small>One group per line; watched only by this machine</small><textarea id="customerGroups" rows="5"></textarea></label>
+          <label>Ignored chats <small>This machine will not ring for these chats</small><textarea id="ignoredChats" rows="5"></textarea></label>
         </div>
       </section>
-      <section><h2>4. Outlook <small>(chung)</small></h2><p class="helper">Mở hộp AOG, copy phần URL sau outlook.office.com, ví dụ /mail/aog@congty.vn/.</p><div class="grid two"><label>Đường dẫn hộp AOG<input id="outlookWatchPath"></label><label>Chỉ nhận từ người gửi <small>Tuỳ chọn, mỗi dòng một email/domain</small><textarea id="senderWhitelist" rows="4"></textarea></label><label>Bỏ qua domain gửi<textarea id="skipDomains" rows="4"></textarea></label><label>Từ khoá tiêu đề <small>Để trống = mọi tiêu đề</small><textarea id="subjectKeywords" rows="4"></textarea></label></div></section>
-      <section><h2>5. Thời gian &amp; cảnh báo <small>(chung)</small></h2>
+      <section><h2>4. Outlook <small>(shared)</small></h2><p class="helper">Open the AOG mailbox and copy the URL segment after outlook.office.com, for example /mail/aog@company.com/.</p><div class="grid two"><label>AOG mailbox path<input id="outlookWatchPath"></label><label>Only accept from senders <small>Optional; one email or domain per line</small><textarea id="senderWhitelist" rows="4"></textarea></label><label>Ignored sender domains<textarea id="skipDomains" rows="4"></textarea></label><label>Subject keywords <small>Leave blank to accept every subject</small><textarea id="subjectKeywords" rows="4"></textarea></label></div></section>
+      <section><h2>5. Timing &amp; alerts <small>(shared)</small></h2>
         <div class="grid three">
-          <label>Chờ ACK trước khi báo dự phòng (giây)<input id="primaryTimeout" type="number" min="5" max="3600" required></label>
-          <label>Dự phòng tự reo sau (giây)<input id="backupDelay" type="number" min="5" max="3600" required></label>
-          <label>Reo tối đa (giây)<input id="maxDuration" type="number" min="10" max="7200" required></label>
-          <label>Ngưỡng máy để yên (giây)<input id="idleThreshold" type="number" min="15" max="3600" required></label>
-          <label>Kiểu chuông<select id="wakeAudioMode"><option value="gentle">Dịu, lặp lại</option><option value="escalate">To dần</option></select></label>
-          <button id="previewAudio" type="button" class="ghost">Nghe thử</button>
-          <label class="check"><input id="followupEnabled" type="checkbox"><span>Hỏi lại sau ACK</span></label>
-          <label>Hỏi lại sau (phút)<input id="followupAfter" type="number" min="1" max="120"></label>
-          <label>Chờ trả lời (phút)<input id="followupAnswer" type="number" min="1" max="60"></label>
-          <label>Máy kia mất liên lạc sau (phút)<input id="peerLost" type="number" min="2" max="60"></label>
-          <label>Báo quên mở ca sau (phút)<input id="reminderGrace" type="number" min="1" max="120"></label>
-          <label>Báo "mù" sau (phút)<input id="blindAfter" type="number" min="1" max="60"></label>
+          <label>Wait for Accept before alerting Backup (seconds)<input id="primaryTimeout" type="number" min="5" max="3600" required></label>
+          <label>Backup rings after (seconds)<input id="backupDelay" type="number" min="5" max="3600" required></label>
+          <label>Maximum ring duration (seconds)<input id="maxDuration" type="number" min="10" max="7200" required></label>
+          <label>Machine idle threshold (seconds)<input id="idleThreshold" type="number" min="15" max="3600" required></label>
+          <label>Ring style<select id="wakeAudioMode"><option value="gentle">Gentle, repeating</option><option value="escalate">Increasing volume</option></select></label>
+          <button id="previewAudio" type="button" class="ghost">Preview ring</button>
+          <label class="check"><input id="followupEnabled" type="checkbox"><span>Follow up after Accept</span></label>
+          <label>Follow up after (minutes)<input id="followupAfter" type="number" min="1" max="120"></label>
+          <label>Answer timeout (minutes)<input id="followupAnswer" type="number" min="1" max="60"></label>
+          <label>Partner machine lost after (minutes)<input id="peerLost" type="number" min="2" max="60"></label>
+          <label>Shift reminder after (minutes)<input id="reminderGrace" type="number" min="1" max="120"></label>
+          <label>Blind alert after (minutes)<input id="blindAfter" type="number" min="1" max="60"></label>
         </div>
       </section>
-      <section><h2>6. Thử nghiệm</h2><div class="grid four"><label class="check"><input id="testMode" type="checkbox"><span>Test mode<br><small>Bỏ qua giờ ca, ép vai trò</small></span></label><label>Vai trò test<select id="testRole"><option value="primary">Chính</option><option value="backup">Dự phòng</option></select></label><label class="check"><input id="dryRun" type="checkbox"><span>Dry-run<br><small>Không reo, không báo máy kia</small></span></label><label></label></div></section>
-      <div class="actions"><p id="status" role="status"></p><button type="submit">Lưu cài đặt</button></div>
+      <section><h2>6. Testing</h2><div class="grid four"><label class="check"><input id="testMode" type="checkbox"><span>Test mode<br><small>Ignore shift hours and force a role</small></span></label><label>Test role<select id="testRole"><option value="primary">Primary</option><option value="backup">Backup</option></select></label><label class="check"><input id="dryRun" type="checkbox"><span>Dry-run<br><small>Do not ring or notify the partner machine</small></span></label><label></label></div></section>
+      <div class="actions"><p id="status" role="status"></p><button type="submit">Save settings</button></div>
     </form>
   </main>
   <script type="module" src="settings.js"></script>

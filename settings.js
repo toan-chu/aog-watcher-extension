@@ -40,7 +40,7 @@ async function load() {
   byId("dryRun").checked = config.dry_run;
   const stored = await chrome.storage.local.get(["aog_team_groups", "aog_team_groups_synced_at"]);
   const team = stored.aog_team_groups ?? [];
-  byId("teamGroupsInfo").textContent = team.length ? `Đang có ${team.length} nhóm chung (đồng bộ lúc ${new Date(stored.aog_team_groups_synced_at).toLocaleString("vi-VN")}).` : "Chưa đồng bộ nhóm chung.";
+  byId("teamGroupsInfo").textContent = team.length ? `${team.length} shared groups (synced at ${new Date(stored.aog_team_groups_synced_at).toLocaleString("en-GB", { hour12: false })}).` : "Shared groups have not been synced.";
 }
 
 function numberOr(id, fallback) {
@@ -52,10 +52,10 @@ async function save({ quiet = false } = {}) {
   const status = byId("status");
   const siteRaw = byId("sharepointSiteUrl").value.trim();
   const site = siteRaw ? normalizeSiteUrl(siteRaw) : "";
-  if (siteRaw && !site) { status.textContent = "Link SharePoint không hợp lệ (phải là https://...sharepoint.com/sites/...)."; return false; }
+  if (siteRaw && !site) { status.textContent = "Invalid SharePoint link (expected https://...sharepoint.com/sites/...)."; return false; }
   const coordGroup = byId("coordGroup").value.trim();
   const customerGroups = uniqueNames(lines(byId("customerGroups").value));
-  if (coordGroup && customerGroups.some((group) => group.toLocaleLowerCase() === coordGroup.toLocaleLowerCase())) { status.textContent = "Nhóm điều phối không được nằm trong nhóm khách."; return false; }
+  if (coordGroup && customerGroups.some((group) => group.toLocaleLowerCase() === coordGroup.toLocaleLowerCase())) { status.textContent = "The coordination group cannot also be a customer group."; return false; }
   const existing = await getConfig();
   const config = {
     ...existing,
@@ -86,7 +86,7 @@ async function save({ quiet = false } = {}) {
   };
   await setConfig(config);
   await chrome.runtime.sendMessage({ type: "SETTINGS_UPDATED" }).catch(() => {});
-  if (!quiet) { status.style.color = "var(--green)"; status.textContent = "Đã lưu."; }
+  if (!quiet) { status.style.color = "var(--green)"; status.textContent = "Saved."; }
   return true;
 }
 
@@ -100,47 +100,47 @@ async function busy(button, work) {
 
 byId("spTest").addEventListener("click", () => busy(byId("spTest"), async () => {
   if (!(await save({ quiet: true }))) return;
-  setResult("Đang kiểm tra…");
+  setResult("Checking…");
   const response = await chrome.runtime.sendMessage({ type: "SP_TEST" });
   if (!response?.ok) {
-    setResult(`Chưa kết nối được: ${response?.error ?? "không rõ lỗi"}\n→ Bấm "Mở SharePoint", đăng nhập bằng email công ty, rồi bấm lại "Đăng nhập & kiểm tra".`, "bad");
+    setResult(`Could not connect: ${response?.error ?? "unknown error"}\n→ Select "Open SharePoint", sign in with your company email, then select "Sign in & check" again.`, "bad");
     return;
   }
   const missing = response.missing ?? [];
   const who = `${response.user?.name ?? ""} <${response.user?.email ?? ""}>`;
-  if (missing.length) setResult(`Đã đăng nhập: ${who}\nSite chưa có đủ bảng (${missing.length} mục thiếu). Nhờ trưởng team bấm "Tạo bảng".`, "bad");
+  if (missing.length) setResult(`Signed in: ${who}\nThe site is missing ${missing.length} lists. Ask the team lead to select "Create lists".`, "bad");
   else {
-    setResult(`Đã đăng nhập: ${who}\nĐủ bảng. Đang lấy nhóm chung và cài đặt chung…`, "ok");
+    setResult(`Signed in: ${who}\nAll lists are available. Fetching shared groups and settings…`, "ok");
     await chrome.runtime.sendMessage({ type: "SETTINGS_UPDATED" });
     await load();
-    setResult(`Đã đăng nhập: ${who}\nĐã nối SharePoint. Nhóm chung và cài đặt chung đã được lấy về.`, "ok");
+    setResult(`Signed in: ${who}\nSharePoint connected. Shared groups and settings were fetched.`, "ok");
   }
 }));
 
 byId("spOpen").addEventListener("click", () => {
   const site = normalizeSiteUrl(byId("sharepointSiteUrl").value);
-  if (!site) { setResult("Dán link SharePoint trước.", "bad"); return; }
+  if (!site) { setResult("Paste the SharePoint link first.", "bad"); return; }
   chrome.tabs.create({ url: site });
 });
 
 byId("spSetup").addEventListener("click", () => busy(byId("spSetup"), async () => {
   if (!(await save({ quiet: true }))) return;
-  setResult("Đang tạo bảng…");
+  setResult("Creating lists…");
   const response = await chrome.runtime.sendMessage({ type: "SP_SETUP" });
-  if (!response?.ok) { setResult(`Không tạo được: ${response?.error}`, "bad"); return; }
-  setResult(response.report?.length ? `Đã tạo:\n${response.report.join("\n")}` : "Đã đủ bảng, không cần tạo thêm.", "ok");
+  if (!response?.ok) { setResult(`Could not create lists: ${response?.error}`, "bad"); return; }
+  setResult(response.report?.length ? `Created:\n${response.report.join("\n")}` : "All lists already exist; nothing to create.", "ok");
 }));
 
 byId("spPublish").addEventListener("click", () => busy(byId("spPublish"), async () => {
   if (!(await save({ quiet: true }))) return;
   const response = await chrome.runtime.sendMessage({ type: "SP_PUBLISH_SETTINGS" });
-  setResult(response?.ok ? `Đã đẩy ${response.written} cài đặt chung lên AOG_Settings.` : `Không đẩy được: ${response?.error}`, response?.ok ? "ok" : "bad");
+  setResult(response?.ok ? `Published ${response.written} shared settings to AOG_Settings.` : `Could not publish: ${response?.error}`, response?.ok ? "ok" : "bad");
 }));
 
 byId("previewAudio").addEventListener("click", async () => {
   await chrome.runtime.sendMessage({ type: "PREVIEW_AUDIO", mode: byId("wakeAudioMode").value }).catch(() => {});
   byId("status").style.color = "var(--green)";
-  byId("status").textContent = "Đang phát thử chuông.";
+  byId("status").textContent = "Playing the test ring.";
 });
 
-load().catch((error) => { byId("status").textContent = `Không tải được: ${error.message}`; });
+load().catch((error) => { byId("status").textContent = `Could not load settings: ${error.message}`; });

@@ -8,7 +8,7 @@ const settingsCss = await readFile(new URL("../settings.css", import.meta.url), 
 describe("settings 5.0", () => {
   it("onboards with a SharePoint link and a login check instead of preset import", () => {
     expect(settingsHtml).toContain("sharepointSiteUrl");
-    expect(settingsHtml).toContain("Đăng nhập &amp; kiểm tra");
+    expect(settingsHtml).toContain("Sign in &amp; check");
     expect(settingsJs).toContain('type: "SP_TEST"');
     expect(settingsJs).not.toMatch(/preset/i);
   });
@@ -32,6 +32,6 @@ describe("settings 5.0", () => {
 
   it("validates the SharePoint URL before saving", () => {
     expect(settingsJs).toContain("normalizeSiteUrl");
-    expect(settingsJs).toContain("Link SharePoint không hợp lệ");
+    expect(settingsJs).toContain("Invalid SharePoint link");
   });
 });

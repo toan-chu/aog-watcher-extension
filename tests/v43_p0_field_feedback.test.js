@@ -84,7 +84,7 @@ describe("v4.3 P0 field feedback fixes", () => {
   });
 
   it("renders a collapsible diagnostics panel in the popup", () => {
-    expect(popupHtml).toContain("Chẩn đoán");
+    expect(popupHtml).toContain("Diagnostics");
     expect(popupHtml).toContain("diagnosticsRows");
     expect(popupJs).toContain("folder_gate === \"blocked\"");
   });

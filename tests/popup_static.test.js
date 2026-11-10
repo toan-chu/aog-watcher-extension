@@ -27,6 +27,12 @@ describe("popup safety copy", () => {
 });
 
 describe("popup 5.0", () => {
+  it("offers Off for every shift slot", () => {
+    const roleSelects = [...popupHtml.matchAll(/<select data-field="role">([\s\S]*?)<\/select>/g)].map((match) => match[1]);
+    expect(roleSelects).toHaveLength(2);
+    expect(roleSelects.every((html) => html.includes('<option value="off">Off</option>'))).toBe(true);
+  });
+
   it("offers exactly two decisions for unknown chats: add to team list or ignore", () => {
     expect(popupJs).toContain("Add to shared list");
     expect(popupJs).toContain("Ignore");

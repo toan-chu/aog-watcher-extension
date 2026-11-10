@@ -25,8 +25,8 @@ describe("V5-06 chat jump safety", () => {
 
   it("finishes Accept dispatch before attempting source navigation", () => {
     const handler = worker.slice(worker.indexOf("case MESSAGE.ACCEPT_CURRENT"), worker.indexOf("case MESSAGE.START_SHIFT"));
-    expect(handler.indexOf('dispatch({ type: "ALERT_ACCEPT" })')).toBeGreaterThan(-1);
-    expect(handler.indexOf("openAlertTarget(")).toBeGreaterThan(handler.indexOf('dispatch({ type: "ALERT_ACCEPT" })'));
+    expect(handler.indexOf('dispatch({ type: "ALERT_ACCEPT_BY_ID"')).toBeGreaterThan(-1);
+    expect(handler.indexOf("openAlertTarget(")).toBeGreaterThan(handler.indexOf('dispatch({ type: "ALERT_ACCEPT_BY_ID"'));
   });
 
   it("opens recent events without a greeting and Help at the public README", () => {

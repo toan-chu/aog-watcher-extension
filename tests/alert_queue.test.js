@@ -10,5 +10,12 @@ describe("AlertQueue", () => {
   it("matches WhatsApp timestamp in window", () => expect(new AlertQueue([alert("a")]).findWhatsAppByTimestamp("2026-06-22T10:00:30Z", 60)?.alert_id).toBe("a"));
   it("rejects timestamp outside window", () => expect(new AlertQueue([alert("a")]).findWhatsAppByTimestamp("2026-06-22T10:02:00Z", 60)).toBeNull());
   it("returns defensive copies", () => { const queue = new AlertQueue([alert("a")]); const items = queue.all(); items[0].alert_id = "x"; expect(queue.findById("a")).not.toBeNull(); });
+  it("counts queued and alerting items as actionable", () => {
+    const queue = new AlertQueue([alert("a"), alert("b"), alert("c")]);
+    queue.mark("a", "ALERTING");
+    queue.mark("c", "HANDLED");
+    expect(queue.actionable().map((item) => item.alert_id)).toEqual(["a", "b"]);
+    expect(queue.countActionable()).toBe(2);
+  });
 });
 

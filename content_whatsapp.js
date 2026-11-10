@@ -78,6 +78,7 @@
   function scanCustomerGroups() {
     if (!config) return;
     const stats = emptyStats();
+    const visibleReadChats = [];
     stats.last_scan_at = new Date().toISOString();
     for (const row of all(document, selectors.chatRows)) {
       try {
@@ -86,6 +87,7 @@
         const unread = unreadCount(row);
         const kind = chatClass(name);
         if (!kind || kind === "coord" || kind === "ignored") continue;
+        if (unread === 0) visibleReadChats.push(name);
         if (unread > 0) stats.unread_seen += 1;
         const previousUnread = lastUnreadByGroup.get(name);
         lastUnreadByGroup.set(name, unread);
@@ -104,6 +106,11 @@
       }
     }
     lastStats = stats;
+    runtime.safeSendMessage({
+      type: "WHATSAPP_READ_OBSERVED",
+      active_chat: activeConversationName(document, selectors),
+      visible_read_chats: [...new Set(visibleReadChats)],
+    }).catch(() => {});
   }
 
   function scanPeerTags() {

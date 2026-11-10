@@ -85,6 +85,11 @@ describe("preflight", () => {
     expect(result.items.find((item) => item.key === "sharepoint").status).toBe("warn");
     expect(result.ready).toBe(true);
   });
+  it("keeps READY and says no backup is on duty", () => {
+    const result = runPreflight({ ...good, peers: [] });
+    expect(result.ready).toBe(true);
+    expect(result.items.find((item) => item.key === "peer")).toMatchObject({ status: "warn", hint: "No backup on duty" });
+  });
 });
 
 describe("shift reminder", () => {
@@ -102,6 +107,14 @@ describe("shift reminder", () => {
     const a = shiftReminderState({ slots, now: at(22, 15) });
     const b = shiftReminderState({ slots, now: new Date(2026, 8, 29, 0, 5) });
     expect(a.key).toBe(b.key);
+  });
+  it("ignores Off slots and starts reminders at the first duty slot", () => {
+    const withOff = [
+      { start: "20:00", end: "22:00", role: "off" },
+      { start: "22:00", end: "02:30", role: "primary" },
+    ];
+    expect(shiftReminderState({ slots: withOff, now: at(20, 15) }).level).toBe("none");
+    expect(shiftReminderState({ slots: withOff, now: at(22, 3) }).level).toBe("nudge");
   });
 });
 
@@ -122,6 +135,17 @@ describe("heartbeat", () => {
     expect(findGaps(ticks)).toEqual([{ from: 2 * MIN, to: 20 * MIN }]);
     expect(wasOfflineAt(ticks, 10 * MIN)).toBe(true);
     expect(wasOfflineAt(ticks, MIN + 1)).toBe(false);
+  });
+  it("treats a stale peer as off after its embedded duty schedule ends", () => {
+    const localNow = new Date(2026, 10, 10, 21, 0).getTime();
+    const peers = evaluatePeers([{
+      MachineId: "b",
+      ShiftId: "s2",
+      Role: "primary",
+      LastBeat: new Date(localNow - 10 * MIN).toISOString(),
+      Problems: JSON.stringify({ problems: [], shift_slots: [{ start: "18:00", end: "20:00", role: "primary" }] }),
+    }], { now: localNow, lostAfterMinutes: 5 });
+    expect(peers[0]).toMatchObject({ on_shift: false, status: "off", problems: [] });
   });
 });
 
@@ -206,10 +230,11 @@ describe("night shift row", () => {
       { shift_id: "s1", event_type: "MISSED" },
       { shift_id: "other", event_type: "ACCEPT", group_name: "X" },
     ];
-    const open = shiftRowFields({ session, name: "B", email: "b@x.vn", ready: true, events });
-    expect(open).toMatchObject({ ShiftDate: "2026-07-28", OperatorName: "B", Email: "b@x.vn", Ready: "Ready", AlertCount: 2, AcceptedCount: 1, MissCount: 1 });
+    const shiftSlots = [{ start: "22:00", end: "02:30", role: "primary" }, { start: "02:30", end: "07:00", role: "off" }];
+    const open = shiftRowFields({ session, name: "B", email: "b@x.vn", ready: true, events, shiftSlots });
+    expect(open).toMatchObject({ ShiftDate: "2026-07-28", OperatorName: "B", Email: "b@x.vn", Ready: "Ready", Slot1Role: "Primary", Slot2Role: "Off", AlertCount: 2, AcceptedCount: 1, MissCount: 1 });
     expect(open.CheckOut).toBeUndefined();
-    expect(Object.keys(open).some((key) => key.startsWith("Primary") || key.startsWith("Backup") || key.startsWith("Slot"))).toBe(false);
+    expect(Object.keys(open).some((key) => key.startsWith("Primary") || key.startsWith("Backup"))).toBe(false);
     const closed = shiftRowFields({ session, name: "B", email: "b@x.vn", ready: false, events, ended: true, now: new Date(start.getTime() + 4.5 * 3_600_000) });
     expect(closed.Hours).toBe(4.5);
     expect(closed.Ready).toBe("Not ready");

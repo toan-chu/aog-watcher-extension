@@ -1,5 +1,6 @@
 // Behavioural test of service_worker.js with in-memory chrome.* and a fake SharePoint.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { serializeTag } from "../lib/peer_protocol.js";
 
 function createChrome({ browserTabs = [], tabResponder = async () => ({ ok: true }) } = {}) {
   const store = {};
@@ -121,6 +122,46 @@ describe("service worker 5.0 behaviour", () => {
     expect(response.status.recent_events.at(-1).event_type).toBe("SKIPPED_NO_SHIFT");
   });
 
+  it("records an Off-slot alert without ringing, then rings for a new Primary-slot alert", async () => {
+    const { send } = await boot({ config: {
+      test_mode: false,
+      shift_slots: [{ start: "00:00", end: "00:00", role: "off" }],
+    } });
+    await send({ type: "START_SHIFT" });
+    const startedAt = (await send({ type: "GET_STATUS" })).status.session.started_at;
+    const off = await send({ type: "ALERT_DETECTED", alert: { alert_id: "off-message", source: "whatsapp", group_name: "AOG TEST", unread_count: 1 } });
+    expect(off.status.current_role).toBe("off");
+    expect(off.status.app_state).toBe("IDLE");
+    expect(off.status.recent_events.some((event) => event.event_type === "SKIPPED_OUT_OF_SHIFT")).toBe(true);
+
+    await send({ type: "UPDATE_SHIFT_SLOTS", slots: [{ start: "00:00", end: "00:00", role: "primary" }] });
+    const primary = await send({ type: "ALERT_DETECTED", alert: { alert_id: "primary-message", source: "whatsapp", group_name: "AOG TEST", unread_count: 2 } });
+    expect(primary.status.current_role).toBe("primary");
+    expect(primary.status.app_state).toBe("ALERTING");
+    expect(primary.status.session.started_at).toBe(startedAt);
+  });
+
+  it("stops a ringing alert and cancels its escalation timers when the slot becomes Off", async () => {
+    const { chrome, send, alarm, settle } = await boot({ config: {
+      test_mode: false,
+      shift_slots: [{ start: "00:00", end: "00:00", role: "primary" }],
+    } });
+    await send({ type: "START_SHIFT" });
+    const ringing = await send({ type: "ALERT_DETECTED", alert: { alert_id: "boundary", source: "whatsapp", group_name: "AOG TEST", unread_count: 1 } });
+    expect(ringing.status.app_state).toBe("ALERTING");
+
+    await send({ type: "UPDATE_SHIFT_SLOTS", slots: [{ start: "00:00", end: "00:00", role: "off" }] });
+    alarm("aog:primary_timeout:boundary");
+    await settle();
+
+    const status = (await send({ type: "GET_STATUS" })).status;
+    expect(status.current_role).toBe("off");
+    expect(status.app_state).toBe("IDLE");
+    expect(status.pending_count).toBe(0);
+    expect([...chrome._alarms.keys()].filter((name) => name.endsWith(":boundary"))).toEqual([]);
+    expect(status.recent_events.some((event) => event.event_type === "PEER_ESCALATED_SENT")).toBe(false);
+  });
+
   it("Accept creates a follow-up question; missing tabs raise a red source alert on tick", async () => {
     const { chrome, send, alarm, settle } = await boot();
     await send({ type: "START_SHIFT" });
@@ -170,6 +211,148 @@ describe("service worker 5.0 behaviour", () => {
     expect(accepted.status.app_state).toBe("IDLE");
     expect(chrome._tabMessages.at(-1).message).toMatchObject({ type: "OPEN_WHATSAPP_CHAT", chat_name: "AOG CX", draft_text: "" });
     expect(chrome._tabUpdates).toEqual([{ tabId: 7, options: { active: true } }]);
+  });
+
+  it("Accept all handles three alerts, creates three follow-ups and opens only the ringing chat", async () => {
+    const sp = fakeSharePoint();
+    const browserTabs = [{ id: 7, windowId: 3, url: "https://web.whatsapp.com/" }];
+    const { chrome, send, alarm, settle } = await boot({
+      config: { sharepoint_site_url: "https://acme.sharepoint.com/sites/AOG" },
+      sharepoint: sp,
+      browserTabs,
+    });
+    alarm("aog:tick"); await settle();
+    await send({ type: "START_SHIFT" });
+    for (const [index, group] of ["AOG ONE", "AOG TWO", "AOG THREE"].entries()) {
+      await send({ type: "ALERT_DETECTED", alert: { alert_id: `a${index + 1}`, source: "whatsapp", group_name: group, unread_count: 1 } });
+    }
+
+    const accepted = await send({ type: "ACCEPT_ALL" });
+    alarm("aog:tick"); await settle();
+
+    expect(accepted.status.app_state).toBe("IDLE");
+    expect(accepted.status.pending_count).toBe(0);
+    expect(accepted.status.followups).toHaveLength(3);
+    expect(sp.rows("AOG_Log").filter((row) => row.RecordType === "Signal" && row.EventType === "HANDLED")).toHaveLength(3);
+    const acceptEvents = sp.rows("AOG_Log").filter((row) => row.RecordType === "Event" && row.EventType === "ACCEPT");
+    expect(acceptEvents).toHaveLength(3);
+    expect(acceptEvents.every((row) => JSON.parse(row.Detail).accept_method === "button")).toBe(true);
+    expect(chrome._tabMessages.filter((item) => item.message.type === "OPEN_WHATSAPP_CHAT")).toEqual([
+      expect.objectContaining({ message: expect.objectContaining({ chat_name: "AOG ONE" }) }),
+    ]);
+  });
+
+  it("opening the exact ringing WhatsApp chat Accepts without navigation or greeting", async () => {
+    const sp = fakeSharePoint();
+    const browserTabs = [{ id: 7, windowId: 3, url: "https://web.whatsapp.com/" }];
+    const { chrome, send, alarm, settle } = await boot({ config: { sharepoint_site_url: "https://acme.sharepoint.com/sites/AOG" }, sharepoint: sp, browserTabs });
+    alarm("aog:tick"); await settle();
+    await send({ type: "START_SHIFT" });
+    await send({ type: "CONTENT_HEALTH", source: "whatsapp", connected: true, stats: { rows_seen: 2 } });
+    alarm("aog:tick"); await settle();
+    await send({ type: "ALERT_DETECTED", alert: { alert_id: "a1", source: "whatsapp", group_name: "AOG ONE", unread_count: 1 } });
+
+    const accepted = await send({ type: "WHATSAPP_READ_OBSERVED", active_chat: "AOG ONE", visible_read_chats: [] });
+    alarm("aog:tick"); await settle();
+
+    expect(accepted.status.app_state).toBe("IDLE");
+    expect(accepted.status.followups).toHaveLength(1);
+    expect(sp.rows("AOG_Log").filter((row) => row.RecordType === "Signal" && row.EventType === "HANDLED")).toHaveLength(1);
+    const event = sp.rows("AOG_Log").find((row) => row.RecordType === "Event" && row.EventType === "ACCEPT");
+    expect(JSON.parse(event.Detail).accept_method).toBe("open_chat");
+    expect(chrome._tabMessages.some((item) => item.message.type === "OPEN_WHATSAPP_CHAT")).toBe(false);
+  });
+
+  it("opening one of three chats Accepts only that queued alert", async () => {
+    const sp = fakeSharePoint();
+    const { send, alarm, settle } = await boot({ config: { sharepoint_site_url: "https://acme.sharepoint.com/sites/AOG" }, sharepoint: sp });
+    alarm("aog:tick"); await settle();
+    await send({ type: "START_SHIFT" });
+    await send({ type: "CONTENT_HEALTH", source: "whatsapp", connected: true, stats: { rows_seen: 3 } });
+    alarm("aog:tick"); await settle();
+    for (const [index, group] of ["AOG ONE", "AOG TWO", "AOG THREE"].entries()) {
+      await send({ type: "ALERT_DETECTED", alert: { alert_id: `a${index + 1}`, source: "whatsapp", group_name: group, unread_count: 1 } });
+    }
+
+    const accepted = await send({ type: "WHATSAPP_READ_OBSERVED", active_chat: "AOG TWO", visible_read_chats: [] });
+
+    expect(accepted.status.app_state).toBe("ALERTING");
+    expect(accepted.status.current_alert.alert_id).toBe("a1");
+    expect(accepted.status.pending_count).toBe(2);
+    expect(accepted.status.followups.map((item) => item.alert_id)).toEqual(["a2"]);
+    expect(sp.rows("AOG_Log").filter((row) => row.RecordType === "Signal" && row.EventType === "HANDLED").map((row) => row.AlertId)).toEqual(["a2"]);
+  });
+
+  it("does not auto-Accept read evidence while WhatsApp is not healthy", async () => {
+    const { send } = await boot();
+    await send({ type: "START_SHIFT" });
+    await send({ type: "ALERT_DETECTED", alert: { alert_id: "a1", source: "whatsapp", group_name: "AOG ONE", unread_count: 1 } });
+
+    const ignored = await send({ type: "WHATSAPP_READ_OBSERVED", active_chat: "AOG ONE", visible_read_chats: ["AOG ONE"] });
+
+    expect(ignored.status.app_state).toBe("ALERTING");
+    expect(ignored.status.current_alert.alert_id).toBe("a1");
+    expect(ignored.status.followups).toEqual([]);
+  });
+
+  it("lets Backup auto-Accept an escalated alert after the exact chat opens", async () => {
+    const { send, alarm, settle } = await boot({ config: { test_role: "backup" } });
+    await send({ type: "START_SHIFT" });
+    await send({ type: "CONTENT_HEALTH", source: "whatsapp", connected: true, stats: { rows_seen: 2 } });
+    alarm("aog:tick"); await settle();
+    const detectedAt = new Date().toISOString();
+    await send({ type: "ALERT_DETECTED", alert: { alert_id: "backup-a1", source: "whatsapp", group_name: "AOG ONE", unread_count: 1, detected_at: detectedAt } });
+    await send({ type: "PEER_TAG_RECEIVED", text: serializeTag("ESCALATED", { alert_id: "backup-a1", source: "whatsapp", timestamp: detectedAt, from_role: "primary", operator: "Partner" }) });
+
+    const accepted = await send({ type: "WHATSAPP_READ_OBSERVED", active_chat: "AOG ONE", visible_read_chats: [] });
+
+    expect(accepted.status.app_state).toBe("IDLE");
+    expect(accepted.status.pending_count).toBe(0);
+    expect(accepted.status.followups.map((item) => item.alert_id)).toEqual(["backup-a1"]);
+  });
+
+  it("ignores old peer signals when Backup starts with an old unread alert", async () => {
+    const sp = fakeSharePoint();
+    sp.rows("AOG_Log").push({
+      Id: 50, RecordType: "Signal", EventType: "ESCALATED", AlertId: "old-a1", Source: "whatsapp",
+      MachineId: "peer", At: new Date(Date.now() - 3_600_000).toISOString(), Detail: JSON.stringify({ operator: "Partner" }),
+    });
+    const { send, alarm, settle } = await boot({ config: { sharepoint_site_url: "https://acme.sharepoint.com/sites/AOG", test_role: "backup" }, sharepoint: sp });
+    alarm("aog:tick"); await settle();
+    await send({ type: "START_SHIFT" });
+
+    const oldUnread = await send({ type: "ALERT_DETECTED", alert: { alert_id: "old-a1", source: "whatsapp", group_name: "AOG ONE", unread_count: 4 } });
+
+    expect(oldUnread.status.app_state).toBe("IDLE");
+    expect(oldUnread.status.pending_count).toBe(1);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await settle();
+  });
+
+  it("never raises lost or not-started alerts for a peer whose embedded schedule is Off", async () => {
+    const sp = fakeSharePoint();
+    sp.rows("AOG_Log").push({
+      Id: 40, RecordType: "Machine", EventType: "HEARTBEAT", MachineId: "peer-off", OperatorName: "Ethan",
+      Role: "primary", ShiftId: "old-shift", Ready: "1", At: new Date(Date.now() - 20 * 60_000).toISOString(),
+      Detail: JSON.stringify({ problems: [], shift_slots: [{ start: "00:00", end: "00:00", role: "off" }], test_mode: false }),
+    });
+    const { chrome, send, alarm, settle } = await boot({ config: { sharepoint_site_url: "https://acme.sharepoint.com/sites/AOG" }, sharepoint: sp });
+    alarm("aog:tick"); await settle();
+    await send({ type: "START_SHIFT" });
+    chrome._store.aog_system_alerts = {
+      "peer_shift:peer-off:night": { key: "peer_shift:peer-off:night", kind: "peer_shift", title: "Old", message: "Old", ring: true, dismissed: false },
+    };
+    sp.rows("AOG_Log").push({
+      Id: 999, RecordType: "Signal", EventType: "SHIFT_NOT_STARTED", AlertId: "", MachineId: "peer-off",
+      At: new Date().toISOString(), Detail: JSON.stringify({ operator: "Ethan", night: "night" }),
+    });
+
+    alarm("aog:tick"); await settle();
+    const status = (await send({ type: "GET_STATUS" })).status;
+
+    expect(status.peers).toEqual([expect.objectContaining({ machine_id: "peer-off", on_shift: false, status: "off" })]);
+    expect(status.system_alerts.filter((item) => item.kind === "peer_lost" || item.kind === "peer_shift")).toEqual([]);
+    expect(chrome._notifications.some((item) => item.title === "Partner machine lost" || item.title === "Partner machine has not started its shift")).toBe(false);
   });
 
   it("healthy sources + confirmed sound → READY without a power check", async () => {

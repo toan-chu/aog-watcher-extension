@@ -32,6 +32,7 @@ h1, h2, h3, .eyebrow, .state, .ready, .tag, .accept, .cta, .tab { font-family: v
 .state, .ready, .tag { border: 1px solid rgb(255 255 255 / 45%); border-radius: 999px; padding: 3px 7px; font-size: 9px; letter-spacing: .05em; }
 .state--alerting { border-color: #fff; background: var(--danger); animation: pulse 1s ease-in-out infinite; }
 .state--watching { background: var(--ok); }
+.state--attention { background: var(--danger); }
 .ready--ok { background: var(--ok); }
 .ready--bad { background: var(--danger); }
 .ready--off { opacity: .72; }
@@ -83,6 +84,7 @@ h1, h2, h3, .eyebrow, .state, .ready, .tag, .accept, .cta, .tab { font-family: v
 .accept { width: 100%; min-height: 58px; border: 0; border-radius: 6px; background: var(--surface-2); color: #9a8db0; font-size: 15px; font-weight: 700; cursor: not-allowed; }
 .accept:not(:disabled) { background: var(--danger); color: #fff; cursor: pointer; box-shadow: 0 0 0 4px rgb(215 38 61 / 20%); }
 .accept:not(:disabled):hover { filter: brightness(1.08); }
+.accept-all { width: 100%; margin-top: -5px; border: 1px solid var(--danger); border-radius: 6px; background: #fff; color: var(--danger); padding: 10px 14px; font-weight: 700; cursor: pointer; }
 .alert-panel { display: grid; gap: 5px; border: 1px solid var(--danger); border-left: 5px solid var(--danger); border-radius: 7px; background: #fdecee; padding: 12px; }
 .alert-panel strong { color: #8d1025; font: 700 20px/1.2 var(--font-head); }
 .alert-panel span { color: var(--muted); }

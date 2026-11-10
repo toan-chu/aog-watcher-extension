@@ -21,7 +21,53 @@ describe("state machine", () => {
   });
   it("local Accept emits exactly one peer tag", () => { const active = reduce(createInitialState({ role: "primary" }), detected()).state; const result = reduce(active, { type: "ALERT_ACCEPT" }); expect(result.effects.filter((effect) => effect.type === "SEND_PEER_TAG")).toHaveLength(1); });
   it("local Accept cancels timers only for the active alert", () => { const active = reduce(createInitialState({ role: "primary" }), detected()).state; const result = reduce(active, { type: "ALERT_ACCEPT" }); const cancelled = result.effects.filter((effect) => effect.type === "CANCEL_TIMER"); expect(cancelled).toHaveLength(3); expect(cancelled.every((effect) => effect.alert_id === "a")).toBe(true); });
+  it("accepts one queued alert by id without stopping the current alert", () => {
+    let active = reduce(createInitialState({ role: "primary" }), detected()).state;
+    active = reduce(active, detected({ alert: alert("b") })).state;
+    const result = reduce(active, { type: "ALERT_ACCEPT_BY_ID", payload: { alert_id: "b", method: "open_chat" } });
+    expect(result.state.current_alert.alert_id).toBe("a");
+    expect(result.state.queue.findById("b").status).toBe("HANDLED");
+    expect(result.effects.filter((effect) => effect.type === "STOP_WAKE")).toHaveLength(0);
+    expect(result.effects.filter((effect) => effect.type === "CANCEL_TIMER")).toEqual([
+      expect.objectContaining({ alert_id: "b" }), expect.objectContaining({ alert_id: "b" }), expect.objectContaining({ alert_id: "b" }),
+    ]);
+    expect(result.effects).toContainEqual(expect.objectContaining({ type: "SEND_PEER_TAG", tag: "HANDLED", alert: expect.objectContaining({ alert_id: "b" }) }));
+    expect(result.effects).toContainEqual(expect.objectContaining({ payload: expect.objectContaining({ event_type: "ACCEPT", alert_id: "b", accept_method: "open_chat" }) }));
+  });
+  it("accepts all actionable alerts and emits one HANDLED per alert", () => {
+    let active = reduce(createInitialState({ role: "primary" }), detected()).state;
+    active = reduce(active, detected({ alert: alert("b") })).state;
+    active = reduce(active, detected({ alert: alert("c") })).state;
+    const result = reduce(active, { type: "ALERT_ACCEPT_ALL", payload: { method: "button" } });
+    expect(result.state.app_state).toBe("IDLE");
+    expect(result.state.current_alert).toBeNull();
+    expect(result.state.queue.countActionable()).toBe(0);
+    expect(result.effects.filter((effect) => effect.type === "STOP_WAKE")).toHaveLength(1);
+    expect(result.effects.filter((effect) => effect.type === "CANCEL_TIMER")).toHaveLength(9);
+    expect(result.effects.filter((effect) => effect.type === "SEND_PEER_TAG" && effect.tag === "HANDLED")).toHaveLength(3);
+    expect(result.effects.filter((effect) => effect.payload?.event_type === "ACCEPT" && effect.payload.accept_method === "button")).toHaveLength(3);
+  });
+  it("does nothing when accepting an id that is not actionable", () => {
+    const state = reduce(createInitialState({ role: "primary" }), detected()).state;
+    const result = reduce(state, { type: "ALERT_ACCEPT_BY_ID", payload: { alert_id: "missing", method: "open_chat" } });
+    expect(result.state.current_alert.alert_id).toBe("a");
+    expect(result.effects).toEqual([]);
+  });
   it("primary timeout sends escalation without stopping", () => { const active = reduce(createInitialState({ role: "primary" }), detected()).state; const result = reduce(active, { type: "TIMER_PRIMARY_TIMEOUT", payload: { alert_id: "a" } }); expect(result.effects).toContainEqual(expect.objectContaining({ type: "SEND_PEER_TAG", tag: "ESCALATED" })); expect(has(result, "STOP_WAKE")).toBe(false); });
+
+  it("stops and skips every local alert when this machine goes off duty", () => {
+    let state = reduce(createInitialState({ role: "primary" }), detected()).state;
+    state = reduce(state, detected({ alert: alert("b") })).state;
+
+    const result = reduce(state, { type: "DUTY_ENDED" });
+
+    expect(result.state.app_state).toBe("IDLE");
+    expect(result.state.current_alert).toBeNull();
+    expect(result.state.queue.actionable()).toEqual([]);
+    expect(result.effects).toContainEqual({ type: "STOP_WAKE" });
+    expect(result.effects.filter((effect) => effect.type === "CANCEL_TIMER")).toHaveLength(6);
+    expect(result.effects.filter((effect) => effect.type === "APPEND_EVENT_LOG" && effect.payload.event_type === "SKIPPED_OUT_OF_SHIFT")).toHaveLength(2);
+  });
   it("backup delay starts wake", () => { const queued = reduce(createInitialState({ role: "backup" }), detected()).state; const result = reduce(queued, { type: "TIMER_BACKUP_DELAY", payload: { alert_id: "a", timing } }); expect(result.state.app_state).toBe("ALERTING"); expect(has(result, "START_WAKE")).toBe(true); });
   it("peer escalation wakes backup", () => { const queued = reduce(createInitialState({ role: "backup" }), detected()).state; const result = reduce(queued, { type: "PEER_ESCALATED_RECEIVED", payload: { alert_id: "a", source: "whatsapp", timestamp: alert().detected_at, timing } }); expect(result.state.app_state).toBe("ALERTING"); });
   it("peer escalation is ignored by primary", () => { const result = reduce(createInitialState({ role: "primary" }), { type: "PEER_ESCALATED_RECEIVED", payload: { alert_id: "a", timing } }); expect(result.effects).toHaveLength(0); });

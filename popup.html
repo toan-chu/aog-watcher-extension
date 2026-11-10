@@ -42,14 +42,14 @@
             <input type="text" inputmode="numeric" pattern="(?:[01][0-9]|2[0-3]):[0-5][0-9]" data-field="start" placeholder="22:00" required>
             <span>→</span>
             <input type="text" inputmode="numeric" pattern="(?:[01][0-9]|2[0-3]):[0-5][0-9]" data-field="end" placeholder="02:30" required>
-            <select data-field="role"><option value="primary">Primary</option><option value="backup">Backup</option></select>
+            <select data-field="role"><option value="primary">Primary</option><option value="backup">Backup</option><option value="off">Off</option></select>
           </div>
           <div class="slot-row" data-slot="1">
             <span class="slot-label">Slot 2</span>
             <input type="text" inputmode="numeric" pattern="(?:[01][0-9]|2[0-3]):[0-5][0-9]" data-field="start" placeholder="02:30" required>
             <span>→</span>
             <input type="text" inputmode="numeric" pattern="(?:[01][0-9]|2[0-3]):[0-5][0-9]" data-field="end" placeholder="07:00" required>
-            <select data-field="role"><option value="primary">Primary</option><option value="backup">Backup</option></select>
+            <select data-field="role"><option value="primary">Primary</option><option value="backup">Backup</option><option value="off">Off</option></select>
           </div>
         </details>
       </section>
@@ -82,10 +82,12 @@
 
       <section id="ringingScreen" class="state-screen state-screen--ringing" hidden>
         <button id="acceptButton" class="accept" type="button">ACCEPT — I'LL HANDLE IT</button>
+        <button id="acceptAllButton" class="accept-all" type="button" hidden>Accept all (0)</button>
         <section id="alertPanel" class="alert-panel alert-panel--active" aria-live="assertive">
           <p class="screen-kicker">RINGING</p>
           <strong id="alertTitle">AOG alert</strong>
           <span id="alertMeta">WhatsApp</span>
+          <span id="pendingCount" hidden>0 pending alerts</span>
           <span id="backupCountdown" class="countdown">Calling Backup in --:--</span>
         </section>
         <section id="systemAlerts" class="system-alerts" aria-live="assertive"></section>

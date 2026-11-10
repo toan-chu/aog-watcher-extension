@@ -1,7 +1,7 @@
 import { ALERT_SOURCE, APP_STATE, APP_VERSION, DEFAULT_CONFIG, MESSAGE, ROLE, STORAGE_KEYS } from "./lib/constants.js";
 import { deterministicAlertId } from "./lib/hash.js";
 import { shouldSkipEmail } from "./lib/filter.js";
-import { resolveRoleAtTime, isWithinAnySlot } from "./lib/shift_engine.js";
+import { isDutyRole, resolveRoleAtTime } from "./lib/shift_engine.js";
 import { enrichEventRecord } from "./lib/event_log.js";
 import { reduce } from "./lib/state_machine.js";
 import { hydrateRuntimeState, serializeRuntimeState } from "./lib/runtime_state.js";
@@ -65,7 +65,21 @@ function resolveCurrentRole(config, now = new Date()) {
   return { role: resolved.role, source: "slot", slot_index: resolved.slot_index, slot: resolved.slot };
 }
 function currentWithinShift(config, now = new Date()) {
-  return config.test_mode ? true : isWithinAnySlot(now, config.shift_slots);
+  return isDutyRole(resolveCurrentRole(config, now)?.role);
+}
+async function syncSessionRole(config, now = new Date()) {
+  await hydrate();
+  if (!state.session) return null;
+  const resolved = resolveCurrentRole(config, now);
+  const role = resolved?.role ?? ROLE.OFF;
+  if (state.session.role !== role) {
+    state.session = { ...state.session, role, slot_index: resolved?.slot_index ?? null };
+    await setRoleSession(state.session);
+    await persist();
+    await appendServiceEvent({ event_type: "ROLE_CHANGED", role });
+  }
+  if (!isDutyRole(role) && state.queue.actionable().length) await dispatch({ type: "DUTY_ENDED" });
+  return role;
 }
 
 async function hydrate() {
@@ -243,10 +257,10 @@ async function machineFields(config, { problems = [], ready = null } = {}) {
     MachineId: await getMachineId(),
     OperatorName: config.self_display_name,
     Email: who.email,
-    Role: state.session?.role ?? "",
-    ShiftId: state.session?.shift_id ?? "",
+    Role: resolveCurrentRole(config)?.role ?? (state.session ? ROLE.OFF : ""),
+    ShiftId: state.session && currentWithinShift(config) ? state.session.shift_id : "",
     Ready: (ready ?? preflight?.ready) ? "1" : "0",
-    Problems: problems,
+    Problems: { problems, shift_slots: config.shift_slots ?? [], test_mode: Boolean(config.test_mode) },
     LastBeat: new Date().toISOString(),
     Version: APP_VERSION,
   };
@@ -291,6 +305,11 @@ async function syncTeam(config, { problems = [], forceGroups = false } = {}) {
       if (state.session && peer.on_shift && peer.problems.length) {
         await raiseSystemAlert(blindKey, { kind: "peer_source", title: "Partner machine has source problems", message: `${peer.name}: ${peer.problems.map((item) => item.message).join(" · ")}`, ring: false });
       } else await clearSystemAlert(blindKey);
+      if (!peer.on_shift) {
+        for (const alertKey of Object.keys(await getSystemAlerts())) {
+          if (alertKey.startsWith(`peer_shift:${peer.machine_id}:`)) await clearSystemAlert(alertKey);
+        }
+      }
     }
 
     // groups
@@ -335,6 +354,7 @@ async function handleSignal(signal, config) {
   if (seenSignalKeys.has(dedupe)) return;
   seenSignalKeys.add(dedupe);
   await hydrate();
+  await syncSessionRole(config);
   const payload = { alert_id: signal.alert_id, source: signal.source, timestamp: signal.payload.timestamp ?? signal.sent_at, timing: timing(config) };
   if (signal.type === SIGNAL.HANDLED) {
     await markAlertPeerHandled(signal.alert_id);
@@ -342,8 +362,9 @@ async function handleSignal(signal, config) {
   } else if (signal.type === SIGNAL.ESCALATED) {
     await markAlertEscalated(signal.alert_id);
     await dispatch({ type: "PEER_ESCALATED_RECEIVED", payload });
-  } else if (signal.type === SIGNAL.SHIFT_NOT_STARTED) {
-    await raiseSystemAlert(`peer_shift:${signal.from}:${signal.payload.night ?? ""}`, { kind: "peer_shift", title: "Partner machine has not started its shift", message: `${signal.payload.operator || "Partner machine"} is past the shift start time but has not selected Start shift.` });
+  } else if (signal.type === SIGNAL.SHIFT_NOT_STARTED && isDutyRole(state.session?.role)) {
+    const peer = (await getKey(K.PEERS, [])).find((item) => item.machine_id === signal.from);
+    if (peer?.on_shift !== false) await raiseSystemAlert(`peer_shift:${signal.from}:${signal.payload.night ?? ""}`, { kind: "peer_shift", title: "Partner machine has not started its shift", message: `${signal.payload.operator || "Partner machine"} is past the shift start time but has not selected Start shift.` });
   } else if (signal.type === SIGNAL.FOLLOWUP_OVERDUE) {
     await raiseSystemAlert(`peer_followup:${signal.alert_id}`, { kind: "peer_followup", title: "AOG message handling has not been confirmed", message: `${signal.payload.operator || "Partner machine"} accepted "${signal.payload.title || signal.alert_id}" but did not confirm whether handling was complete.` });
   } else if (signal.type === SIGNAL.SOURCE_BLIND) {
@@ -579,14 +600,10 @@ async function handleAlert(rawAlert) {
     if (config.unknown_chat_alert === false) return;
   }
   const resolved = resolveCurrentRole(config);
-  if (resolved && state.session.role !== resolved.role) {
-    state.session = { ...state.session, role: resolved.role, slot_index: resolved.slot_index };
-    await setRoleSession(state.session);
-    await dispatch({ type: "ROLE_CHANGED", payload: { role: resolved.role } });
-  }
+  await syncSessionRole(config);
   const alert = { ...rawAlert, alert_id: rawAlert.alert_id ?? deterministicAlertId(rawAlert), detected_at: rawAlert.detected_at ?? new Date().toISOString() };
   const peerHandled = await isAlertPeerHandled(alert.alert_id);
-  await dispatch({ type: "ALERT_DETECTED", payload: { alert, within_shift: resolved !== null, peer_handled: peerHandled, timing: timing(config) } });
+  await dispatch({ type: "ALERT_DETECTED", payload: { alert, within_shift: isDutyRole(resolved?.role), peer_handled: peerHandled, timing: timing(config) } });
   if (state.session?.role === ROLE.BACKUP && await isAlertEscalated(alert.alert_id)) {
     await dispatch({ type: "PEER_ESCALATED_RECEIVED", payload: { alert_id: alert.alert_id, source: alert.source, timestamp: alert.detected_at, timing: timing(config) } });
   }
@@ -597,6 +614,7 @@ async function handlePeerText(text) {
   if (!parsed) return;
   await hydrate();
   const config = await getConfig();
+  await syncSessionRole(config);
   if (parsed.payload.operator && parsed.payload.operator === config.self_display_name && parsed.payload.from_role === state.session?.role) return;
   if (parsed.tag === "ESCALATED") {
     await markAlertEscalated(parsed.payload.alert_id);
@@ -613,7 +631,7 @@ async function writeShiftRow(config, session, { ended = false } = {}) {
   const who = await identity();
   const preflight = await getKey(K.PREFLIGHT, null);
   const name = config.self_display_name || who.name;
-  const fields = shiftRowFields({ session, name, email: who.email, ready: preflight ? preflight.ready : null, events: await getEventLog(), ended });
+  const fields = shiftRowFields({ session, name, email: who.email, ready: preflight ? preflight.ready : null, events: await getEventLog(), shiftSlots: config.shift_slots, ended });
   const who2 = { session, name, email: who.email };
   await queueWrite({ kind: "upsert", list: SP_LISTS.SHIFTS, match: shiftRowMatch(who2), fallback_match: shiftRowFallbackMatch(who2), claim_field: "Email", fields });
 }
@@ -621,7 +639,7 @@ async function writeShiftRow(config, session, { ended = false } = {}) {
 async function startShift() {
   const config = await getConfig();
   const resolved = resolveCurrentRole(config);
-  const initialRole = resolved?.role ?? (config.test_role === ROLE.BACKUP ? ROLE.BACKUP : ROLE.PRIMARY);
+  const initialRole = resolved?.role ?? ROLE.OFF;
   const shift = await startShiftSession({ role: initialRole, config });
   const session = { role: initialRole, initial_role: initialRole, slot_index: resolved?.slot_index ?? null, started_at: shift.started_at, shift_id: shift.shift_id, operator_name: shift.operator_name, partner_name: shift.partner_name };
   await setRoleSession(session);
@@ -690,11 +708,12 @@ async function evaluateSelf() {
   const config = await getConfig();
   await hydrate();
   const now = Date.now();
+  const activeRole = await syncSessionRole(config, new Date(now));
   await recordTick(now);
   const evaluation = await evaluateSources_(config, now);
   const problems = problemsOf(evaluation);
 
-  if (state.session) {
+  if (state.session && isDutyRole(activeRole)) {
     for (const source of ["whatsapp", "outlook"]) {
       const value = evaluation.sources[source];
       const key = `source:${source}`;
@@ -804,6 +823,26 @@ async function reportLeak({ source, what, at }) {
   return { ok: true, cause: verdict.cause, reason: verdict.reason };
 }
 
+async function finishAccepted(alerts, config) {
+  if (!alerts.length) return;
+  await writeShiftRow(config, state.session);
+  if (!config.followup_enabled) return;
+  const acceptedIds = new Set(alerts.map((alert) => alert.alert_id));
+  const followups = (await getKey(K.FOLLOWUPS, [])).filter((item) => !acceptedIds.has(item.alert_id));
+  await setKey(K.FOLLOWUPS, [...followups, ...alerts.map((alert) => createFollowup(alert, { askAfterMinutes: Number(config.followup_after_minutes) || 10 }))]);
+}
+
+async function handleWhatsAppReadObservation(message) {
+  const evaluation = await getKey(K.SOURCE_EVAL, { sources: {} });
+  if (evaluation.sources?.whatsapp?.status !== SOURCE_STATUS.OK) return { accepted: 0 };
+  await hydrate();
+  const evidence = [message.active_chat, ...(Array.isArray(message.visible_read_chats) ? message.visible_read_chats : [])].filter(Boolean);
+  const alerts = state.queue.actionable().filter((alert) => alert.source === ALERT_SOURCE.WHATSAPP && evidence.some((name) => isSameGroupName(name, alert.group_name)));
+  for (const alert of alerts) await dispatch({ type: "ALERT_ACCEPT_BY_ID", payload: { alert_id: alert.alert_id, method: "open_chat" } });
+  if (alerts.length) await finishAccepted(alerts, await getConfig());
+  return { accepted: alerts.length };
+}
+
 // ---------- status ----------
 async function status() {
   await hydrate();
@@ -818,7 +857,7 @@ async function status() {
     version: APP_VERSION,
     app_state: state.app_state,
     current_alert: state.current_alert,
-    pending_count: state.queue.countPending(),
+    pending_count: state.queue.countActionable(),
     session: state.session,
     within_shift: currentWithinShift(config),
     current_role: resolved?.role ?? null,
@@ -879,16 +918,28 @@ async function handleMessage(message) {
     case MESSAGE.ACCEPT_CURRENT: {
       await hydrate();
       const alert = state.current_alert;
-      await dispatch({ type: "ALERT_ACCEPT" });
+      if (!alert) return {};
+      await dispatch({ type: "ALERT_ACCEPT_BY_ID", payload: { alert_id: alert.alert_id, method: "button" } });
       const config = await getConfig();
-      if (alert && state.current_alert?.alert_id !== alert.alert_id) await writeShiftRow(config, state.session);
-      if (alert && state.current_alert?.alert_id !== alert.alert_id && config.followup_enabled) {
-        const followups = (await getKey(K.FOLLOWUPS, [])).filter((item) => item.alert_id !== alert.alert_id);
-        await setKey(K.FOLLOWUPS, [...followups, createFollowup(alert, { askAfterMinutes: Number(config.followup_after_minutes) || 10 })]);
-      }
+      const accepted = state.queue.findById(alert.alert_id)?.status === "HANDLED" ? [alert] : [];
+      await finishAccepted(accepted, config);
       if (alert && state.current_alert?.alert_id !== alert.alert_id) {
         try { await openAlertTarget(alert, alert.source === ALERT_SOURCE.WHATSAPP ? config.whatsapp_greeting : ""); }
         catch (error) { return { ok: false, error: `Accepted, but the source could not be opened: ${error.message}` }; }
+      }
+      return {};
+    }
+    case MESSAGE.ACCEPT_ALL: {
+      await hydrate();
+      const current = state.current_alert;
+      const alerts = state.queue.actionable();
+      await dispatch({ type: "ALERT_ACCEPT_ALL", payload: { method: "button" } });
+      const config = await getConfig();
+      const accepted = alerts.filter((alert) => state.queue.findById(alert.alert_id)?.status === "HANDLED");
+      await finishAccepted(accepted, config);
+      if (current && accepted.some((alert) => alert.alert_id === current.alert_id)) {
+        try { await openAlertTarget(current, current.source === ALERT_SOURCE.WHATSAPP ? config.whatsapp_greeting : ""); }
+        catch (error) { return { ok: false, error: `Accepted all, but the current source could not be opened: ${error.message}` }; }
       }
       return {};
     }
@@ -905,6 +956,7 @@ async function handleMessage(message) {
     case MESSAGE.CONTENT_HEALTH:
       if (message.connected) await recordSourceHealth(message.source, message.stats ?? null);
       return {};
+    case MESSAGE.WHATSAPP_READ_OBSERVED: return handleWhatsAppReadObservation(message);
     case MESSAGE.UNKNOWN_CHAT_DECISION: return decideUnknownChat(message.name, message.decision);
     case MESSAGE.DISMISS_SYSTEM_ALERT: await clearSystemAlert(message.key, { dismissed: true }); return {};
     case MESSAGE.FOLLOWUP_ANSWER: {
@@ -968,6 +1020,7 @@ chrome.alarms.onAlarm.addListener((alarm) => enqueue(async () => {
   const match = alarm.name.match(/^aog:(primary_timeout|backup_delay|max_alert_duration):(.+)$/);
   if (!match) return;
   const config = await getConfig();
+  if (!isDutyRole(await syncSessionRole(config))) return;
   const type = { primary_timeout: "TIMER_PRIMARY_TIMEOUT", backup_delay: "TIMER_BACKUP_DELAY", max_alert_duration: "TIMER_MAX_DURATION" }[match[1]];
   await dispatch({ type, payload: { alert_id: match[2], timing: timing(config) } });
 }));

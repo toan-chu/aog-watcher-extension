@@ -1,14 +1,14 @@
-import { eventSentence, formatAgo, formatClock24, popupMode, watchingSummary } from "./lib/popup_view.js";
+import { acceptAllView, eventSentence, formatAgo, formatClock24, peerEvidence, popupMode, statusBadge, watchingSummary } from "./lib/popup_view.js";
 
 const ids = ["versionValue", "stateBadge", "readyBadge", "dryRunBadge", "testModeBadge", "tonightTab", "searchTab", "helpTab", "tonightPanel", "searchPanel", "helpPanel",
   "offShiftScreen", "watchingScreen", "watchingTitle", "watchingCopy", "ringingScreen", "roleValue", "startShiftButton", "shiftStatusHint", "endShiftButton", "whatsappDot", "whatsappValue",
   "outlookDot", "outlookValue", "sharepointDot", "sharepointValue", "peerDot", "peerValue", "soundDot", "soundValue", "latestEventValue", "preflight",
-  "preflightList", "testSoundButton", "soundOkButton", "watchSystemAlerts", "watchUnknownChats", "watchUnknownList", "recentEvents", "acceptButton", "alertPanel",
-  "alertTitle", "alertMeta", "backupCountdown", "systemAlerts", "unknownChats", "unknownList", "searchChatInput", "helpButton", "leakSource", "leakWhat", "leakAt",
+  "preflightList", "testSoundButton", "soundOkButton", "watchSystemAlerts", "watchUnknownChats", "watchUnknownList", "recentEvents", "acceptButton", "acceptAllButton", "alertPanel",
+  "alertTitle", "alertMeta", "pendingCount", "backupCountdown", "systemAlerts", "unknownChats", "unknownList", "searchChatInput", "helpButton", "leakSource", "leakWhat", "leakAt",
   "leakButton", "diagnosticsRows", "sharepointButton", "settingsButton", "feedback"];
 const elements = Object.fromEntries(ids.map((id) => [id, document.getElementById(id)]));
 const slotRows = [...document.querySelectorAll(".slot-row")];
-const ROLE_LABEL = { primary: "Primary", backup: "Backup" };
+const ROLE_LABEL = { primary: "Primary", backup: "Backup", off: "Off" };
 const TIME_PATTERN = /^(?:[01]\d|2[0-3]):[0-5]\d$/;
 const PREFLIGHT_ACTION = {
   identity: "Open Settings and enter the operator name.",
@@ -124,11 +124,8 @@ function renderSources(status) {
   if (!sp.configured) setDot("sharepoint", "warn", "Connect in Settings");
   else if (sp.ok) setDot("sharepoint", "ok", formatAgo(sp.checked_at));
   else setDot("sharepoint", "bad", "Open SharePoint and sign in");
-  const peers = (status.peers ?? []).filter((peer) => peer.on_shift);
-  if (!sp.configured) setDot("peer", "warn", "SharePoint is not connected");
-  else if (!peers.length) setDot("peer", "warn", "Not on shift yet");
-  else if (peers.some((peer) => peer.status === "lost")) setDot("peer", "bad", "Partner machine lost");
-  else setDot("peer", "ok", peers.map((peer) => peer.name || peer.email || "Online").join(", "));
+  const peer = peerEvidence(status);
+  setDot("peer", peer.tone, peer.text);
   if (status.sound_confirmed_at) setDot("sound", "ok", `at ${formatClock24(status.sound_confirmed_at)}`);
   else setDot("sound", "bad", "Run Test ring");
 }
@@ -183,8 +180,9 @@ function render(status) {
   elements.ringingScreen.hidden = mode !== "ringing";
   document.body.dataset.mode = mode;
   elements.versionValue.textContent = status.version ?? "5.0";
-  elements.stateBadge.textContent = mode === "off-shift" ? "OFF SHIFT" : mode.toUpperCase();
-  elements.stateBadge.className = `state state--${mode === "off-shift" ? "idle" : mode}`;
+  const badge = statusBadge(status);
+  elements.stateBadge.textContent = badge.text;
+  elements.stateBadge.className = `state state--${badge.state}`;
   elements.dryRunBadge.hidden = !status.dry_run;
   elements.testModeBadge.hidden = !status.test_mode;
   elements.testModeBadge.textContent = status.test_mode ? `TEST·${ROLE_LABEL[status.test_role] ?? ""}` : "TEST";
@@ -196,6 +194,11 @@ function render(status) {
 
   const alert = status.current_alert;
   elements.acceptButton.disabled = mode !== "ringing";
+  const acceptAll = acceptAllView(status);
+  elements.acceptAllButton.hidden = acceptAll.hidden || mode !== "ringing";
+  elements.acceptAllButton.textContent = acceptAll.label;
+  elements.pendingCount.hidden = acceptAll.hidden || mode !== "ringing";
+  elements.pendingCount.textContent = acceptAll.count;
   elements.alertTitle.textContent = alert?.group_name || alert?.subject || "AOG alert";
   elements.alertMeta.textContent = alert ? `${alert.source === "email" ? "Outlook" : "WhatsApp"} · ${alert.sender || `${alert.unread_count || 1} unread message${alert.unread_count === 1 ? "" : "s"}`}` : "";
   renderCountdown();
@@ -257,6 +260,12 @@ elements.acceptButton.addEventListener("click", async () => {
   elements.acceptButton.textContent = "ACCEPTING…";
   await act({ type: "ACCEPT_CURRENT" }, "Accepted. Opening the source…");
   elements.acceptButton.textContent = "ACCEPT — I'LL HANDLE IT";
+});
+elements.acceptAllButton.addEventListener("click", async () => {
+  elements.acceptAllButton.disabled = true;
+  elements.acceptAllButton.textContent = "ACCEPTING ALL…";
+  await act({ type: "ACCEPT_ALL" }, "Accepted all pending alerts. Opening the current source…");
+  elements.acceptAllButton.disabled = false;
 });
 elements.startShiftButton.addEventListener("click", async () => { if (await saveSlots()) await act({ type: "START_SHIFT" }, "Shift started."); });
 elements.endShiftButton.addEventListener("click", async () => {

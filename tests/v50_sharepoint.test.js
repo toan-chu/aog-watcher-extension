@@ -97,6 +97,11 @@ describe("team sync", () => {
     expect(await ensureSchema(client)).toEqual([]);
   });
 
+  it("keeps Customer only as a ChatType choice, not as an AOG_Groups column", () => {
+    expect(SP_FIELDS[SP_LISTS.GROUPS].map((field) => field.name)).toEqual(["ChatType", "Active", "AddedBy", "AddedAt", "Note"]);
+    expect(SP_FIELDS[SP_LISTS.GROUPS].find((field) => field.name === "ChatType")).toMatchObject({ choices: ["Customer", "Flyer"], default: "Customer" });
+  });
+
   it("does not duplicate a team group", async () => {
     const client = memoryClient({ [SP_LISTS.GROUPS]: [{ Id: 1, Title: "Runway ABC" }] });
     expect((await pushTeamGroup(client, "Runway ABC")).created).toBe(false);

@@ -1,4 +1,4 @@
-import { acceptAllView, eventSentence, formatAgo, formatClock24, peerEvidence, popupMode, statusBadge, watchingSummary } from "./lib/popup_view.js";
+import { acceptAllView, backupCountdownText, eventSentence, formatAgo, formatClock24, peerEvidence, popupMode, slotRoleSummary, statusBadge, watchingSummary } from "./lib/popup_view.js";
 
 const ids = ["versionValue", "stateBadge", "readyBadge", "dryRunBadge", "testModeBadge", "tonightTab", "searchTab", "helpTab", "tonightPanel", "searchPanel", "helpPanel",
   "offShiftScreen", "watchingScreen", "watchingTitle", "watchingCopy", "ringingScreen", "roleValue", "startShiftButton", "shiftStatusHint", "endShiftButton", "whatsappDot", "whatsappValue",
@@ -111,7 +111,7 @@ function renderSources(status) {
   elements.watchingTitle.textContent = summary.title;
   elements.watchingTitle.className = `screen-title screen-title--watching-${summary.tone}`;
   elements.watchingCopy.textContent = summary.copy;
-  elements.watchingCopy.className = `watching-copy${summary.tone === "bad" ? " watching-copy--bad" : ""}`;
+  elements.watchingCopy.className = `watching-copy${summary.tone !== "ok" ? ` watching-copy--${summary.tone}` : ""}`;
   for (const source of ["whatsapp", "outlook"]) {
     const value = status.sources?.[source];
     const checked = formatAgo(status.health?.[source]?.last_seen);
@@ -131,9 +131,10 @@ function renderSources(status) {
 }
 function renderPreflight(status) {
   const ready = Boolean(status.preflight?.ready);
-  elements.preflight.hidden = ready || !status.session;
-  elements.readyBadge.textContent = !status.session ? "OFF SHIFT" : (ready ? "READY" : "ACTION NEEDED");
-  elements.readyBadge.className = `ready ${!status.session ? "ready--off" : (ready ? "ready--ok" : "ready--bad")}`;
+  const offDuty = Boolean(status.session) && status.within_shift === false;
+  elements.preflight.hidden = ready || !status.session || offDuty;
+  elements.readyBadge.textContent = !status.session ? "OFF SHIFT" : (offDuty ? "OFF DUTY" : (ready ? "READY" : "ACTION NEEDED"));
+  elements.readyBadge.className = `ready ${!status.session || offDuty ? "ready--off" : (ready ? "ready--ok" : "ready--bad")}`;
   const pending = (status.preflight?.items ?? []).filter((item) => item.status !== "pass");
   elements.preflightList.replaceChildren(...pending.map((item) => el("li", {
     className: `pf--${item.status}`,
@@ -167,9 +168,7 @@ function renderDiagnostics(status) {
 }
 function renderCountdown() {
   if (!lastStatus || popupMode(lastStatus) !== "ringing") return;
-  if (lastStatus.current_role === "backup") { elements.backupCountdown.textContent = "Backup is active"; return; }
-  const seconds = Math.max(0, Math.ceil((Number(lastStatus.backup_call_at) - Date.now()) / 1000));
-  elements.backupCountdown.textContent = seconds > 0 ? `Calling Backup in ${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}` : "Calling Backup now";
+  elements.backupCountdown.textContent = backupCountdownText(lastStatus);
 }
 
 function render(status) {
@@ -188,7 +187,7 @@ function render(status) {
   elements.testModeBadge.textContent = status.test_mode ? `TEST·${ROLE_LABEL[status.test_role] ?? ""}` : "TEST";
 
   const role = status.current_role || status.shift_slots?.[0]?.role;
-  elements.roleValue.textContent = ROLE_LABEL[role] ?? "Not scheduled";
+  elements.roleValue.textContent = slotRoleSummary(status.shift_slots);
   elements.shiftStatusHint.textContent = role ? `${ROLE_LABEL[role]} · times shown below` : "No shift times configured";
   if (document.activeElement?.closest?.(".slot-row") === null) writeSlotsToUI(status.shift_slots);
 

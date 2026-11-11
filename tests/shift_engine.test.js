@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isDutyRole, isWithinAnyDutySlot, isWithinShift, normalizeSlots, resolveRoleAtTime } from "../lib/shift_engine.js";
+import { isDutyRole, isWithinAnyDutySlot, isWithinShift, nextDutyStart, normalizeSlots, resolveRoleAtTime } from "../lib/shift_engine.js";
 
 const at = (hour, minute = 0) => new Date(2026, 5, 22, hour, minute);
 
@@ -28,6 +28,14 @@ describe("duty slots", () => {
     expect(isWithinAnyDutySlot(at(22, 30), slots)).toBe(true);
     expect(isDutyRole("off")).toBe(false);
     expect(isDutyRole("backup")).toBe(true);
+  });
+  it("finds the next duty start after an Off slot", () => {
+    const slots = [
+      { start: "20:00", end: "22:00", role: "off" },
+      { start: "22:00", end: "02:30", role: "primary" },
+    ];
+    expect(nextDutyStart(at(21), slots)).toEqual(at(22));
+    expect(nextDutyStart(at(23), slots)).toEqual(new Date(2026, 5, 23, 22, 0));
   });
 });
 

@@ -141,7 +141,7 @@ describe("service worker 5.0 behaviour", () => {
     expect(primary.status.session.started_at).toBe(startedAt);
   });
 
-  it("stops a ringing alert and cancels its escalation timers when the slot becomes Off", async () => {
+  it("keeps ringing until max duration when the slot becomes Off without an on-duty peer", async () => {
     const { chrome, send, alarm, settle } = await boot({ config: {
       test_mode: false,
       shift_slots: [{ start: "00:00", end: "00:00", role: "primary" }],
@@ -149,17 +149,50 @@ describe("service worker 5.0 behaviour", () => {
     await send({ type: "START_SHIFT" });
     const ringing = await send({ type: "ALERT_DETECTED", alert: { alert_id: "boundary", source: "whatsapp", group_name: "AOG TEST", unread_count: 1 } });
     expect(ringing.status.app_state).toBe("ALERTING");
+    await send({ type: "ALERT_DETECTED", alert: { alert_id: "boundary-2", source: "whatsapp", group_name: "AOG TWO", unread_count: 1 } });
 
     await send({ type: "UPDATE_SHIFT_SLOTS", slots: [{ start: "00:00", end: "00:00", role: "off" }] });
     alarm("aog:primary_timeout:boundary");
     await settle();
 
-    const status = (await send({ type: "GET_STATUS" })).status;
+    let status = (await send({ type: "GET_STATUS" })).status;
     expect(status.current_role).toBe("off");
+    expect(status.app_state).toBe("ALERTING");
+    expect(status.pending_count).toBe(2);
+    expect(status.recent_events.some((event) => event.event_type === "PEER_ESCALATED_SENT")).toBe(false);
+
+    alarm("aog:max_alert_duration:boundary");
+    await settle();
+    status = (await send({ type: "GET_STATUS" })).status;
+    expect(status.app_state).toBe("ALERTING");
+    expect(status.current_alert.alert_id).toBe("boundary-2");
+
+    alarm("aog:max_alert_duration:boundary-2");
+    await settle();
+    status = (await send({ type: "GET_STATUS" })).status;
+    expect(status.app_state).toBe("IDLE");
+    expect(status.recent_events.filter((event) => event.event_type === "MISSED").map((event) => event.alert_id)).toEqual(["boundary", "boundary-2"]);
+  });
+
+  it("hands ringing alerts to an on-duty peer when this slot becomes Off", async () => {
+    const browserTabs = [{ id: 7, windowId: 3, url: "https://web.whatsapp.com/" }];
+    const { chrome, send, alarm, settle } = await boot({
+      config: { test_mode: false, coord_group: "AOG Coord", shift_slots: [{ start: "00:00", end: "00:00", role: "primary" }] },
+      browserTabs,
+    });
+    await send({ type: "START_SHIFT" });
+    await send({ type: "ALERT_DETECTED", alert: { alert_id: "handoff", source: "whatsapp", group_name: "AOG TEST", unread_count: 1 } });
+    chrome._store.aog_peers = [{ machine_id: "peer", role: "primary", on_shift: true, status: "alive" }];
+
+    await send({ type: "UPDATE_SHIFT_SLOTS", slots: [{ start: "00:00", end: "00:00", role: "off" }] });
+    alarm("aog:primary_timeout:handoff");
+    await settle();
+
+    const status = (await send({ type: "GET_STATUS" })).status;
     expect(status.app_state).toBe("IDLE");
     expect(status.pending_count).toBe(0);
-    expect([...chrome._alarms.keys()].filter((name) => name.endsWith(":boundary"))).toEqual([]);
-    expect(status.recent_events.some((event) => event.event_type === "PEER_ESCALATED_SENT")).toBe(false);
+    expect(chrome._tabMessages.filter((item) => item.message.type === "SEND_PEER_TAG")).toHaveLength(1);
+    expect(status.recent_events.some((event) => event.event_type === "SHIFT_HANDOFF_SENT" && event.alert_id === "handoff")).toBe(true);
   });
 
   it("Accept creates a follow-up question; missing tabs raise a red source alert on tick", async () => {
@@ -242,7 +275,21 @@ describe("service worker 5.0 behaviour", () => {
     ]);
   });
 
-  it("opening the exact ringing WhatsApp chat Accepts without navigation or greeting", async () => {
+  it("does not Accept merely because the alert chat was already open without focus", async () => {
+    const { send, alarm, settle } = await boot();
+    await send({ type: "START_SHIFT" });
+    await send({ type: "CONTENT_HEALTH", source: "whatsapp", connected: true, stats: { rows_seen: 2 } });
+    alarm("aog:tick"); await settle();
+    await send({ type: "ALERT_DETECTED", alert: { alert_id: "a1", source: "whatsapp", group_name: "AOG ONE", unread_count: 1, active_conversation: "AOG ONE" } });
+
+    const observed = await send({ type: "WHATSAPP_READ_OBSERVED", active_chat: "AOG ONE", focused_active_chat: "", visible_read_chats: [] });
+
+    expect(observed.status.app_state).toBe("ALERTING");
+    expect(observed.status.current_alert.alert_id).toBe("a1");
+    expect(observed.status.followups).toEqual([]);
+  });
+
+  it("focused exact WhatsApp chat Accepts without navigation or greeting", async () => {
     const sp = fakeSharePoint();
     const browserTabs = [{ id: 7, windowId: 3, url: "https://web.whatsapp.com/" }];
     const { chrome, send, alarm, settle } = await boot({ config: { sharepoint_site_url: "https://acme.sharepoint.com/sites/AOG" }, sharepoint: sp, browserTabs });
@@ -252,7 +299,7 @@ describe("service worker 5.0 behaviour", () => {
     alarm("aog:tick"); await settle();
     await send({ type: "ALERT_DETECTED", alert: { alert_id: "a1", source: "whatsapp", group_name: "AOG ONE", unread_count: 1 } });
 
-    const accepted = await send({ type: "WHATSAPP_READ_OBSERVED", active_chat: "AOG ONE", visible_read_chats: [] });
+    const accepted = await send({ type: "WHATSAPP_READ_OBSERVED", focused_active_chat: "AOG ONE", visible_read_chats: [] });
     alarm("aog:tick"); await settle();
 
     expect(accepted.status.app_state).toBe("IDLE");
@@ -274,7 +321,7 @@ describe("service worker 5.0 behaviour", () => {
       await send({ type: "ALERT_DETECTED", alert: { alert_id: `a${index + 1}`, source: "whatsapp", group_name: group, unread_count: 1 } });
     }
 
-    const accepted = await send({ type: "WHATSAPP_READ_OBSERVED", active_chat: "AOG TWO", visible_read_chats: [] });
+    const accepted = await send({ type: "WHATSAPP_READ_OBSERVED", focused_active_chat: "AOG TWO", visible_read_chats: [] });
 
     expect(accepted.status.app_state).toBe("ALERTING");
     expect(accepted.status.current_alert.alert_id).toBe("a1");
@@ -304,7 +351,7 @@ describe("service worker 5.0 behaviour", () => {
     await send({ type: "ALERT_DETECTED", alert: { alert_id: "backup-a1", source: "whatsapp", group_name: "AOG ONE", unread_count: 1, detected_at: detectedAt } });
     await send({ type: "PEER_TAG_RECEIVED", text: serializeTag("ESCALATED", { alert_id: "backup-a1", source: "whatsapp", timestamp: detectedAt, from_role: "primary", operator: "Partner" }) });
 
-    const accepted = await send({ type: "WHATSAPP_READ_OBSERVED", active_chat: "AOG ONE", visible_read_chats: [] });
+    const accepted = await send({ type: "WHATSAPP_READ_OBSERVED", focused_active_chat: "AOG ONE", visible_read_chats: [] });
 
     expect(accepted.status.app_state).toBe("IDLE");
     expect(accepted.status.pending_count).toBe(0);

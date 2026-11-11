@@ -47,6 +47,7 @@ h1, h2, h3, .eyebrow, .state, .ready, .tag, .accept, .cta, .tab { font-family: v
 .screen-title { margin: 0; color: var(--heading); font-size: 25px; line-height: 1.15; }
 .screen-title--watching-ok { color: var(--ok); }
 .screen-title--watching-bad, .watching-copy--bad { color: var(--danger); }
+.screen-title--watching-warn, .watching-copy--warn { color: var(--warn); }
 .watching-copy, .help-copy { margin: -6px 0 0; color: var(--muted); }
 .role-callout { margin: 3px 0 8px; font-size: 16px; }
 .role-callout strong { color: var(--heading); }

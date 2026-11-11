@@ -232,7 +232,9 @@ describe("night shift row", () => {
     ];
     const shiftSlots = [{ start: "22:00", end: "02:30", role: "primary" }, { start: "02:30", end: "07:00", role: "off" }];
     const open = shiftRowFields({ session, name: "B", email: "b@x.vn", ready: true, events, shiftSlots });
-    expect(open).toMatchObject({ ShiftDate: "2026-07-28", OperatorName: "B", Email: "b@x.vn", Ready: "Ready", Slot1Role: "Primary", Slot2Role: "Off", AlertCount: 2, AcceptedCount: 1, MissCount: 1 });
+    expect(open).toMatchObject({ ShiftDate: "2026-07-28", OperatorName: "B", Email: "b@x.vn", Ready: "Ready", AlertCount: 2, AcceptedCount: 1, MissCount: 1 });
+    expect(open.Slot1Role).toBeUndefined();
+    expect(open.Slot2Role).toBeUndefined();
     expect(open.CheckOut).toBeUndefined();
     expect(Object.keys(open).some((key) => key.startsWith("Primary") || key.startsWith("Backup"))).toBe(false);
     const closed = shiftRowFields({ session, name: "B", email: "b@x.vn", ready: false, events, ended: true, now: new Date(start.getTime() + 4.5 * 3_600_000) });

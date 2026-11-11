@@ -35,7 +35,7 @@ The **Create lists** button prepares these four SharePoint lists:
 
 | List | Purpose |
 |---|---|
-| `AOG_Groups` | Shared customer chats and their active status |
+| `AOG_Groups` | Shared WhatsApp chats, chat type and active status |
 | `AOG_Settings` | Shared operational settings |
 | `AOG_Shifts` | Roster and one operational row per operator per night |
 | `AOG_Log` | Events, machine heartbeats and peer signals |

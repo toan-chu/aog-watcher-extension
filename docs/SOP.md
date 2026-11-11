@@ -13,7 +13,7 @@ AOG Watcher monitors WhatsApp Web and Outlook Web during the night shift, rings 
 
    | List | Purpose |
    |---|---|
-   | `AOG_Groups` | Shared customer chats, customer identity and active status |
+   | `AOG_Groups` | Shared WhatsApp chats, chat type and active status |
    | `AOG_Settings` | Shared mailbox, coordination and timing settings |
    | `AOG_Shifts` | Planned roster and one actual shift row per operator per night |
    | `AOG_Log` | Operational events, machine heartbeats and peer signals |

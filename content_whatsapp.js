@@ -3,6 +3,7 @@
   const { activeConversationName, all, chatRowName, draftDecision, first, isSameGroupName, normalized } = globalThis.AOG_WHATSAPP_DOM;
   const runtime = globalThis.AOG_CONTENT_RUNTIME;
   const lastUnreadByGroup = new Map();
+  const zeroUnreadScansByGroup = new Map();
   const seenTags = new Set();
   let config = null;
   let teamGroups = [];
@@ -79,6 +80,8 @@
     if (!config) return;
     const stats = emptyStats();
     const visibleReadChats = [];
+    const visibleChats = new Set();
+    let needsReadConfirmation = false;
     stats.last_scan_at = new Date().toISOString();
     for (const row of all(document, selectors.chatRows)) {
       try {
@@ -87,7 +90,13 @@
         const unread = unreadCount(row);
         const kind = chatClass(name);
         if (!kind || kind === "coord" || kind === "ignored") continue;
-        if (unread === 0) visibleReadChats.push(name);
+        visibleChats.add(name);
+        if (unread === 0) {
+          const zeroScans = (zeroUnreadScansByGroup.get(name) ?? 0) + 1;
+          zeroUnreadScansByGroup.set(name, zeroScans);
+          if (zeroScans === 1) needsReadConfirmation = true;
+          if (zeroScans >= 2) visibleReadChats.push(name);
+        } else zeroUnreadScansByGroup.delete(name);
         if (unread > 0) stats.unread_seen += 1;
         const previousUnread = lastUnreadByGroup.get(name);
         lastUnreadByGroup.set(name, unread);
@@ -105,12 +114,17 @@
         console.warn("AOG Watcher: WhatsApp row scan failed", error);
       }
     }
+    for (const name of zeroUnreadScansByGroup.keys()) {
+      if (!visibleChats.has(name)) zeroUnreadScansByGroup.delete(name);
+    }
     lastStats = stats;
+    const focused = document.visibilityState === "visible" && document.hasFocus?.();
     runtime.safeSendMessage({
       type: "WHATSAPP_READ_OBSERVED",
-      active_chat: activeConversationName(document, selectors),
+      focused_active_chat: focused ? activeConversationName(document, selectors) : "",
       visible_read_chats: [...new Set(visibleReadChats)],
     }).catch(() => {});
+    if (needsReadConfirmation) scheduleScan();
   }
 
   function scanPeerTags() {
@@ -245,6 +259,7 @@
     if (message.type === "REBASELINE") {
       baselineReady = false;
       lastUnreadByGroup.clear();
+      zeroUnreadScansByGroup.clear();
       syncBaseline().then(() => { scheduleScan(); sendResponse({ ok: true }); }).catch((error) => sendResponse({ ok: false, error: error.message }));
       return true;
     }

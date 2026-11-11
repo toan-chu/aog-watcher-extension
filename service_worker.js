@@ -1,7 +1,7 @@
 import { ALERT_SOURCE, APP_STATE, APP_VERSION, DEFAULT_CONFIG, MESSAGE, ROLE, STORAGE_KEYS } from "./lib/constants.js";
 import { deterministicAlertId } from "./lib/hash.js";
 import { shouldSkipEmail } from "./lib/filter.js";
-import { isDutyRole, resolveRoleAtTime } from "./lib/shift_engine.js";
+import { isDutyRole, nextDutyStart, resolveRoleAtTime } from "./lib/shift_engine.js";
 import { enrichEventRecord } from "./lib/event_log.js";
 import { reduce } from "./lib/state_machine.js";
 import { hydrateRuntimeState, serializeRuntimeState } from "./lib/runtime_state.js";
@@ -67,6 +67,14 @@ function resolveCurrentRole(config, now = new Date()) {
 function currentWithinShift(config, now = new Date()) {
   return isDutyRole(resolveCurrentRole(config, now)?.role);
 }
+function peerIsOnDuty(peer, now) {
+  if (!peer?.on_shift || peer.status === "lost") return false;
+  if (peer.test_mode || !peer.shift_slots?.length) return true;
+  return isDutyRole(resolveRoleAtTime(now, peer.shift_slots)?.role);
+}
+async function hasOnDutyPeer(now = new Date()) {
+  return (await getKey(K.PEERS, [])).some((peer) => peerIsOnDuty(peer, now));
+}
 async function syncSessionRole(config, now = new Date()) {
   await hydrate();
   if (!state.session) return null;
@@ -78,7 +86,9 @@ async function syncSessionRole(config, now = new Date()) {
     await persist();
     await appendServiceEvent({ event_type: "ROLE_CHANGED", role });
   }
-  if (!isDutyRole(role) && state.queue.actionable().length) await dispatch({ type: "DUTY_ENDED" });
+  if (!isDutyRole(role) && state.queue.actionable().length) {
+    await dispatch({ type: "DUTY_ENDED", payload: { peer_on_duty: await hasOnDutyPeer(now), timing: timing(config) } });
+  }
   return role;
 }
 
@@ -568,6 +578,8 @@ async function executeEffect(effect) {
           if (await isAlertEscalated(next.alert_id) || dueAt <= Date.now()) await dispatch({ type: "TIMER_BACKUP_DELAY", payload: { alert_id: next.alert_id, timing: timing(config) } });
           else await chrome.alarms.create(`aog:backup_delay:${next.alert_id}`, { when: dueAt });
         }
+      } else if (state.session?.role === ROLE.OFF) {
+        await dispatch({ type: "DUTY_ENDED", payload: { peer_on_duty: await hasOnDutyPeer(), timing: timing(config) } });
       }
       break;
     default:
@@ -631,7 +643,7 @@ async function writeShiftRow(config, session, { ended = false } = {}) {
   const who = await identity();
   const preflight = await getKey(K.PREFLIGHT, null);
   const name = config.self_display_name || who.name;
-  const fields = shiftRowFields({ session, name, email: who.email, ready: preflight ? preflight.ready : null, events: await getEventLog(), shiftSlots: config.shift_slots, ended });
+  const fields = shiftRowFields({ session, name, email: who.email, ready: preflight ? preflight.ready : null, events: await getEventLog(), ended });
   const who2 = { session, name, email: who.email };
   await queueWrite({ kind: "upsert", list: SP_LISTS.SHIFTS, match: shiftRowMatch(who2), fallback_match: shiftRowFallbackMatch(who2), claim_field: "Email", fields });
 }
@@ -836,7 +848,7 @@ async function handleWhatsAppReadObservation(message) {
   const evaluation = await getKey(K.SOURCE_EVAL, { sources: {} });
   if (evaluation.sources?.whatsapp?.status !== SOURCE_STATUS.OK) return { accepted: 0 };
   await hydrate();
-  const evidence = [message.active_chat, ...(Array.isArray(message.visible_read_chats) ? message.visible_read_chats : [])].filter(Boolean);
+  const evidence = [message.focused_active_chat, ...(Array.isArray(message.visible_read_chats) ? message.visible_read_chats : [])].filter(Boolean);
   const alerts = state.queue.actionable().filter((alert) => alert.source === ALERT_SOURCE.WHATSAPP && evidence.some((name) => isSameGroupName(name, alert.group_name)));
   for (const alert of alerts) await dispatch({ type: "ALERT_ACCEPT_BY_ID", payload: { alert_id: alert.alert_id, method: "open_chat" } });
   if (alerts.length) await finishAccepted(alerts, await getConfig());
@@ -862,6 +874,7 @@ async function status() {
     within_shift: currentWithinShift(config),
     current_role: resolved?.role ?? null,
     current_slot_index: resolved?.slot_index ?? null,
+    next_duty_at: nextDutyStart(new Date(), config.shift_slots)?.toISOString() ?? null,
     role_source: resolved?.source ?? null,
     shift_slots: config.shift_slots ?? [],
     test_mode: Boolean(config.test_mode),
@@ -1020,7 +1033,8 @@ chrome.alarms.onAlarm.addListener((alarm) => enqueue(async () => {
   const match = alarm.name.match(/^aog:(primary_timeout|backup_delay|max_alert_duration):(.+)$/);
   if (!match) return;
   const config = await getConfig();
-  if (!isDutyRole(await syncSessionRole(config))) return;
+  const activeRole = await syncSessionRole(config);
+  if (match[1] !== "max_alert_duration" && !isDutyRole(activeRole)) return;
   const type = { primary_timeout: "TIMER_PRIMARY_TIMEOUT", backup_delay: "TIMER_BACKUP_DELAY", max_alert_duration: "TIMER_MAX_DURATION" }[match[1]];
   await dispatch({ type, payload: { alert_id: match[2], timing: timing(config) } });
 }));

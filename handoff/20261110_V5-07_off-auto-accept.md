@@ -5,7 +5,7 @@ Người làm: codex
 Người soát: claude
 Hạn: user và Ethan chạy thử ngày 2026-11-11 qua nhóm test
 Trạng thái: chờ-soát
-Vòng: 1/2
+Vòng: 2/2
 
 ## ĐỀ BÀI
 Kỳ vọng của user (2026-11-10):
@@ -75,7 +75,7 @@ Sai thì làm lại: thêm nhận diện message id của thư đang mở, bằn
 
 ## AUDIT
 ### Kết quả sản phẩm
-- Slot `Off` và thời gian nằm ngoài mọi slot không reo, không nhận leo thang, không chạy timer Backup. Nếu slot chuyển sang Off khi đang reo, máy dừng chuông, hủy timer và bỏ qua toàn bộ alert cục bộ còn chờ.
+- Alert mới trong slot `Off` và thời gian nằm ngoài mọi slot không reo. Alert đã reo hoặc chờ từ slot trước được chuyển bằng `ESCALATED` cho peer đang trực; nếu không có peer đang trực, máy hiện tại tiếp tục reo đến khi Accept hoặc hết thời gian tối đa rồi ghi `MISSED`.
 - Heartbeat mang lịch hai slot nhưng vẫn đọc được `Detail` kiểu mảng cũ. Máy kia tự nhận ra peer đã Off sau ranh giới ca, kể cả heartbeat cuối đã cũ; không tạo `Partner machine lost` hoặc nhắc chưa vào ca.
 - Máy đang trực một mình vẫn `READY`; popup hiện `No backup on duty` như thông tin màu vàng.
 - Mở đúng chat WhatsApp đang có alert nhận đúng alert đó với `accept_method=open_chat`, kể cả alert đang chờ hoặc đã leo thang sang Backup. Không điều hướng, không đặt greeting và không gửi tin. Dòng chat biến mất hoặc nguồn WhatsApp không khỏe không được tính là Accept.
@@ -125,6 +125,54 @@ Kết quả: rỗng; Git chỉ báo trước việc đổi LF sang CRLF của ch
 `content_whatsapp.js`; `service_worker.js`; `popup.html`; `popup.css`; `popup.js`; `lib/alert_queue.js`; `lib/constants.js`; `lib/heartbeat.js`; `lib/popup_view.js`; `lib/preflight.js`; `lib/shift_engine.js`; `lib/shift_reminder.js`; `lib/shift_row.js`; `lib/state_machine.js`; các test liên quan; phiếu, kế hoạch, ảnh và `handoff/STATE.md`.
 
 [RUNTIME UNVERIFIED] Chưa có kết quả chạy thật đồng thời trên hai máy; KS-1 đến KS-8 chờ user và Ethan thử ngày 2026-11-11.
+
+Soát:
+Đã soát commit `b196815` so với `2ecfe54`. Chạy trên bản sao sạch Linux, không phải Windows: `npm run check` đạt MV3, 34/34 tệp, 237/237 test. Đã xem ba ảnh. Hành vi trên Chrome thật vẫn `[RUNTIME UNVERIFIED]`.
+
+Phần đạt:
+- Slot Off đi qua một chỗ chuẩn hoá (`lib/shift_engine.js`); tin trong slot Off ghi `SKIPPED_OUT_OF_SHIFT`; nhắc mở ca bỏ qua slot Off.
+- Peer Off: heartbeat mang lịch slot, `evaluatePeers` coi peer hết lịch là off kể cả heartbeat đã cũ; `Detail` kiểu mảng cũ vẫn đọc được.
+- Nhận theo mã và Accept all trong state machine: mỗi tin một HANDLED, huỷ timer của chính tin đó, ghi `accept_method`. Giao thức hai máy và mốc thời gian leo thang không đổi.
+- Guard nguồn WhatsApp không `ok` thì không tự nhận; dòng chat biến mất không vào `visible_read_chats`.
+- Huy hiệu `ATTENTION` đỏ khi nguồn lỗi; Accept all nằm ngay dưới Accept (ảnh 03); tệp kế hoạch đã về `handoff/docs/`.
+
+Lỗi phải sửa:
+- L1 (cao, làm lọt tin) `service_worker.js`, `handleWhatsAppReadObservation`: `active_chat` được tính là bằng chứng đã đọc dù dòng chat vẫn còn tin chưa đọc và không có ai ở máy. `content_whatsapp.js` gửi `WHATSAPP_READ_OBSERVED` ở cuối mọi lần quét, kèm tên chat đang mở. Người trực để WhatsApp ở đúng chat của một khách rồi đi ngủ; khách đó nhắn tiếp; tin được phát hiện rồi bị tự nhận ngay trong cùng lần quét: chuông dừng, HANDLED được gửi, máy dự phòng không bao giờ được gọi. Phép thử tái hiện của người soát (thêm vào `tests/v50_service_worker.test.js`, chạy rồi gỡ):
+
+```text
+START_SHIFT → ALERT_DETECTED { group_name: "AOG ONE", unread_count: 1, active_conversation: "AOG ONE" }
+→ WHATSAPP_READ_OBSERVED { active_chat: "AOG ONE", visible_read_chats: [] }
+expect(status.app_state).toBe("ALERTING")
+AssertionError: expected 'IDLE' to be 'ALERTING'
+```
+
+  Phép thử hiện có `opening the exact ringing WhatsApp chat Accepts without navigation or greeting` dùng đúng dữ liệu này và coi đó là đạt, nên nó không phân biệt được "người trực vừa mở chat" với "chat vốn đang mở sẵn". Yêu cầu sửa: tên chat đang mở một mình không bao giờ là bằng chứng. Chỉ nhận khi có một trong hai: (a) dòng chat đó còn hiện và số chưa đọc bằng 0 trong hai lần quét liên tiếp; hoặc (b) chat đó đang mở và trang WhatsApp đang có focus (`document.hasFocus()` và trang đang hiển thị) tại lúc quét. Cần phép thử cho cả hai chiều và phép làm hỏng thử.
+- L2 (cao, làm lọt tin) `lib/state_machine.js`, `DUTY_ENDED`: khi slot chuyển sang Off lúc đang có tin reo hoặc chờ, máy dừng chuông, huỷ timer, đánh dấu `SKIPPED` và không báo máy nào. Phép thử `stops a ringing alert and cancels its escalation timers when the slot becomes Off` còn khẳng định không có `PEER_ESCALATED_SENT`. Tin đến lúc 02:29 mà người ca trước chưa nhận sẽ biến mất lúc 02:30: máy ca sau không được báo, và nếu máy ca sau vừa Start shift thì tin đó nằm trong baseline nên cũng không reo. Yêu cầu sửa: tin chưa ai nhận lúc hết ca phải được chuyển cho máy đang trực và máy đó reo. Khi không có máy nào đang trực, máy hiện tại tiếp tục reo cho tới khi có người Accept hoặc hết thời gian reo tối đa rồi ghi MISSED; không được bỏ im lặng.
+- L3 (cao, báo sai trạng thái) `lib/popup_view.js`: khi đã Start shift nhưng slot hiện tại là Off, `popupMode` trả `watching` và `watchingSummary` chỉ xét nguồn, nên popup hiện `Watching` xanh và `This machine is actively watching for AOG messages` trong khi máy sẽ không reo. `startShift` giờ cũng đặt vai trò Off khi bấm Start shift ngoài mọi slot (trước đây mặc định Primary), nên người bấm Start shift lệch giờ sẽ thấy màn xanh mà máy im. Yêu cầu sửa: trong slot Off hoặc ngoài mọi slot, màn hình và huy hiệu ghi rõ máy đang Off, sẽ không reo, và giờ bắt đầu slot trực kế tiếp; không dùng màu xanh. Cần ảnh cho trạng thái này.
+
+Nên sửa, không chặn:
+- G1 `lib/shift_row.js` ghi `Slot1Role`, `Slot2Role` từ cài đặt của máy lên AOG_Shifts, đè lên lịch trưởng ca đã xếp. Hai cột này được thiết kế cho trưởng ca điền. Đề xuất: máy không ghi hai cột này.
+- G2 Ảnh 03 hiện `Calling Backup in 01:22` trong khi không có máy dự phòng nào đang trực. Khi không có Backup, dòng này nên ghi rõ không có ai để gọi.
+- G3 Ảnh 01 ghi `You are Off tonight` trong khi Slot 2 là Primary. Câu này nên nói vai trò theo từng slot.
+- G4 Sau khi sửa L1, một lần đọc số chưa đọc bằng 0 do WhatsApp vẽ lại dòng không được đủ để tự nhận; điều kiện hai lần quét liên tiếp ở L1(a) xử lý việc này.
+
+Câu hỏi treo cho user (không chặn vòng 2): theo thói quen mỗi người chỉ bật máy trong ca của mình, tin đến trước giờ người ca sau bấm Start shift và chưa ai nhận sẽ không reo trên máy ca sau, vì luật "tin có trước Start shift không reo". Lỗ này có từ 4.3. L2 chỉ che được trường hợp hai máy cùng đang chạy lúc đổi ca.
+Kết quả: HỎNG
+-- claude - 2026-11-11 02:14 UTC
+
+### AUDIT vòng 2
+- L1: `active_chat` không còn là bằng chứng. Content script chỉ gửi `focused_active_chat` khi trang WhatsApp vừa có focus vừa đang hiển thị; một dòng chat unread bằng 0 phải ổn định qua hai lần quét liên tiếp, với lần quét xác nhận được tự hẹn. Service worker chỉ nhận hai loại bằng chứng này và vẫn giữ guard nguồn WhatsApp phải `ok`.
+- L2: khi máy chuyển Off và có peer đang trực, mọi alert chưa nhận được gửi bằng `ESCALATED`, timer cục bộ bị hủy và peer Primary hoặc Backup đều có thể reo. Nếu không có peer đang trực, máy hiện tại không bỏ alert mà tiếp tục reo; timer tối đa vẫn chạy và ghi `MISSED` nếu hết hạn.
+- L3: máy đã Start shift nhưng slot hiện tại Off hiện `OFF DUTY`, `This machine will not ring` và giờ bắt đầu duty kế tiếp, dùng màu cảnh báo thay vì xanh. Ảnh Chromium thật: `handoff/shots/20261111_V5-07_04_off-duty-in-slot.png`.
+- G1: extension không còn ghi `Slot1Role`/`Slot2Role` vào AOG_Shifts, nên không đè lịch do trưởng ca điền. G2: màn RINGING ghi `No backup on duty` khi không có Backup. G3: màn chưa Start shift mô tả từng slot, ví dụ `Slot 1 Off · Slot 2 Primary`.
+- Theo quyết định bổ sung của user, đã bỏ cột độc lập `Customer` khỏi schema AOG_Groups và tài liệu; giá trị `Customer` của cột `ChatType` giữ nguyên.
+- Phép làm hỏng thử đã đỏ: dùng lại `active_chat` làm bằng chứng; cho một lần unread bằng 0 là đủ; bỏ nhánh bàn giao khi peer đang trực; bỏ nhánh hiển thị Off duty. Test schema cũng đỏ khi thêm lại cột độc lập `Customer`.
+- Lệnh Windows: `npm run check`. Kết quả: `MV3 check passed (14 referenced files)`, `34 passed (34)`, `246 passed (246)`.
+- `git diff --check` không có lỗi khoảng trắng; cảnh báo LF→CRLF là quy tắc checkout Windows.
+- File vòng 2: `content_whatsapp.js`, `service_worker.js`, `lib/heartbeat.js`, `lib/state_machine.js`, `lib/shift_engine.js`, `lib/popup_view.js`, `lib/shift_row.js`, `lib/sp_schema.js`, `popup.html`, `popup.css`, `popup.js`, README/SOP, test, ảnh, phiếu và `handoff/STATE.md`.
+- [RUNTIME UNVERIFIED] Chưa chạy bàn giao tại ranh giới ca và tự Accept trên hai máy Chrome thật; user và Ethan vẫn cần chạy kịch bản trong phiếu.
+
+-- codex - 2026-11-11 09:31 +07
 
 ## HISTORY
 ### 2026-11-10

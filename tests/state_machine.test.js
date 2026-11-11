@@ -55,22 +55,33 @@ describe("state machine", () => {
   });
   it("primary timeout sends escalation without stopping", () => { const active = reduce(createInitialState({ role: "primary" }), detected()).state; const result = reduce(active, { type: "TIMER_PRIMARY_TIMEOUT", payload: { alert_id: "a" } }); expect(result.effects).toContainEqual(expect.objectContaining({ type: "SEND_PEER_TAG", tag: "ESCALATED" })); expect(has(result, "STOP_WAKE")).toBe(false); });
 
-  it("stops and skips every local alert when this machine goes off duty", () => {
+  it("hands every local alert to an on-duty peer when this machine goes Off", () => {
     let state = reduce(createInitialState({ role: "primary" }), detected()).state;
     state = reduce(state, detected({ alert: alert("b") })).state;
 
-    const result = reduce(state, { type: "DUTY_ENDED" });
+    const result = reduce(state, { type: "DUTY_ENDED", payload: { peer_on_duty: true, timing } });
 
     expect(result.state.app_state).toBe("IDLE");
     expect(result.state.current_alert).toBeNull();
     expect(result.state.queue.actionable()).toEqual([]);
     expect(result.effects).toContainEqual({ type: "STOP_WAKE" });
     expect(result.effects.filter((effect) => effect.type === "CANCEL_TIMER")).toHaveLength(6);
-    expect(result.effects.filter((effect) => effect.type === "APPEND_EVENT_LOG" && effect.payload.event_type === "SKIPPED_OUT_OF_SHIFT")).toHaveLength(2);
+    expect(result.effects.filter((effect) => effect.type === "SEND_PEER_TAG" && effect.tag === "ESCALATED")).toHaveLength(2);
+    expect(result.effects.filter((effect) => effect.type === "APPEND_EVENT_LOG" && effect.payload.event_type === "SHIFT_HANDOFF_SENT")).toHaveLength(2);
+  });
+  it("keeps ringing when this machine goes Off without an on-duty peer", () => {
+    const active = reduce(createInitialState({ role: "primary" }), detected()).state;
+
+    const result = reduce(active, { type: "DUTY_ENDED", payload: { peer_on_duty: false, timing } });
+
+    expect(result.state.app_state).toBe("ALERTING");
+    expect(result.state.current_alert.alert_id).toBe("a");
+    expect(result.state.queue.findById("a").status).toBe("ALERTING");
+    expect(result.effects).toEqual([]);
   });
   it("backup delay starts wake", () => { const queued = reduce(createInitialState({ role: "backup" }), detected()).state; const result = reduce(queued, { type: "TIMER_BACKUP_DELAY", payload: { alert_id: "a", timing } }); expect(result.state.app_state).toBe("ALERTING"); expect(has(result, "START_WAKE")).toBe(true); });
   it("peer escalation wakes backup", () => { const queued = reduce(createInitialState({ role: "backup" }), detected()).state; const result = reduce(queued, { type: "PEER_ESCALATED_RECEIVED", payload: { alert_id: "a", source: "whatsapp", timestamp: alert().detected_at, timing } }); expect(result.state.app_state).toBe("ALERTING"); });
-  it("peer escalation is ignored by primary", () => { const result = reduce(createInitialState({ role: "primary" }), { type: "PEER_ESCALATED_RECEIVED", payload: { alert_id: "a", timing } }); expect(result.effects).toHaveLength(0); });
+  it("peer shift handoff wakes an on-duty Primary", () => { const queued = reduce(createInitialState({ role: "primary" }), detected()).state; queued.app_state = "IDLE"; queued.current_alert = null; queued.queue.mark("a", "QUEUED"); const result = reduce(queued, { type: "PEER_ESCALATED_RECEIVED", payload: { alert_id: "a", timing } }); expect(result.state.app_state).toBe("ALERTING"); });
   it("peer HANDLED stops matching active wake", () => { const active = reduce(createInitialState({ role: "primary" }), detected()).state; const result = reduce(active, { type: "PEER_HANDLED_RECEIVED", payload: { alert_id: "a", source: "whatsapp", timestamp: alert().detected_at } }); expect(result.state.app_state).toBe("IDLE"); expect(has(result, "STOP_WAKE")).toBe(true); expect(result.effects).toContainEqual(expect.objectContaining({ payload: expect.objectContaining({ handled_by: "partner" }) })); });
   it("peer HANDLED log carries alert report context", () => {
     const active = reduce(createInitialState({ role: "primary" }), detected()).state;

@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { describe, expect, it } from "vitest";
-import { acceptAllView, eventSentence, formatClock24, peerEvidence, popupMode, statusBadge, watchingSummary } from "../lib/popup_view.js";
+import { acceptAllView, backupCountdownText, eventSentence, formatClock24, peerEvidence, popupMode, slotRoleSummary, statusBadge, watchingSummary } from "../lib/popup_view.js";
 
 const popupHtml = await readFile(new URL("../popup.html", import.meta.url), "utf8");
 
@@ -48,10 +48,34 @@ describe("V5-06 contextual popup", () => {
     expect(statusBadge({ app_state: "IDLE", session: { shift_id: "s1" }, sources: { whatsapp: { status: "ok" }, outlook: { status: "ok" } } })).toEqual({ text: "WATCHING", state: "watching" });
   });
 
+  it("shows an Off-duty warning and next duty time instead of green Watching", () => {
+    const status = {
+      app_state: "IDLE", session: { shift_id: "s1" }, within_shift: false,
+      next_duty_at: new Date(2026, 10, 11, 22, 0).toISOString(),
+      sources: { whatsapp: { status: "ok" }, outlook: { status: "ok" } },
+    };
+    expect(watchingSummary(status)).toEqual({
+      title: "Off duty",
+      copy: "This machine will not ring. Next duty starts at 22:00.",
+      tone: "warn",
+    });
+    expect(statusBadge(status)).toEqual({ text: "OFF DUTY", state: "idle" });
+  });
+
   it("shows No backup on duty as information and exposes Accept all from two alerts", () => {
     expect(peerEvidence({ sharepoint: { configured: true }, peers: [] })).toEqual({ tone: "warn", text: "No backup on duty" });
     expect(acceptAllView({ pending_count: 1 })).toEqual({ hidden: true, label: "Accept all (1)", count: "1 pending alert" });
     expect(acceptAllView({ pending_count: 2 })).toEqual({ hidden: false, label: "Accept all (2)", count: "2 pending alerts" });
     expect(acceptAllView({ pending_count: 3 })).toEqual({ hidden: false, label: "Accept all (3)", count: "3 pending alerts" });
+  });
+
+  it("does not promise a Backup call when none is on duty", () => {
+    const now = new Date(2026, 10, 11, 22, 0).getTime();
+    expect(backupCountdownText({ current_role: "primary", peers: [], backup_call_at: now + 82_000 }, now)).toBe("No backup on duty");
+    expect(backupCountdownText({ current_role: "primary", peers: [{ role: "backup", on_shift: true, status: "alive" }], backup_call_at: now + 82_000 }, now)).toBe("Calling Backup in 01:22");
+  });
+
+  it("describes each configured slot instead of saying the user is Off all night", () => {
+    expect(slotRoleSummary([{ role: "off" }, { role: "primary" }])).toBe("Slot 1 Off · Slot 2 Primary");
   });
 });

@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Xếp lịch trực đêm</title>
+<style>
+  :root{--bg:#f6f7f9;--card:#fff;--ink:#1a2233;--mut:#6b7280;--line:#e5e7eb;--acc:#2563eb;--accH:#1d4ed8;--warn:#b91c1c;--ok:#047857}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--ink);padding:24px}
+  .wrap{max-width:860px;margin:0 auto}
+  h1{font-size:20px;margin:0 0 4px}
+  .sub{color:var(--mut);font-size:13px;margin-bottom:18px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:14px}
+  .card h2{font-size:14px;margin:0 0 10px;color:var(--ink)}
+  label{font-size:13px;color:var(--mut)}
+  input[type=date],input[type=text]{padding:7px 10px;border:1px solid var(--line);border-radius:6px;font-size:14px}
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  button{padding:8px 14px;border:none;border-radius:6px;background:var(--acc);color:#fff;font-size:14px;cursor:pointer}
+  button:hover{background:var(--accH)}
+  button.ghost{background:#eef2f7;color:var(--ink)}
+  button.ghost:hover{background:#e2e8f0}
+  button.sm{padding:4px 9px;font-size:12px}
+  table{border-collapse:collapse;width:100%;font-size:14px}
+  th,td{border:1px solid var(--line);padding:7px 10px;text-align:left}
+  th{background:#f1f5f9;font-weight:600;font-size:13px}
+  .ppl-table td{vertical-align:middle}
+  .ppl-table input[type=checkbox]{accent-color:var(--warn)}
+  .day-chk{text-align:center}
+  .msg-err{color:var(--warn);font-size:13px;margin-top:8px;white-space:pre-line}
+  .msg-ok{color:var(--ok);font-size:13px;margin-top:8px}
+  .muted{color:var(--mut)}
+  .nextweek td{color:var(--mut);font-style:italic}
+  td.n0{background:#e8f1fd}
+  td.n1{background:#fdf3e0}
+  .sum{font-size:13px;margin-top:10px}
+  .sum b{font-weight:600}
+  .pill{display:inline-block;background:#eef2f7;border-radius:20px;padding:2px 10px;margin:2px 4px 2px 0;font-size:12px}
+  .hint{font-size:12px;color:var(--mut);margin-top:6px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Xếp lịch trực đêm</h1>
+  <div class="sub">1 đêm = Shift B (22:00–02:30) + Shift A (02:30–07:00 sáng hôm sau). Ràng buộc: nghỉ tối thiểu 2 đêm trọn giữa 2 lần trực, luân phiên A/B, né ngày bận, chia đều số ca.</div>
+
+  <div class="card">
+    <h2>1. Tuần cần xếp</h2>
+    <div class="row">
+      <label>Thứ 2 đầu tuần:</label>
+      <input type="date" id="weekStart">
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>2. Thành viên &amp; ngày bận</h2>
+    <div class="row" style="margin-bottom:10px">
+      <textarea id="newName" placeholder="1 tên hoặc nhiều tên — cách nhau dấu phẩy hoặc xuống dòng&#10;VD: Leah, Julia, Jacques" rows="4" style="width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:6px;font-size:15px;font-family:inherit"></textarea>
+      <button class="ghost" onclick="addPerson()" style="align-self:flex-start">+ Thêm</button>
+    </div>
+    <table class="ppl-table" id="pplTable"></table>
+    <div class="hint">Tick ✓ vào ngày <b>bận</b> (không xếp ca nào chạm ngày đó). Cần tối thiểu 6 người/tuần, đủ 7 là đẹp nhất (mỗi người đúng 2 ca).</div>
+  </div>
+
+  <div class="card">
+    <h2>3. Đêm Chủ nhật tuần trước (tuỳ chọn)</h2>
+    <div class="row">
+      <label>Late 22:00 CN:</label>
+      <input type="text" id="prevLate" placeholder="VD: Leah">
+      <label>Early 02:30–07:00 sáng T2:</label>
+      <input type="text" id="prevEarly" placeholder="VD: Toàn">
+    </div>
+    <div class="hint">Người Early sẽ hiện <b>bold</b> ở ô Shift A dòng T2 trong bảng như nhắc nhở. Cả 2 người sẽ không bị xếp đêm T2 và T3 tuần này (nghỉ đủ 2 đêm).</div>
+  </div>
+
+  <div class="row" style="margin-bottom:14px">
+    <button onclick="run()">⚡ Xào lịch</button>
+    <button class="ghost" onclick="run()">🔀 Xào lại (phương án khác)</button>
+    <button class="ghost" id="copyBtn" onclick="copyTSV()" style="display:none">📋 Copy (dán vào Excel)</button>
+  </div>
+  <div id="msg"></div>
+
+  <div class="card" id="resultCard" style="display:none">
+    <h2>Kết quả</h2>
+    <table id="resultTable"></table>
+    <div class="sum" id="summary"></div>
+    <div class="hint">Ô <b>cùng màu = cùng 1 đêm liền mạch</b>: Shift B (22:00) → Shift A rạng sáng hôm sau. Dòng cuối (T2 tuần sau) là Shift A nối tiếp đêm CN — chính là mục 3 của tuần tới.</div>
+    <div class="row" style="margin-top:12px">
+      <button onclick="lockWeek()">💾 Chốt tuần này</button>
+      <span class="hint" style="margin:0">Chốt xong thì tuần này mới được tính vào bù trừ luỹ kế + report tháng.</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>4. Lịch sử &amp; report tháng</h2>
+    <div id="histList" style="margin-bottom:10px"></div>
+    <div class="row">
+      <label>Tháng:</label>
+      <input type="month" id="repMonth">
+      <button class="ghost" onclick="report()">Xem report</button>
+      <button class="ghost" id="csvBtn" onclick="downloadCSV()" style="display:none">⬇ Tải CSV (tính lương)</button>
+    </div>
+    <div id="repOut"></div>
+  </div>
+</div>
+
+<script>
+'use strict';
+const DAYS = ['CN','T2','T3','T4','T5','T6','T7'];
+let people = []; // {name, busy:[bool x7]}  busy[i] = ngày thứ i kể từ thứ 2 đầu tuần
+let lastResult = null, lastCarry = {};
+
+/* ---------- solver (pure) ---------- */
+// nights 0..6. Đêm n = B(ngày n) + A(ngày n+1).
+// busy ngày d chặn: B của đêm d, A của đêm d-1.
+// Trả về {assign:[{B,A}x7], score, altViol} hoặc {error}
+function solve(ppl, prevNames, tries = 500, carry = {}) {
+  const names = ppl.map(p => p.name);
+  const eligB = n => ppl.filter(p => !p.busy[n]).map(p => p.name);
+  const eligA = n => ppl.filter(p => n + 1 >= 7 ? true : !p.busy[n + 1]).map(p => p.name);
+  // check slot nào không có ứng viên
+  for (let n = 0; n < 7; n++) {
+    if (eligB(n).length === 0) return { error: 'Không ai rảnh cho Shift B đêm ' + n };
+    if (eligA(n).length === 0) return { error: 'Không ai rảnh cho Shift A đêm ' + n };
+  }
+  let best = null;
+  for (let t = 0; t < tries; t++) {
+    const last = {}, count = {}, lastType = {};
+    names.forEach(nm => { last[nm] = -99; count[nm] = carry[nm] || 0; }); // count khởi từ luỹ kế tháng → solver tự dồn ca cho người đang ít
+    prevNames.forEach(nm => { if (nm in last) last[nm] = -1; });
+    const assign = [];
+    let altViol = 0;
+    const canTake = (nm, n) => last[nm] < n - 2; // nghỉ tối thiểu 2 đêm trọn giữa 2 lần trực
+    const order = (cands, type) => {
+      const arr = cands.map(nm => ({
+        nm,
+        k: count[nm] * 10 + (count[nm] > 0 && lastType[nm] === type ? 3 : 0) + Math.random() * 6
+      }));
+      arr.sort((x, y) => x.k - y.k);
+      return arr.map(x => x.nm);
+    };
+    const stack = [];
+    const place = (nm, n, type) => {
+      stack.push({ nm, prevLast: last[nm], prevType: lastType[nm], viol: count[nm] > 0 && lastType[nm] === type ? 1 : 0 });
+      altViol += stack[stack.length - 1].viol;
+      last[nm] = n; lastType[nm] = type; count[nm]++;
+    };
+    const unplace = nm => {
+      const s = stack.pop();
+      altViol -= s.viol;
+      last[nm] = s.prevLast; lastType[nm] = s.prevType; count[nm]--;
+    };
+    let nodes = 0;
+    const bt = n => {
+      if (++nodes > 20000) return false;
+      if (n === 7) return true;
+      for (const b of order(eligB(n).filter(nm => canTake(nm, n)), 'B')) {
+        place(b, n, 'B');
+        for (const a of order(eligA(n).filter(nm => nm !== b && canTake(nm, n)), 'A')) {
+          place(a, n, 'A');
+          assign[n] = { B: b, A: a };
+          if (bt(n + 1)) return true;
+          unplace(a);
+        }
+        unplace(b);
+      }
+      return false;
+    };
+    if (!bt(0)) continue;
+    const cnts = names.map(nm => count[nm]);
+    const spread = Math.max(...cnts) - Math.min(...cnts);
+    const score = spread * 10 + altViol * 3;
+    if (!best || score < best.score) best = { assign: assign.map(x => ({ ...x })), score, altViol, spread };
+    if (best.score === 0) break;
+  }
+  if (!best) return { error: 'Không tìm được phương án thoả "nghỉ 2 đêm trọn giữa 2 lần trực".\nThêm người hoặc bớt ngày bận (tối thiểu 6 người, 7 là đẹp nhất).' };
+  return best;
+}
+
+/* ---------- UI ---------- */
+function defaultMonday() {
+  const d = new Date();
+  const diff = (8 - d.getDay()) % 7 || 7; // thứ 2 kế tiếp; nếu hôm nay T2 → hôm nay
+  if (d.getDay() === 1) return d;
+  d.setDate(d.getDate() + diff);
+  return d;
+}
+function fmt(d) { return d.toISOString().slice(0, 10); }
+function addDays(d, n) { const x = new Date(d); x.setDate(x.getDate() + n); return x; }
+function dayLabel(d) { return DAYS[d.getDay()]; }
+function dmy(d) { return d.getDate() + '/' + (d.getMonth() + 1); }
+
+function weekDates() {
+  const v = document.getElementById('weekStart').value;
+  const start = v ? new Date(v + 'T00:00:00') : defaultMonday();
+  return Array.from({ length: 8 }, (_, i) => addDays(start, i));
+}
+
+function renderPeople() {
+  const ds = weekDates();
+  const t = document.getElementById('pplTable');
+  let h = '<tr><th>Tên</th>' + ds.slice(0, 7).map(d => '<th class="day-chk">' + dayLabel(d) + '<br><span class="muted">' + dmy(d) + '</span></th>').join('') + '<th></th></tr>';
+  people.forEach((p, i) => {
+    h += '<tr><td><b>' + p.name + '</b></td>';
+    for (let d = 0; d < 7; d++) {
+      h += '<td class="day-chk"><input type="checkbox" ' + (p.busy[d] ? 'checked' : '') + ' onchange="people[' + i + '].busy[' + d + ']=this.checked"></td>';
+    }
+    h += '<td><button class="ghost sm" onclick="people.splice(' + i + ',1);renderPeople();save()">✕</button></td></tr>';
+  });
+  t.innerHTML = h;
+}
+
+function addPerson() {
+  const inp = document.getElementById('newName');
+  const names = inp.value.split(/[,;\n]+/).map(s => s.trim()).filter(Boolean);
+  if (!names.length) return;
+  const dup = [];
+  names.forEach(nm => {
+    if (people.some(p => p.name.toLowerCase() === nm.toLowerCase())) dup.push(nm);
+    else people.push({ name: nm, busy: Array(7).fill(false) });
+  });
+  inp.value = '';
+  renderPeople(); save();
+  if (dup.length) alert('Bỏ qua tên trùng: ' + dup.join(', '));
+}
+
+function run() {
+  const msg = document.getElementById('msg');
+  msg.innerHTML = '';
+  document.getElementById('resultCard').style.display = 'none';
+  document.getElementById('copyBtn').style.display = 'none';
+  if (people.length < 6) { msg.innerHTML = '<div class="msg-err">Cần tối thiểu 6 người — hiện có ' + people.length + '. Với rule "nghỉ 2 đêm trọn giữa 2 lần trực", dưới 6 người là bất khả thi (14 ca/tuần, mỗi người tối đa 3 đêm cách quãng). Đủ 7 người là đẹp nhất: mỗi người đúng 2 ca, 1 Late + 1 Early.</div>'; return; }
+  const prevNames = [document.getElementById('prevLate').value.trim(), document.getElementById('prevEarly').value.trim()].filter(Boolean);
+  const carry = computeCarry();
+  const r = solve(people, prevNames, 500, carry);
+  if (r.error) { msg.innerHTML = '<div class="msg-err">' + r.error + '</div>'; return; }
+  lastResult = r; lastCarry = carry;
+  renderResult(r, carry);
+  const hasCarry = Object.keys(carry).length > 0;
+  msg.innerHTML = '<div class="msg-ok">Xong. Chênh lệch số ca' + (hasCarry ? ' <b>luỹ kế tháng</b>' : '') + ': ' + r.spread + ' · Vi phạm luân phiên A/B: ' + r.altViol + (r.altViol > 0 ? ' (không tránh được hết — bấm Xào lại thử phương án khác)' : '') + (hasCarry ? '<br>Đã tính bù trừ từ ' + carryWeeks().length + ' tuần đã chốt trong tháng.' : '') + '</div>';
+}
+
+function renderResult(r, carry = {}) {
+  const ds = weekDates();
+  const prevEarly = document.getElementById('prevEarly').value.trim();
+  const cls = n => 'n' + (n % 2); // cùng màu = cùng 1 đêm
+  let h = '<tr><th>Ngày</th><th>Thứ</th><th>Shift A (Early)<br>02:30–07:00</th><th>Shift B (Late)<br>22:00–02:30</th></tr>';
+  for (let d = 0; d < 7; d++) {
+    const aCell = d === 0
+      ? '<td>' + (prevEarly ? '<b>' + prevEarly + '</b> <span class="muted">(tuần trước)</span>' : '<span class="muted">—</span>') + '</td>'
+      : '<td class="' + cls(d - 1) + '">' + r.assign[d - 1].A + '</td>';
+    h += '<tr><td>' + dmy(ds[d]) + '</td><td>' + dayLabel(ds[d]) + '</td>' + aCell + '<td class="' + cls(d) + '">' + r.assign[d].B + '</td></tr>';
+  }
+  h += '<tr class="nextweek"><td>' + dmy(ds[7]) + '</td><td>' + dayLabel(ds[7]) + '</td><td class="' + cls(6) + '">' + r.assign[6].A + '</td><td>—</td></tr>';
+  document.getElementById('resultTable').innerHTML = h;
+  // summary
+  const per = {};
+  r.assign.forEach((x, n) => {
+    (per[x.B] = per[x.B] || []).push(dayLabel(ds[n]) + '·B');
+    (per[x.A] = per[x.A] || []).push(dayLabel(ds[n]) + '·A');
+  });
+  const hasCarry = Object.keys(carry).length > 0;
+  document.getElementById('summary').innerHTML = '<b>Số ca tuần này' + (hasCarry ? ' (luỹ kế tháng)' : '') + ':</b> ' + Object.keys(per).sort().map(nm => '<span class="pill">' + nm + ': ' + per[nm].length + (hasCarry ? ' (' + (per[nm].length + (carry[nm] || 0)) + ')' : '') + ' — ' + per[nm].join(', ') + '</span>').join('');
+  document.getElementById('resultCard').style.display = '';
+  document.getElementById('copyBtn').style.display = '';
+}
+
+function copyTSV() {
+  const ds = weekDates(); const r = lastResult;
+  let out = 'Date\tDay\tShift A 02:30-07:00\tShift B 22:00-02:30\n';
+  const prevEarly = document.getElementById('prevEarly').value.trim();
+  for (let d = 0; d < 7; d++) out += dmy(ds[d]) + '\t' + dayLabel(ds[d]) + '\t' + (d === 0 ? prevEarly : r.assign[d - 1].A) + '\t' + r.assign[d].B + '\n';
+  out += dmy(ds[7]) + '\t' + dayLabel(ds[7]) + '\t' + r.assign[6].A + '\t\n';
+  navigator.clipboard.writeText(out).then(() => { const b = document.getElementById('copyBtn'); b.textContent = '✓ Đã copy'; setTimeout(() => b.textContent = '📋 Copy (dán vào Excel)', 1500); });
+}
+
+/* ---------- lịch sử tuần & carry-over ---------- */
+function loadHist() { try { return JSON.parse(localStorage.getItem('nightShiftHistory') || '{}'); } catch (e) { return {}; } }
+function storeHist(h) { try { localStorage.setItem('nightShiftHistory', JSON.stringify(h)); } catch (e) {} }
+function carryWeeks() { // các tuần đã chốt, cùng tháng với tuần đang xếp, trước tuần đang xếp
+  const ds = weekDates(), my = fmt(ds[0]), mk = ds[0].getFullYear() + '-' + ds[0].getMonth();
+  return Object.entries(loadHist()).filter(([ws]) => {
+    if (ws >= my) return false;
+    const d = new Date(ws + 'T00:00:00');
+    return d.getFullYear() + '-' + d.getMonth() === mk;
+  });
+}
+function computeCarry() {
+  const c = {};
+  carryWeeks().forEach(([, rec]) => rec.assign.forEach(x => { c[x.B] = (c[x.B] || 0) + 1; c[x.A] = (c[x.A] || 0) + 1; }));
+  return c;
+}
+function lockWeek() {
+  if (!lastResult) return;
+  const h = loadHist();
+  h[fmt(weekDates()[0])] = { assign: lastResult.assign };
+  storeHist(h); renderHist();
+  document.getElementById('msg').innerHTML = '<div class="msg-ok">Đã chốt tuần ' + fmt(weekDates()[0]) + '. Tuần sau mở tool lên sẽ tự bù trừ số ca + tự điền mục 3.</div>';
+}
+function delWeek(ws) { const h = loadHist(); delete h[ws]; storeHist(h); renderHist(); }
+function renderHist() {
+  const h = loadHist(), keys = Object.keys(h).sort();
+  document.getElementById('histList').innerHTML = keys.length
+    ? keys.map(ws => '<span class="pill">Tuần ' + ws + ' <a href="#" onclick="delWeek(\'' + ws + '\');return false" style="color:var(--warn);text-decoration:none">✕</a></span>').join('')
+    : '<span class="muted" style="font-size:13px">Chưa có tuần nào được chốt.</span>';
+}
+function autofillPrev() {
+  const rec = loadHist()[fmt(addDays(weekDates()[0], -7))];
+  if (rec) {
+    document.getElementById('prevLate').value = rec.assign[6].B;
+    document.getElementById('prevEarly').value = rec.assign[6].A;
+  }
+}
+
+/* ---------- report tháng ---------- */
+let repCSV = '';
+function report() {
+  const mv = document.getElementById('repMonth').value; // "2026-07"
+  if (!mv) return;
+  const [y, m] = mv.split('-').map(Number);
+  const tally = {}; // name -> {late, early, dates[]}
+  Object.entries(loadHist()).forEach(([ws, rec]) => {
+    const start = new Date(ws + 'T00:00:00');
+    rec.assign.forEach((x, n) => {
+      const dB = addDays(start, n), dA = addDays(start, n + 1); // ca tính theo ngày diễn ra
+      if (dB.getFullYear() === y && dB.getMonth() + 1 === m) { (tally[x.B] = tally[x.B] || { late: 0, early: 0, dates: [] }).late++; tally[x.B].dates.push(dmy(dB) + '·L'); }
+      if (dA.getFullYear() === y && dA.getMonth() + 1 === m) { (tally[x.A] = tally[x.A] || { late: 0, early: 0, dates: [] }).early++; tally[x.A].dates.push(dmy(dA) + '·E'); }
+    });
+  });
+  const names = Object.keys(tally).sort();
+  const out = document.getElementById('repOut');
+  if (!names.length) { out.innerHTML = '<div class="msg-err">Chưa có tuần nào được chốt trong tháng ' + m + '/' + y + '.</div>'; document.getElementById('csvBtn').style.display = 'none'; return; }
+  let h = '<table style="margin-top:10px"><tr><th>Tên</th><th>Tổng ca</th><th>Late</th><th>Early</th><th>Chi tiết (ngày·ca)</th></tr>';
+  repCSV = 'Tên,Tổng ca,Late,Early,Chi tiết\n';
+  names.forEach(nm => {
+    const t = tally[nm], tot = t.late + t.early;
+    h += '<tr><td><b>' + nm + '</b></td><td>' + tot + '</td><td>' + t.late + '</td><td>' + t.early + '</td><td class="muted" style="font-size:12px">' + t.dates.join(', ') + '</td></tr>';
+    repCSV += nm + ',' + tot + ',' + t.late + ',' + t.early + ',"' + t.dates.join(' ') + '"\n';
+  });
+  h += '</table>';
+  const tots = names.map(nm => tally[nm].late + tally[nm].early);
+  h += '<div class="hint">Chênh lệch cao nhất – thấp nhất trong tháng: <b>' + (Math.max(...tots) - Math.min(...tots)) + ' ca</b>. Late = 22:00–02:30, Early = 02:30–07:00. Ca tính theo ngày diễn ra thực tế.</div>';
+  out.innerHTML = h;
+  document.getElementById('csvBtn').style.display = '';
+}
+function downloadCSV() {
+  const mv = document.getElementById('repMonth').value;
+  const blob = new Blob(['﻿' + repCSV], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'report-truc-dem-' + mv + '.csv';
+  a.click(); URL.revokeObjectURL(a.href);
+}
+
+function save() { try { localStorage.setItem('nightShiftPeople', JSON.stringify(people.map(p => p.name))); } catch (e) {} }
+function load() {
+  try {
+    const nms = JSON.parse(localStorage.getItem('nightShiftPeople') || '[]');
+    people = nms.map(nm => ({ name: nm, busy: Array(7).fill(false) }));
+  } catch (e) { people = []; }
+}
+
+document.getElementById('weekStart').value = fmt(defaultMonday());
+document.getElementById('weekStart').addEventListener('change', () => { renderPeople(); autofillPrev(); });
+document.getElementById('repMonth').value = fmt(defaultMonday()).slice(0, 7);
+load(); renderPeople(); renderHist(); autofillPrev();
+</script>
+</body>
+</html>

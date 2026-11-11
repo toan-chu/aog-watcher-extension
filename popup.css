@@ -54,6 +54,7 @@ h1, h2, h3, .eyebrow, .state, .ready, .tag, .accept, .cta, .tab { font-family: v
 
 .cta { border: 0; border-radius: 6px; background: var(--brand-orange); color: var(--on-orange); padding: 12px 18px; font-weight: 700; cursor: pointer; }
 .cta--wide { width: 100%; }
+.help-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .hint { color: var(--muted); font-size: 12px; }
 .fold { border: 1px solid var(--line); border-radius: 6px; background: var(--surface); padding: 9px 11px; text-align: left; }
 .fold summary, .slots summary { cursor: pointer; color: var(--muted); font-size: 12px; }

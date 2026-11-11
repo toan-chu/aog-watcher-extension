@@ -1,4 +1,4 @@
-Cập nhật: 2026-11-11 10:19 +07 - bởi codex
+Cập nhật: 2026-11-11 11:15 +07 - bởi codex
 
 ## Việc đang mở
 V5-06 - người làm codex - chờ-soát - vòng 2/2 (mã đạt, chờ chạy thử hai máy thật)
@@ -27,6 +27,9 @@ RF-01 - đóng-đạt - 2026-09-28
 - V5-02: nền trắng lúc nửa đêm có chói không — user xem trên máy thật và nói "giữ" hay "đổi".
 - RF-03 (đưa repo về chuẩn v1.1) đã bị RF-04 thay toàn bộ; đề xuất đóng-huỷ RF-03.
 - Đề xuất luật cho `RULES.md`: "phải chụp lại đủ mọi trạng thái màn hình rồi mới giao một thay đổi giao diện" (bài học V5-02).
+
+## Việc để sau
+- Dùng cột `ChatType` của `AOG_Groups` để tách nhóm `Flyer` và nhóm `Customer` trong hành vi sản phẩm.
 
 ## Bẫy đã biết
 - Tải lại extension MV3 có thể để lại content script cũ; lời gọi runtime dài hạn phải đi qua guard.

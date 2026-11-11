@@ -89,7 +89,7 @@ The pre-shift check does not block monitoring. It reports readiness and tells th
 
 - Recent events are English sentences. Select a WhatsApp event to open its chat without placing a greeting. Select an Outlook event to bring Outlook forward.
 - **Search** reads the chat currently open in WhatsApp and pre-fills it in the search field. The shipment list is not connected yet; no SharePoint shipment query runs in this version.
-- **Help** provides the public README link, Diagnostics, and **Missed a message?**.
+- **Help** opens the guide in English or Vietnamese, and provides Diagnostics and **Missed a message?**.
 - **Settings** is always available at the bottom of the popup.
 
 ## F. End a shift

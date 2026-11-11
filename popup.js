@@ -4,7 +4,7 @@ const ids = ["versionValue", "stateBadge", "readyBadge", "dryRunBadge", "testMod
   "offShiftScreen", "watchingScreen", "watchingTitle", "watchingCopy", "ringingScreen", "roleValue", "startShiftButton", "shiftStatusHint", "endShiftButton", "whatsappDot", "whatsappValue",
   "outlookDot", "outlookValue", "sharepointDot", "sharepointValue", "peerDot", "peerValue", "soundDot", "soundValue", "latestEventValue", "preflight",
   "preflightList", "testSoundButton", "soundOkButton", "watchSystemAlerts", "watchUnknownChats", "watchUnknownList", "recentEvents", "acceptButton", "acceptAllButton", "alertPanel",
-  "alertTitle", "alertMeta", "pendingCount", "backupCountdown", "systemAlerts", "unknownChats", "unknownList", "searchChatInput", "helpButton", "leakSource", "leakWhat", "leakAt",
+  "alertTitle", "alertMeta", "pendingCount", "backupCountdown", "systemAlerts", "unknownChats", "unknownList", "searchChatInput", "helpButton", "helpButtonVi", "leakSource", "leakWhat", "leakAt",
   "leakButton", "diagnosticsRows", "sharepointButton", "settingsButton", "feedback"];
 const elements = Object.fromEntries(ids.map((id) => [id, document.getElementById(id)]));
 const slotRows = [...document.querySelectorAll(".slot-row")];
@@ -288,6 +288,7 @@ elements.leakButton.addEventListener("click", async () => {
   elements.leakWhat.value = "";
 });
 elements.helpButton.addEventListener("click", () => chrome.tabs.create({ url: "https://github.com/toan-chu/aog-watcher-extension#readme" }));
+elements.helpButtonVi.addEventListener("click", () => chrome.tabs.create({ url: "https://github.com/toan-chu/aog-watcher-extension/blob/master/README.vi.md" }));
 elements.settingsButton.addEventListener("click", () => chrome.runtime.openOptionsPage());
 elements.sharepointButton.addEventListener("click", async () => {
   const stored = await chrome.storage.local.get("aog_config");

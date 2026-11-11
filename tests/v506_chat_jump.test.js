@@ -19,7 +19,7 @@ describe("V5-06 chat jump safety", () => {
   it("uses one open-and-draft helper that never clicks Send", () => {
     const helper = content.slice(content.indexOf("async function openChatAndDraft"), content.indexOf("async function sendPeerTag"));
     expect(helper).toContain("draftDecision");
-    expect(helper).toContain("insertText");
+    expect(helper).toContain("typeIntoComposer(composer, text)");
     expect(helper).not.toContain(".click(");
   });
 

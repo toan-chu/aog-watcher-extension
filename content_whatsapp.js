@@ -208,6 +208,16 @@
     } catch { /* ignore */ }
   }
 
+  // WhatsApp's editor already reacts to execCommand("insertText"). Sending an extra synthetic input event
+  // on top made it insert the text a second time, so the event is only a fallback when nothing was typed.
+  function typeIntoComposer(composer, text) {
+    composer.focus();
+    const before = composer.textContent ?? "";
+    const inserted = document.execCommand("insertText", false, text);
+    if (inserted && (composer.textContent ?? "") !== before) return;
+    composer.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: text }));
+  }
+
   async function openChatAndDraft(chatName, text = "") {
     await refreshConfig();
     try {
@@ -219,9 +229,7 @@
       if (!decision.ok) throw new Error(decision.error);
       if (!decision.shouldDraft) return { ok: true, chat: activeChat, drafted: false };
       if (!composer) throw new Error("WhatsApp composer not found");
-      composer.focus();
-      document.execCommand("insertText", false, text);
-      composer.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: text }));
+      typeIntoComposer(composer, text);
       return { ok: true, chat: activeChat, drafted: true };
     } finally {
       clearSearchBox();
@@ -238,9 +246,7 @@
       if (messageExistsInCoordGroup(text)) return true;
       const composer = first(document, selectors.composer);
       if (!composer) throw new Error("WhatsApp composer not found");
-      composer.focus();
-      document.execCommand("insertText", false, text);
-      composer.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: text }));
+      typeIntoComposer(composer, text);
       await new Promise((resolve) => setTimeout(resolve, 200));
       const send = first(document, selectors.sendButton);
       const clickable = send?.closest("button") ?? send;

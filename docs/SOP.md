@@ -20,7 +20,7 @@ AOG Watcher monitors WhatsApp Web and Outlook Web during the night shift, rings 
    In `AOG_Shifts`, enter the operator's official name in **Title** (shown as OperatorName). The extension matches a row by `ShiftDate` and `Email`; when that is not found, it matches the same `ShiftDate` and **Title** only if `Email` is blank.
 
 4. Add the current customer chats to `AOG_Groups`. The chat title must match the title shown in WhatsApp.
-5. In **Settings**, enter the Outlook mailbox path and review the timing values, then select **Save settings**. Saving publishes every shared setting you changed to `AOG_Settings`, and the other machines download it.
+5. In **Settings**, review the Outlook filters and timing values, then select **Save settings**. Saving publishes every shared setting you changed to `AOG_Settings`, and the other machines download it. **Outlook watch path** is per machine, as in 4.3: blank watches whichever Outlook folder is open.
 
 ## B. Operator: first-time setup
 

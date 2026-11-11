@@ -209,16 +209,17 @@ describe("shared settings", () => {
   it("applies only shared keys from SharePoint and never personal ones", () => {
     const shared = parseSettingsRows([
       { Title: "outlook_watch_path", Value: "\"/mail/aog@x.vn/\"" },
+      { Title: "subject_keywords", Value: "[]" },
       { Title: "primary_timeout_seconds", Value: "90" },
       { Title: "self_display_name", Value: "\"Hacker\"" },
       { Title: "shift_slots", Value: "[]" },
     ]);
-    expect(shared).toEqual({ outlook_watch_path: "/mail/aog@x.vn/", primary_timeout_seconds: 90 });
+    expect(shared).toEqual({ subject_keywords: [], primary_timeout_seconds: 90 });
     const config = applySharedSettings({ self_display_name: "Hoài", primary_timeout_seconds: 120 }, shared);
     expect(config.self_display_name).toBe("Hoài");
     expect(config.primary_timeout_seconds).toBe(90);
     expect(changedKeys({ primary_timeout_seconds: 120 }, config)).toContain("primary_timeout_seconds");
-    for (const key of ["self_display_name", "shift_slots", "test_mode", "dry_run", "ignored_chats", "customer_groups", "sharepoint_site_url"]) expect(SHARED_KEYS).not.toContain(key);
+    for (const key of ["outlook_watch_path", "self_display_name", "shift_slots", "test_mode", "dry_run", "ignored_chats", "customer_groups", "sharepoint_site_url"]) expect(SHARED_KEYS).not.toContain(key);
   });
 });
 
@@ -258,5 +259,22 @@ describe("night shift row", () => {
     expect(shiftRowMatch({ session, name: "B", email: "" })).toEqual({ ShiftDate: "2026-07-28", Title: "B", Email: "" });
     expect(shiftRowFallbackMatch({ session, name: "B", email: "b@x.vn" })).toEqual({ ShiftDate: "2026-07-28", Title: "B" });
     expect(shiftRowFallbackMatch({ session, name: "B", email: "" })).toBeNull();
+  });
+});
+
+describe("shared settings: blank values and the Outlook watch path", () => {
+  it("applies a blank shared value instead of keeping the old one", () => {
+    const config = applySharedSettings({ coord_group: "Old group", subject_keywords: ["AOG"] }, { coord_group: "", subject_keywords: [] });
+    expect(config.coord_group).toBe("");
+    expect(config.subject_keywords).toEqual([]);
+  });
+
+  it("keeps the watch path from a pasted mailbox address and rejects a single-email address", async () => {
+    const { parseOutlookWatchPath } = await import("../lib/shared_settings.js");
+    expect(parseOutlookWatchPath("")).toEqual({ path: "" });
+    expect(parseOutlookWatchPath("https://outlook.cloud.microsoft/mail/aog@trustana.vn/")).toEqual({ path: "/mail/aog@trustana.vn/" });
+    expect(parseOutlookWatchPath("/mail/AOG")).toEqual({ path: "/mail/AOG/" });
+    expect(parseOutlookWatchPath("https://outlook.cloud.microsoft/mail/AAMkADBmZmYzZGQ5LTVjNmQtNGFlNy04ZmNjLTU0YTU3ZTQ2YmU5MwAuAAAAAADiD7X8dI%2FSQrdiffuH/").error).toMatch(/one email/);
+    expect(parseOutlookWatchPath("https://outlook.office.com/mail/inbox/id/AAQkAGI2").error).toMatch(/one email/);
   });
 });

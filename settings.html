@@ -47,13 +47,14 @@
         </div>
       </section>
 
-      <section class="shared">
-        <header class="section-head"><span class="icon" aria-hidden="true">📧</span><div><h2>Outlook <span class="pill">Shared</span></h2><p class="helper">Changes here apply to every machine when you save.</p></div></header>
+      <section>
+        <header class="section-head"><span class="icon" aria-hidden="true">📧</span><div><h2>Outlook</h2><p class="helper">The watch path applies to this machine only. The filters are shared with every machine.</p></div></header>
         <div class="field field--wide">
-          <label for="outlookWatchPath">AOG mailbox path</label>
-          <input id="outlookWatchPath" placeholder="/mail/aog@company.com/">
-          <small>Open the AOG mailbox and copy the part of the address after outlook.office.com.</small>
+          <label for="outlookWatchPath">Outlook watch path</label>
+          <input id="outlookWatchPath" placeholder="Blank = watch whichever Outlook folder is open">
+          <small>Optional. For example /mail/aog@trustana.vn/ or /mail/AOG/. You can paste the whole Outlook address of the mailbox; only its path is kept.</small>
         </div>
+        <h3>Filters <span class="pill">Shared</span></h3>
         <div class="grid three">
           <div class="field"><label for="senderWhitelist">Only accept from senders</label><textarea id="senderWhitelist" rows="3"></textarea><small>Optional. One email or domain per line.</small></div>
           <div class="field"><label for="skipDomains">Ignored sender domains</label><textarea id="skipDomains" rows="3"></textarea><small>One domain per line.</small></div>

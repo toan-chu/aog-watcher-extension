@@ -1,7 +1,7 @@
 import { getConfig, setConfig } from "./lib/storage.js";
 import { normalizeSiteUrl } from "./lib/sharepoint_client.js";
 import { uniqueNames } from "./lib/groups.js";
-import { changedKeys } from "./lib/shared_settings.js";
+import { changedKeys, parseOutlookWatchPath } from "./lib/shared_settings.js";
 
 const byId = (id) => document.getElementById(id);
 const lines = (value) => value.split(/\r?\n/).map((item) => item.trim()).filter(Boolean);
@@ -55,6 +55,9 @@ async function save({ quiet = false } = {}) {
   const site = siteRaw ? normalizeSiteUrl(siteRaw) : "";
   if (siteRaw && !site) { status.textContent = "Invalid SharePoint link (expected https://...sharepoint.com/sites/...)."; return false; }
   const customerGroups = uniqueNames(lines(byId("customerGroups").value));
+  const watch = parseOutlookWatchPath(byId("outlookWatchPath").value);
+  if (watch.error) { status.style.color = "var(--red)"; status.textContent = watch.error; return false; }
+  byId("outlookWatchPath").value = watch.path;
   const existing = await getConfig();
   const config = {
     ...existing,
@@ -64,7 +67,7 @@ async function save({ quiet = false } = {}) {
     unknown_chat_alert: byId("unknownChatAlert").checked,
     customer_groups: customerGroups,
     ignored_chats: uniqueNames(lines(byId("ignoredChats").value)),
-    outlook_watch_path: byId("outlookWatchPath").value.trim(),
+    outlook_watch_path: watch.path,
     sender_whitelist: unique(lines(byId("senderWhitelist").value)),
     skip_sender_domains: unique(lines(byId("skipDomains").value).map((item) => item.replace(/^@/, "").toLocaleLowerCase())),
     subject_keywords: unique(lines(byId("subjectKeywords").value)),

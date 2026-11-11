@@ -183,14 +183,14 @@ Machines reload the list when a shift starts and when Settings are saved. A chat
 </details>
 
 <details>
-<summary><b>📧 Outlook 🔄</b></summary>
+<summary><b>📧 Outlook</b></summary>
 
 | Setting | Meaning |
 |---|---|
-| AOG mailbox path | The part of the Outlook address after `outlook.office.com`, e.g. `/mail/aog@company.com/`. |
-| Only accept from senders | Optional. Only these emails or domains ring. |
-| Ignored sender domains | Never ring for these. Default `trustana.vn`. |
-| Subject keywords | Only these subjects ring. Blank = all. |
+| Outlook watch path | This machine only. Blank = watch whichever Outlook folder is open. Or a mailbox/folder path such as `/mail/aog@trustana.vn/`. Pasting the whole Outlook address works; the address of a single email is refused. |
+| 🔄 Only accept from senders | Optional. Only these emails or domains ring. |
+| 🔄 Ignored sender domains | Never ring for these. Default `trustana.vn`. |
+| 🔄 Subject keywords | Only these subjects ring. Blank = all. |
 
 </details>
 
@@ -297,7 +297,7 @@ All 🤖.
 
 | You see | Do this |
 |---|---|
-| 🔴 WhatsApp or Outlook | Open or reload that tab. For Outlook, open the AOG mailbox. |
+| 🔴 WhatsApp or Outlook | Open or reload that tab. For Outlook, open the mailbox or folder set in **Outlook watch path** (or leave that blank). |
 | 🔴 SharePoint | Open the AOG site and sign in again. Ringing keeps working meanwhile. |
 | 🔴 Partner machine lost | Call the other operator: is their browser open and their shift started? |
 | 🔴 You are not on tonight's roster | Ask the shift lead to add your row (right date and email). Ringing keeps working. |

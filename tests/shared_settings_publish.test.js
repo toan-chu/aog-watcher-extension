@@ -12,7 +12,7 @@ function fakeClient(existing = []) {
 }
 
 describe("publishSharedSettings", () => {
-  const config = { outlook_watch_path: "/mail/aog@x/", primary_timeout_seconds: 90, log_keep_days: 90 };
+  const config = { coord_group: "AOG Coord", primary_timeout_seconds: 90, log_keep_days: 90 };
 
   it("writes only the requested keys", async () => {
     const client = fakeClient([{ Id: 7, Title: "primary_timeout_seconds" }]);

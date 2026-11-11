@@ -184,14 +184,14 @@ Máy tải lại danh sách mỗi lần bắt đầu ca và mỗi lần lưu Set
 </details>
 
 <details>
-<summary><b>📧 Outlook 🔄</b></summary>
+<summary><b>📧 Outlook</b></summary>
 
 | Thiết lập | Ý nghĩa |
 |---|---|
-| AOG mailbox path | Phần sau `outlook.office.com` trong địa chỉ hộp thư, ví dụ `/mail/aog@company.com/`. |
-| Only accept from senders | Không bắt buộc. Chỉ thư từ các email hoặc tên miền này mới reo. |
-| Ignored sender domains | Thư từ các tên miền này không reo. Mặc định `trustana.vn`. |
-| Subject keywords | Chỉ tiêu đề có các từ này mới reo. Để trống thì mọi thư đều reo. |
+| Outlook watch path | Chỉ máy này. Để trống = theo dõi thư mục Outlook đang mở. Hoặc điền đường dẫn hộp thư/thư mục, ví dụ `/mail/aog@trustana.vn/`. Dán cả địa chỉ Outlook cũng được; dán địa chỉ của một thư cụ thể thì bị từ chối. |
+| 🔄 Only accept from senders | Không bắt buộc. Chỉ thư từ các email hoặc tên miền này mới reo. |
+| 🔄 Ignored sender domains | Thư từ các tên miền này không reo. Mặc định `trustana.vn`. |
+| 🔄 Subject keywords | Chỉ tiêu đề có các từ này mới reo. Để trống thì mọi thư đều reo. |
 
 </details>
 
@@ -298,7 +298,7 @@ Toàn bộ là 🤖.
 
 | Bạn thấy | Làm gì |
 |---|---|
-| 🔴 WhatsApp hoặc Outlook | Mở hoặc tải lại tab đó. Với Outlook, mở đúng hộp thư AOG. |
+| 🔴 WhatsApp hoặc Outlook | Mở hoặc tải lại tab đó. Với Outlook, mở đúng hộp thư/thư mục đã điền ở **Outlook watch path** (hoặc để trống ô đó). |
 | 🔴 SharePoint | Mở site AOG và đăng nhập lại. Trong lúc đó máy vẫn reo bình thường. |
 | 🔴 Partner machine lost | Gọi người trực máy kia: trình duyệt có mở không, đã bấm Start shift chưa? |
 | 🔴 You are not on tonight's roster | Nhờ trưởng ca thêm dòng của bạn (đúng ngày, đúng email). Máy vẫn reo bình thường. |

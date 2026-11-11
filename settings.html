@@ -2,51 +2,98 @@
 <html lang="en">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>AOG Watcher Settings</title><link rel="stylesheet" href="assets/fonts/fonts.css"><link rel="stylesheet" href="settings.css"></head>
 <body>
+  <header class="brandbar">
+    <div class="brandbar__inner">
+      <p class="brandbar__kicker">by TRUST<span class="ana">ANA</span> · AOG Watcher 5.0</p>
+      <h1>Settings</h1>
+      <ol class="steps" aria-label="First-time setup">
+        <li><b>1</b> Sign in &amp; check</li>
+        <li><b>2</b> Check your name</li>
+        <li><b>3</b> Save</li>
+      </ol>
+    </div>
+  </header>
   <main>
-    <header class="brandbar"><p>by TRUST<span class="ana">ANA</span> · AOG Watcher 5.0</p><h1>Settings</h1><span>New user: paste the SharePoint AOG link → select "Sign in &amp; check" → enter your name. Shared settings are fetched automatically from SharePoint.</span></header>
     <form id="settingsForm">
       <section>
-        <h2>1. SharePoint AOG</h2>
-        <p class="helper">Default AOG site: https://trustanavn.sharepoint.com/sites/aog (AOG data is stored in the AOG_* lists). Use the same company Microsoft account already signed in to this browser.</p>
-        <div class="grid two">
-          <label>SharePoint AOG link<input id="sharepointSiteUrl" placeholder="https://....sharepoint.com/sites/..."></label>
-          <div class="button-row"><button id="spTest" type="button">Sign in &amp; check</button><button id="spOpen" type="button" class="ghost">Open SharePoint</button></div>
+        <header class="section-head"><span class="icon" aria-hidden="true">👤</span><div><h2>Your account</h2><p class="helper">Use the company Microsoft account already signed in to this browser. Team data lives in the AOG_* lists on this site.</p></div></header>
+        <div class="field field--wide">
+          <label for="sharepointSiteUrl">SharePoint AOG link</label>
+          <div class="inline">
+            <input id="sharepointSiteUrl" placeholder="https://trustanavn.sharepoint.com/sites/aog">
+            <button id="spTest" type="button">Sign in &amp; check</button>
+            <button id="spOpen" type="button" class="ghost">Open SharePoint</button>
+          </div>
+          <p id="spResult" class="result" role="status"></p>
         </div>
-        <p id="spResult" class="result"></p>
-        <details class="admin"><summary>For the team lead (one-time setup)</summary>
-          <p class="helper">"Create lists" creates the four AOG_* lists on the site and requires site-owner permission. "Publish shared settings" writes this machine's shared settings to AOG_Settings for all machines to fetch.</p>
-          <div class="button-row"><button id="spSetup" type="button">Create lists</button><button id="spPublish" type="button" class="ghost">Publish shared settings</button></div>
-        </details>
-      </section>
-      <section><h2>2. Operator</h2><div class="grid two"><label>Display name <small>Required and unique for each machine</small><input id="selfDisplayName" required></label><label></label></div></section>
-      <section><h2>3. WhatsApp</h2>
-        <p class="helper">The shared customer-group list is stored in the AOG_Groups SharePoint list. The team lead edits or deletes entries there. <span id="teamGroupsInfo"></span></p>
-        <div class="grid two">
-          <label>Coordination group <small>Shared · fallback route when SharePoint is unavailable</small><input id="coordGroup"></label>
-          <label>WhatsApp greeting <small>Placed in the customer chat after Accept; never sent automatically. Leave blank to place nothing.</small><textarea id="whatsappGreeting" rows="3"></textarea></label>
-          <label class="check"><input id="unknownChatAlert" type="checkbox"><span>Ring for unknown chats<br><small>A chat not on the list still rings, with Add to shared list / Ignore actions</small></span></label>
-          <label>My personal groups <small>One group per line; watched only by this machine</small><textarea id="customerGroups" rows="5"></textarea></label>
-          <label>Ignored chats <small>This machine will not ring for these chats</small><textarea id="ignoredChats" rows="5"></textarea></label>
+        <div class="field">
+          <label for="selfDisplayName">Display name</label>
+          <input id="selfDisplayName" required>
+          <small>Updated automatically from tonight's roster (AOG_Shifts) when you sign in or start a shift.</small>
         </div>
       </section>
-      <section><h2>4. Outlook <small>(shared)</small></h2><p class="helper">Open the AOG mailbox and copy the URL segment after outlook.office.com, for example /mail/aog@company.com/.</p><div class="grid two"><label>AOG mailbox path<input id="outlookWatchPath"></label><label>Only accept from senders <small>Optional; one email or domain per line</small><textarea id="senderWhitelist" rows="4"></textarea></label><label>Ignored sender domains<textarea id="skipDomains" rows="4"></textarea></label><label>Subject keywords <small>Leave blank to accept every subject</small><textarea id="subjectKeywords" rows="4"></textarea></label></div></section>
-      <section><h2>5. Timing &amp; alerts <small>(shared)</small></h2>
+
+      <section>
+        <header class="section-head"><span class="icon" aria-hidden="true">💬</span><div><h2>WhatsApp</h2><p class="helper">The shared chat list is the AOG_Groups list on SharePoint. <span id="teamGroupsInfo"></span></p></div></header>
+        <div class="field field--wide">
+          <label for="whatsappGreeting">WhatsApp greeting</label>
+          <textarea id="whatsappGreeting" rows="2"></textarea>
+          <small>Placed in the customer chat after Accept. Never sent automatically. Leave blank to place nothing.</small>
+        </div>
+        <label class="toggle field--wide"><input id="unknownChatAlert" type="checkbox"><span><b>Ring for unknown chats</b> <span class="pill">Shared</span><small>A chat that is not on the list still rings, with Add to shared list and Ignore buttons.</small></span></label>
+        <div class="grid two">
+          <div class="field"><label for="customerGroups">My personal groups</label><textarea id="customerGroups" rows="4"></textarea><small>One chat per line. Watched only by this machine.</small></div>
+          <div class="field"><label for="ignoredChats">Ignored chats</label><textarea id="ignoredChats" rows="4"></textarea><small>One chat per line. This machine never rings for them.</small></div>
+        </div>
+      </section>
+
+      <section class="shared">
+        <header class="section-head"><span class="icon" aria-hidden="true">📧</span><div><h2>Outlook <span class="pill">Shared</span></h2><p class="helper">Changes here apply to every machine when you save.</p></div></header>
+        <div class="field field--wide">
+          <label for="outlookWatchPath">AOG mailbox path</label>
+          <input id="outlookWatchPath" placeholder="/mail/aog@company.com/">
+          <small>Open the AOG mailbox and copy the part of the address after outlook.office.com.</small>
+        </div>
         <div class="grid three">
-          <label>Wait for Accept before alerting Backup (seconds)<input id="primaryTimeout" type="number" min="5" max="3600" required></label>
-          <label>Backup rings after (seconds)<input id="backupDelay" type="number" min="5" max="3600" required></label>
-          <label>Maximum ring duration (seconds)<input id="maxDuration" type="number" min="10" max="7200" required></label>
-          <label>Machine idle threshold (seconds)<input id="idleThreshold" type="number" min="15" max="3600" required></label>
-          <label>Ring style<select id="wakeAudioMode"><option value="gentle">Gentle, repeating</option><option value="escalate">Increasing volume</option></select></label>
-          <button id="previewAudio" type="button" class="ghost">Preview ring</button>
-          <label class="check"><input id="followupEnabled" type="checkbox"><span>Follow up after Accept</span></label>
-          <label>Follow up after (minutes)<input id="followupAfter" type="number" min="1" max="120"></label>
-          <label>Answer timeout (minutes)<input id="followupAnswer" type="number" min="1" max="60"></label>
-          <label>Partner machine lost after (minutes)<input id="peerLost" type="number" min="2" max="60"></label>
-          <label>Shift reminder after (minutes)<input id="reminderGrace" type="number" min="1" max="120"></label>
-          <label>Blind alert after (minutes)<input id="blindAfter" type="number" min="1" max="60"></label>
+          <div class="field"><label for="senderWhitelist">Only accept from senders</label><textarea id="senderWhitelist" rows="3"></textarea><small>Optional. One email or domain per line.</small></div>
+          <div class="field"><label for="skipDomains">Ignored sender domains</label><textarea id="skipDomains" rows="3"></textarea><small>One domain per line.</small></div>
+          <div class="field"><label for="subjectKeywords">Subject keywords</label><textarea id="subjectKeywords" rows="3"></textarea><small>Blank = every subject rings.</small></div>
         </div>
       </section>
-      <section><h2>6. Testing</h2><div class="grid four"><label class="check"><input id="testMode" type="checkbox"><span>Test mode<br><small>Ignore shift hours and force a role</small></span></label><label>Test role<select id="testRole"><option value="primary">Primary</option><option value="backup">Backup</option></select></label><label class="check"><input id="dryRun" type="checkbox"><span>Dry-run<br><small>Do not ring or notify the partner machine</small></span></label><label></label></div></section>
+
+      <section class="shared">
+        <header class="section-head"><span class="icon" aria-hidden="true">⏱️</span><div><h2>Ringing &amp; timing <span class="pill">Shared</span></h2><p class="helper">Changes here apply to every machine when you save.</p></div></header>
+        <h3>Ringing</h3>
+        <div class="grid three">
+          <div class="field"><label for="primaryTimeout">Call Backup if not accepted after</label><div class="unit"><input id="primaryTimeout" type="number" min="5" max="3600" required><span>sec</span></div></div>
+          <div class="field"><label for="backupDelay">Backup rings on its own after</label><div class="unit"><input id="backupDelay" type="number" min="5" max="3600" required><span>sec</span></div></div>
+          <div class="field"><label for="maxDuration">Stop ringing after</label><div class="unit"><input id="maxDuration" type="number" min="10" max="7200" required><span>sec</span></div></div>
+          <div class="field"><label for="wakeAudioMode">Ring style</label><div class="inline"><select id="wakeAudioMode"><option value="gentle">Gentle, repeating</option><option value="escalate">Increasing volume</option></select><button id="previewAudio" type="button" class="ghost">▶ Preview</button></div></div>
+        </div>
+        <h3>After Accept</h3>
+        <div class="grid three">
+          <label class="toggle"><input id="followupEnabled" type="checkbox"><span><b>Follow up after Accept</b><small>Ask later whether the case is resolved.</small></span></label>
+          <div class="field"><label for="followupAfter">Ask after</label><div class="unit"><input id="followupAfter" type="number" min="1" max="120"><span>min</span></div></div>
+          <div class="field"><label for="followupAnswer">Ring again if no answer in</label><div class="unit"><input id="followupAnswer" type="number" min="1" max="60"><span>min</span></div></div>
+        </div>
+        <h3>Warnings</h3>
+        <div class="grid four">
+          <div class="field"><label for="idleThreshold">Machine unattended after</label><div class="unit"><input id="idleThreshold" type="number" min="15" max="3600" required><span>sec</span></div></div>
+          <div class="field"><label for="peerLost">Partner machine lost after</label><div class="unit"><input id="peerLost" type="number" min="2" max="60"><span>min</span></div></div>
+          <div class="field"><label for="reminderGrace">Start-shift reminder after</label><div class="unit"><input id="reminderGrace" type="number" min="1" max="120"><span>min</span></div></div>
+          <div class="field"><label for="blindAfter">Blind warning after</label><div class="unit"><input id="blindAfter" type="number" min="1" max="60"><span>min</span></div></div>
+        </div>
+      </section>
+
+      <section>
+        <header class="section-head"><span class="icon" aria-hidden="true">🧪</span><div><h2>Testing</h2><p class="helper">For trial runs only. Turn both off before a real shift.</p></div></header>
+        <div class="grid three">
+          <label class="toggle"><input id="testMode" type="checkbox"><span><b>Test mode</b><small>Ignore shift hours and use the test role.</small></span></label>
+          <div class="field"><label for="testRole">Test role</label><select id="testRole"><option value="primary">Primary</option><option value="backup">Backup</option></select></div>
+          <label class="toggle"><input id="dryRun" type="checkbox"><span><b>Dry-run</b><small>Do not ring and do not notify the partner machine.</small></span></label>
+        </div>
+      </section>
+
       <div class="actions"><p id="status" role="status"></p><button type="submit">Save settings</button></div>
     </form>
   </main>

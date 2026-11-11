@@ -13,9 +13,12 @@ describe("settings 5.0", () => {
     expect(settingsJs).not.toMatch(/preset/i);
   });
 
-  it("lets the team lead create lists and publish shared settings", () => {
-    expect(settingsJs).toContain('type: "SP_SETUP"');
-    expect(settingsJs).toContain('type: "SP_PUBLISH_SETTINGS"');
+  it("publishes only the shared settings the person changed when saving, without a separate button", () => {
+    expect(settingsJs).not.toContain('type: "SP_SETUP"');
+    expect(settingsHtml).not.toContain("spPublish");
+    expect(settingsHtml).not.toContain("coordGroup");
+    expect(settingsJs).toContain("changedKeys(existing, config)");
+    expect(settingsJs).toContain('type: "SP_PUBLISH_SETTINGS", keys: shared');
   });
 
   it("drops the local HR/analytics exports", () => {

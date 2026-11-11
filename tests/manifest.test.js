@@ -14,3 +14,14 @@ describe("manifest Outlook coverage", () => {
     expect(outlookEntry.js).toEqual(["lib/content_runtime.js", "lib/outlook_selectors.js", "lib/outlook_message_id.js", "content_outlook.js"]);
   });
 });
+
+describe("manifest SharePoint writes", () => {
+  it("strips the extension Origin header from its own SharePoint requests (SharePoint answers 403 to extension-origin POSTs)", async () => {
+    expect(manifest.permissions).toContain("declarativeNetRequestWithHostAccess");
+    const resource = manifest.declarative_net_request.rule_resources.find((rule) => rule.id === "sharepoint_origin");
+    expect(resource.enabled).toBe(true);
+    const rules = JSON.parse(await readFile(new URL(`../${resource.path}`, import.meta.url), "utf8"));
+    expect(rules[0].action).toEqual({ type: "modifyHeaders", requestHeaders: [{ header: "origin", operation: "remove" }] });
+    expect(rules[0].condition).toMatchObject({ urlFilter: "||sharepoint.com/", tabIds: [-1] });
+  });
+});

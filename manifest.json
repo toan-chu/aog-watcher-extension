@@ -8,7 +8,8 @@
     "alarms",
     "offscreen",
     "notifications",
-    "idle"
+    "idle",
+    "declarativeNetRequestWithHostAccess"
   ],
   "host_permissions": [
     "https://web.whatsapp.com/*",
@@ -18,6 +19,15 @@
     "https://outlook.cloud.microsoft/*",
     "https://*.sharepoint.com/*"
   ],
+  "declarative_net_request": {
+    "rule_resources": [
+      {
+        "id": "sharepoint_origin",
+        "enabled": true,
+        "path": "rules/sharepoint_origin.json"
+      }
+    ]
+  },
   "background": {
     "service_worker": "service_worker.js",
     "type": "module"

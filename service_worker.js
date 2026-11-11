@@ -1072,7 +1072,8 @@ async function handleMessage(message) {
       const config = await getConfig();
       if (!spConfigured(config)) return { ok: false, error: "SharePoint is not connected" };
       try {
-        const written = await publishSharedSettings(spClient(config), config, { by: config.self_display_name });
+        const keys = Array.isArray(message.keys) ? message.keys : undefined;
+        const written = await publishSharedSettings(spClient(config), config, { by: config.self_display_name, ...(keys ? { keys } : {}) });
         return { ok: true, written };
       } catch (error) { return { ok: false, error: englishSharePointError(error.message) }; }
     }

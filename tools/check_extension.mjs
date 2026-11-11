@@ -11,6 +11,7 @@ const referenced = new Set([
   manifest.options_page,
   ...Object.values(manifest.icons ?? {}),
   ...manifest.content_scripts.flatMap((entry) => entry.js),
+  ...(manifest.declarative_net_request?.rule_resources ?? []).map((rule) => rule.path),
 ]);
 
 for (const path of referenced) await access(path, constants.R_OK);

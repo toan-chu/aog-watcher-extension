@@ -1,6 +1,7 @@
 import { getConfig, setConfig } from "./lib/storage.js";
 import { normalizeSiteUrl } from "./lib/sharepoint_client.js";
 import { uniqueNames } from "./lib/groups.js";
+import { changedKeys } from "./lib/shared_settings.js";
 
 const byId = (id) => document.getElementById(id);
 const lines = (value) => value.split(/\r?\n/).map((item) => item.trim()).filter(Boolean);
@@ -16,7 +17,6 @@ async function load() {
   const config = await getConfig();
   byId("sharepointSiteUrl").value = config.sharepoint_site_url ?? "";
   byId("selfDisplayName").value = config.self_display_name;
-  byId("coordGroup").value = config.coord_group;
   byId("whatsappGreeting").value = config.whatsapp_greeting ?? "";
   byId("unknownChatAlert").checked = config.unknown_chat_alert !== false;
   byId("customerGroups").value = (config.customer_groups ?? []).join("\n");
@@ -54,15 +54,12 @@ async function save({ quiet = false } = {}) {
   const siteRaw = byId("sharepointSiteUrl").value.trim();
   const site = siteRaw ? normalizeSiteUrl(siteRaw) : "";
   if (siteRaw && !site) { status.textContent = "Invalid SharePoint link (expected https://...sharepoint.com/sites/...)."; return false; }
-  const coordGroup = byId("coordGroup").value.trim();
   const customerGroups = uniqueNames(lines(byId("customerGroups").value));
-  if (coordGroup && customerGroups.some((group) => group.toLocaleLowerCase() === coordGroup.toLocaleLowerCase())) { status.textContent = "The coordination group cannot also be a customer group."; return false; }
   const existing = await getConfig();
   const config = {
     ...existing,
     sharepoint_site_url: site,
     self_display_name: byId("selfDisplayName").value.trim(),
-    coord_group: coordGroup,
     whatsapp_greeting: byId("whatsappGreeting").value.trim(),
     unknown_chat_alert: byId("unknownChatAlert").checked,
     customer_groups: customerGroups,
@@ -87,8 +84,21 @@ async function save({ quiet = false } = {}) {
     dry_run: byId("dryRun").checked,
   };
   await setConfig(config);
+  // Shared settings: publish only the keys this person changed, before the sync pulls the team copy back.
+  const shared = site ? changedKeys(existing, config) : [];
+  let shareError = "";
+  if (shared.length) {
+    const response = await chrome.runtime.sendMessage({ type: "SP_PUBLISH_SETTINGS", keys: shared }).catch((error) => ({ ok: false, error: error.message }));
+    if (!response?.ok) shareError = response?.error ?? "unknown error";
+  }
   await chrome.runtime.sendMessage({ type: "SETTINGS_UPDATED" }).catch(() => {});
-  if (!quiet) { status.style.color = "var(--green)"; status.textContent = "Saved."; }
+  if (shareError) {
+    status.style.color = "var(--red)";
+    status.textContent = `Saved on this machine only. Could not share with the team: ${shareError}`;
+  } else if (!quiet) {
+    status.style.color = "var(--green)";
+    status.textContent = shared.length ? `Saved. ${shared.length} shared setting${shared.length === 1 ? "" : "s"} updated for every machine.` : "Saved.";
+  }
   return true;
 }
 
@@ -111,7 +121,7 @@ byId("spTest").addEventListener("click", () => busy(byId("spTest"), async () => 
   const missing = response.missing ?? [];
   const who = `${response.user?.name ?? ""} <${response.user?.email ?? ""}>`;
   const rosterNotice = response.note ? `\n${response.note}` : "";
-  if (missing.length) setResult(`Signed in: ${who}\nThe site is missing ${missing.length} lists. Ask the team lead to select "Create lists".${rosterNotice}`, "bad");
+  if (missing.length) setResult(`Signed in: ${who}\nThe site is missing ${missing.length} lists. Ask the team lead to create them.${rosterNotice}`, "bad");
   else {
     setResult(`Signed in: ${who}\nAll lists are available. Fetching shared groups and settings…${rosterNotice}`, "ok");
     await chrome.runtime.sendMessage({ type: "SETTINGS_UPDATED" });
@@ -125,20 +135,6 @@ byId("spOpen").addEventListener("click", () => {
   if (!site) { setResult("Paste the SharePoint link first.", "bad"); return; }
   chrome.tabs.create({ url: site });
 });
-
-byId("spSetup").addEventListener("click", () => busy(byId("spSetup"), async () => {
-  if (!(await save({ quiet: true }))) return;
-  setResult("Creating lists…");
-  const response = await chrome.runtime.sendMessage({ type: "SP_SETUP" });
-  if (!response?.ok) { setResult(`Could not create lists: ${response?.error}`, "bad"); return; }
-  setResult(response.report?.length ? `Created:\n${response.report.join("\n")}` : "All lists already exist; nothing to create.", "ok");
-}));
-
-byId("spPublish").addEventListener("click", () => busy(byId("spPublish"), async () => {
-  if (!(await save({ quiet: true }))) return;
-  const response = await chrome.runtime.sendMessage({ type: "SP_PUBLISH_SETTINGS" });
-  setResult(response?.ok ? `Published ${response.written} shared settings to AOG_Settings.` : `Could not publish: ${response?.error}`, response?.ok ? "ok" : "bad");
-}));
 
 byId("previewAudio").addEventListener("click", async () => {
   await chrome.runtime.sendMessage({ type: "PREVIEW_AUDIO", mode: byId("wakeAudioMode").value }).catch(() => {});

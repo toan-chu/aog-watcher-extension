@@ -8,21 +8,19 @@ AOG Watcher monitors WhatsApp Web and Outlook Web during the night shift, rings 
 
 1. Confirm every operator has edit access to `https://trustanavn.sharepoint.com/sites/aog`.
 2. Open AOG Watcher **Settings**, confirm the SharePoint site, and select **Sign in & check**.
-3. Expand **For the team lead (one-time setup)** and select **Create lists**. This requires site-owner permission.
-4. Confirm these four lists exist:
+3. Confirm these four lists exist on the site. They are created once by the site owner with the setup script kept outside this repository:
 
    | List | Purpose |
    |---|---|
    | `AOG_Groups` | Shared WhatsApp chats, chat type and active status |
-   | `AOG_Settings` | Shared mailbox, coordination and timing settings |
+   | `AOG_Settings` | Shared mailbox and timing settings |
    | `AOG_Shifts` | Planned roster and one actual shift row per operator per night |
    | `AOG_Log` | Operational events, machine heartbeats and peer signals |
 
-   In `AOG_Shifts`, enter the operator's display name in **Title**. The extension matches a row by `ShiftDate` and `Email`; when that is not found, it matches the same `ShiftDate` and **Title** only if `Email` is blank. Do not add an `OperatorName` column.
+   In `AOG_Shifts`, enter the operator's official name in **Title** (shown as OperatorName). The extension matches a row by `ShiftDate` and `Email`; when that is not found, it matches the same `ShiftDate` and **Title** only if `Email` is blank.
 
-5. Select **Create lists** again. It must report `All lists already exist; nothing to create.` and must not duplicate lists or columns.
-6. Add the current customer chats to `AOG_Groups`. The chat title must match the title shown in WhatsApp.
-7. In **Settings**, enter the coordination group and Outlook mailbox path, then publish the approved shared settings.
+4. Add the current customer chats to `AOG_Groups`. The chat title must match the title shown in WhatsApp.
+5. In **Settings**, enter the Outlook mailbox path and review the timing values, then select **Save settings**. Saving publishes every shared setting you changed to `AOG_Settings`, and the other machines download it.
 
 ## B. Operator: first-time setup
 
@@ -64,7 +62,7 @@ The pre-shift check does not block monitoring. It reports readiness and tells th
 1. When the popup changes to **RINGING**, read the customer chat name and Backup countdown.
 2. Select **ACCEPT — I'LL HANDLE IT** at the top.
 3. AOG Watcher stops the ring and records Accept.
-4. AOG Watcher notifies the partner machine with `HANDLED`. If SharePoint is unavailable, it sends the fallback tag to the coordination group first.
+4. AOG Watcher notifies the partner machine with `HANDLED`. If SharePoint is unavailable and a coordination group is configured, it sends the fallback tag there.
 5. Only after those steps, AOG Watcher opens the target customer chat.
 6. It verifies that the active chat title matches the target and that the target is not the coordination group.
 7. If the configured greeting is not blank, it places the greeting in the composer.
@@ -101,7 +99,7 @@ The pre-shift check does not block monitoring. It reports readiness and tells th
 ## G. SharePoint failure
 
 - Monitoring, ringing, Accept and escalation continue when SharePoint is unavailable.
-- Peer coordination falls back to the WhatsApp coordination group.
+- Peer coordination falls back to the WhatsApp coordination group only if one is configured. The Settings page no longer shows this field.
 - The fallback tag is sent before AOG Watcher opens a customer chat, so `[AOG-HANDLED]` cannot be left in a customer composer.
 - Queued data stays in the local outbox and retries after SharePoint reconnects.
 - To recover, open `https://trustanavn.sharepoint.com/sites/aog`, sign in with the company account, and recheck Settings.

@@ -3,7 +3,7 @@ Mạch: V5 - AOG Watcher 5.0
 Nối tiếp: V5-08
 Người làm: codex
 Người soát: claude
-Trạng thái: chờ-soát
+Trạng thái: đóng-đạt
 Vòng: 1/2
 
 ## ĐỀ BÀI
@@ -99,6 +99,17 @@ Kết quả: rỗng; PowerShell chỉ báo cảnh báo chuyển LF/CRLF, không 
 - Fallback theo tên lọc Email trống/null sau khi lấy đúng `ShiftDate + Title`, không đoán gần đúng.
 - Chưa chạy trên Chrome thật; phiếu chờ claude soát mã.
 - File đổi: `README.md`, `README.vi.md`, `handoff/MAP.md`, `handoff/STATE.md`, phiếu và kế hoạch V5-09, `lib/constants.js`, `lib/preflight.js`, `lib/shift_row.js`, `lib/team_sync.js`, `service_worker.js`, `settings.js`, `tests/v50_logic.test.js`, `tests/v50_service_worker.test.js`, `tests/v50_sharepoint.test.js`.
+
+Soát vòng 1 (claude, 2026-11-11):
+- Đã đọc diff `d9aa747..2c5a173` gồm `lib/constants.js`, `lib/preflight.js`, `lib/shift_row.js`, `lib/team_sync.js`, `service_worker.js`, `settings.js`, `popup.js` (đường hiện `note`). Chạy `npm run check` trên bản sao Linux từ `git archive HEAD`: MV3 đạt, 34/34 tệp, 259/259 test.
+- Đủ 6 yêu cầu: tên lấy theo `Title` tại Sign in & check và Start shift, có thông báo trong popup và Settings; `Title` chỉ nằm trong `create_fields`; thiếu dòng thì cảnh báo đỏ ở pre-shift check mà vẫn theo dõi và tạo dòng; fallback theo `ShiftDate + Title` chỉ nhận dòng có Email trống hoặc null (bỏ lọc `Email eq ''` cũng xử lý luôn rủi ro null trên SharePoint thật); Machine, Event, Signal dùng tên đã sửa vì cùng đọc `self_display_name`.
+- Kết quả: ĐẠT.
+- Ghi chú không chặn G1: trong `SP_TEST`, `reconcileRosterIdentity` nằm cùng khối try với phần kết nối. Nếu riêng bước tra AOG_Shifts lỗi, Sign in & check trả `ok: false` và Settings báo "Could not connect", dù đăng nhập đã thành công. Đề xuất bọc riêng bước tra roster, lỗi thì chỉ bỏ qua thông báo tên. Làm cùng phiếu kế tiếp hoặc khi user yêu cầu.
+- Ghi chú không chặn G2: Sign in & check trước 12:00 đối chiếu với dòng của đêm hôm trước (theo `shiftDate`). Cùng một người nên tên vẫn đúng; chỉ ghi lại để không ai bất ngờ.
+- `[RUNTIME UNVERIFIED]` Chưa chạy trên hai máy Chrome thật với AOG_Shifts thật.
+
+Kết quả đóng: ĐÓNG-ĐẠT phần mã.
+-- claude - 2026-11-11 11:35 +07
 
 ## HISTORY
 ### 2026-11-11

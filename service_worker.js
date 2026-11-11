@@ -8,7 +8,7 @@ import { hydrateRuntimeState, serializeRuntimeState } from "./lib/runtime_state.
 import { parseTag, serializeTag } from "./lib/peer_protocol.js";
 import { dispatchPeerOnce, PeerDispatchGuard } from "./lib/peer_dispatch_guard.js";
 import { markAlertSourceSeen, markSourceSeen } from "./lib/source_health.js";
-import { createSharePointClient, normalizeSiteUrl } from "./lib/sharepoint_client.js";
+import { createSharePointClient, normalizeSiteUrl, odataString } from "./lib/sharepoint_client.js";
 import { SP_LISTS } from "./lib/sp_schema.js";
 import {
   BLACKBOX_EVENTS, SIGNAL, checkSchema, ensureSchema, eventFields, executeOp, latestSignalId,
@@ -23,7 +23,7 @@ import { evaluatePeers, wasOfflineAt } from "./lib/heartbeat.js";
 import { classifyMiss } from "./lib/miss_cause.js";
 import { answerFollowup, createFollowup, tickFollowups } from "./lib/followup.js";
 import { applySharedSettings, changedKeys, publishSharedSettings, pullSharedSettings } from "./lib/shared_settings.js";
-import { shiftRowFallbackMatch, shiftRowFields, shiftRowMatch } from "./lib/shift_row.js";
+import { shiftDate, shiftRowFallbackMatch, shiftRowFields, shiftRowMatch } from "./lib/shift_row.js";
 import {
   appendEventLog, clearShiftBaseline, endShiftSession, getConfig, getEventLog, getKey, getMachineId,
   getRoleSession, getRuntimeState, getShiftBaseline, getShiftSessions, getSourceHealth, isAlertEscalated,
@@ -211,6 +211,51 @@ async function reconcileAudio() {
 
 // ---------- team sync (SharePoint) ----------
 async function identity() { return getKey(K.IDENTITY, { name: "", email: "" }); }
+
+async function reconcileRosterIdentity(config, { client = spClient(config), who = null, startedAt = new Date().toISOString() } = {}) {
+  who ??= await identity();
+  if (!who.email) {
+    who = await client.currentUser();
+    await setKey(K.IDENTITY, who);
+  }
+  const date = shiftDate(startedAt);
+  const select = ["Id", "Title", "ShiftDate", "Email"];
+  const byEmail = await client.items(SP_LISTS.SHIFTS, {
+    select,
+    filter: `ShiftDate eq ${odataString(date)} and Email eq ${odataString(who.email)}`,
+    orderby: "Id asc",
+    top: 1,
+  });
+  let row = byEmail[0] ?? null;
+  let matchedBy = row ? "email" : "";
+  if (!row && config.self_display_name) {
+    const byName = await client.items(SP_LISTS.SHIFTS, {
+      select,
+      filter: `ShiftDate eq ${odataString(date)} and Title eq ${odataString(config.self_display_name)}`,
+      orderby: "Id asc",
+      top: 20,
+    });
+    row = byName.find((candidate) => !String(candidate.Email ?? "").trim()) ?? null;
+    matchedBy = row ? "title" : "";
+  }
+
+  let nextConfig = config;
+  let note = "";
+  const rosterName = String(row?.Title ?? "").trim();
+  if (rosterName && rosterName !== config.self_display_name) {
+    nextConfig = await setConfig({ ...config, self_display_name: rosterName });
+    note = `Name updated to "${rosterName}" from tonight's roster`;
+  }
+  const status = {
+    checked: true,
+    on_roster: Boolean(row),
+    shift_date: date,
+    row_id: row?.Id ?? null,
+    matched_by: matchedBy,
+  };
+  await setKey(K.ROSTER_STATUS, status);
+  return { config: nextConfig, note, status };
+}
 
 async function queueWrite(op) {
   const config = await getConfig();
@@ -644,12 +689,31 @@ async function writeShiftRow(config, session, { ended = false } = {}) {
   const preflight = await getKey(K.PREFLIGHT, null);
   const name = config.self_display_name || who.name;
   const fields = shiftRowFields({ session, name, email: who.email, ready: preflight ? preflight.ready : null, events: await getEventLog(), ended });
+  delete fields.Title;
   const who2 = { session, name, email: who.email };
-  await queueWrite({ kind: "upsert", list: SP_LISTS.SHIFTS, match: shiftRowMatch(who2), fallback_match: shiftRowFallbackMatch(who2), claim_field: "Email", fields });
+  await queueWrite({
+    kind: "upsert",
+    list: SP_LISTS.SHIFTS,
+    match: shiftRowMatch(who2),
+    fallback_match: shiftRowFallbackMatch(who2),
+    claim_field: "Email",
+    fields,
+    create_fields: { Title: name },
+  });
 }
 
 async function startShift() {
-  const config = await getConfig();
+  let config = await getConfig();
+  let note = "";
+  if (spConfigured(config)) {
+    try {
+      const reconciled = await reconcileRosterIdentity(config);
+      config = reconciled.config;
+      note = reconciled.note;
+    } catch (error) {
+      await setKey(K.ROSTER_STATUS, { checked: false, on_roster: false, error: englishSharePointError(error.message) });
+    }
+  }
   const resolved = resolveCurrentRole(config);
   const initialRole = resolved?.role ?? ROLE.OFF;
   const shift = await startShiftSession({ role: initialRole, config });
@@ -665,6 +729,7 @@ async function startShift() {
   sendRebaselineToTabs();
   await writeShiftRow(config, session);
   syncTeam(config, { forceGroups: true }).then(() => enqueue(() => evaluateSelf()));
+  return { note };
 }
 
 async function endCurrentShift() {
@@ -783,6 +848,7 @@ async function refreshPreflight(config, evaluation = null) {
     config,
     sources: evaluation.sources,
     sharepoint: { configured: spConfigured(config), ok: Boolean(sp.ok), error: englishSharePointError(sp.error) },
+    roster: await getKey(K.ROSTER_STATUS, { checked: false, on_roster: false }),
     groupsSyncedAt: await getKey(K.TEAM_GROUPS_SYNCED_AT, 0),
     soundConfirmedAt: await getKey(K.SOUND_CONFIRMED_AT, 0),
     shiftStartedAt: Date.parse(state?.session?.started_at ?? "") || 0,
@@ -961,7 +1027,7 @@ async function handleMessage(message) {
     case MESSAGE.OPEN_ALERT_TARGET: return openAlertTarget(message.target, message.draft_text ?? "");
     case MESSAGE.OPEN_WHATSAPP_CHAT: return openWhatsAppChat(message.chat_name, message.draft_text ?? "");
     case MESSAGE.GET_ACTIVE_WHATSAPP_CHAT: return { chat: await getActiveWhatsAppChat() };
-    case MESSAGE.START_SHIFT: await startShift(); return {};
+    case MESSAGE.START_SHIFT: return startShift();
     case MESSAGE.END_SHIFT: await endCurrentShift(); return {};
     case MESSAGE.UPDATE_SHIFT_SLOTS: {
       const config = await getConfig();
@@ -989,7 +1055,8 @@ async function handleMessage(message) {
         const user = await client.currentUser();
         await setKey(K.IDENTITY, user);
         const missing = await checkSchema(client);
-        return { ok: true, user, missing, site: client.site };
+        const roster = missing.includes(SP_LISTS.SHIFTS) ? null : await reconcileRosterIdentity(config, { client, who: user });
+        return { ok: true, user, missing, site: client.site, note: roster?.note ?? "" };
       } catch (error) { return { ok: false, error: englishSharePointError(error.message) }; }
     }
     case MESSAGE.SP_SETUP: {

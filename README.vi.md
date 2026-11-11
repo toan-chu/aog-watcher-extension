@@ -47,19 +47,20 @@ Mọi dữ liệu nằm trên site SharePoint `https://trustanavn.sharepoint.com
 
 ## 3. Hai luật bắt buộc: Tên và Email
 
-Extension tìm dòng của bạn trong `AOG_Shifts` bằng **ShiftDate + Email**. Email không khớp thì máy không tìm thấy dòng trưởng ca đã xếp và **tự tạo thêm một dòng mới**. Giờ vào ca và số tin của bạn bị ghi vào dòng mới, nên bảng lương có hai dòng cho cùng một đêm.
+Extension tìm dòng đêm nay trong `AOG_Shifts` bằng **ShiftDate + Email**. `Title` (**OperatorName**) trên dòng đó là tên chính thức của người trực.
 
 **Luật 1: Email.** Cột `Email` phải đúng y địa chỉ Microsoft 365 bạn dùng để đăng nhập SharePoint.
 
 - Người trực: mở **Settings**, bấm **Sign in & check**. Dòng kết quả hiện `Signed in: Tên bạn <email của bạn>`. Địa chỉ trong ngoặc nhọn chính là email cần dùng. Gửi địa chỉ này cho trưởng ca một lần.
 - Trưởng ca: chép đúng địa chỉ đó vào cột `Email` ở mọi dòng của người đó. Không có dấu cách ở đầu hoặc cuối, không dùng Gmail cá nhân, không dùng địa chỉ phụ khác của công ty.
 
-**Luật 2: Tên.** Cột `Title` (trong `AOG_Shifts` hiện tên là **OperatorName**) phải đúng y **Display name** người trực nhập trong Settings.
+**Luật 2: Tên.** Trưởng ca điền tên chính thức vào `Title`. Khi người trực bấm **Sign in & check** hoặc **Start shift**, extension chép tên đó vào **Display name**. Nếu tên thay đổi, máy hiện `Name updated to "<tên>" from tonight's roster`.
 
 - Mỗi người dùng một tên tiếng Anh, không ai trùng tên ai.
-- Khi bấm **Start shift**, extension ghi Display name của bạn vào cột `Title` của dòng đó. Trưởng ca ghi "Leah" mà bạn nhập "leah t." thì tên trên dòng bị đổi thành "leah t.".
+- Extension không bao giờ ghi đè `Title` của dòng roster đã có.
+- **Display name** chỉ là tên dự phòng khi không có dòng. Lúc đó WATCHING báo `You are not on tonight's roster. Contact the shift lead.` Máy vẫn theo dõi, vẫn reo và tự tạo một dòng vận hành bằng Display name.
 
-Cách kiểm cả hai luật: sau lần **Start shift** đầu tiên, mở `AOG_Shifts`. Dòng đêm nay do trưởng ca xếp phải có giờ trong cột `CheckIn`, và không có thêm dòng nào khác mang tên bạn cho cùng đêm đó.
+Cách kiểm cả hai luật: bấm **Sign in & check**, kiểm tên hiện ra khớp `Title`, rồi bấm **Start shift**. Dòng trưởng ca đã chuẩn bị phải có giờ trong `CheckIn`, còn `Title` giữ nguyên.
 
 ## 4. Người trực: cài đặt lần đầu
 
@@ -230,7 +231,7 @@ Thiết lập **chung** giống nhau trên mọi máy. Trưởng ca sửa trên 
 
 | Cột | Ai điền | Ý nghĩa |
 |---|---|---|
-| Title (OperatorName) | Trưởng ca | Tên người trực (luật 2) |
+| Title (OperatorName) | Trưởng ca | Tên chính thức của người trực; extension đọc và không ghi đè giá trị đã có |
 | ShiftDate | Trưởng ca | Ngày buổi tối, `YYYY-MM-DD` |
 | Email | Trưởng ca | Địa chỉ Microsoft 365 (luật 1) |
 | Slot1Role, Slot2Role | Trưởng ca | Vai trò dự kiến từng slot; extension chưa đọc hai cột này |
@@ -242,6 +243,8 @@ Thiết lập **chung** giống nhau trên mọi máy. Trưởng ca sửa trên 
 | AcceptedCount | Máy | Số tin đã nhận |
 | MissCount | Máy | Số tin bị lỡ hoặc được báo là lỡ |
 | AcceptLog | Máy | Giờ và tên chat của từng lần Accept |
+
+Nếu không có dòng khớp `ShiftDate + Email` của đêm nay, extension cảnh báo nhưng vẫn theo dõi và tự tạo dòng. Chỉ dòng mới này lấy `Title` từ Display name trên máy.
 
 ### AOG_Log — nhật ký của máy (tự dọn sau 90 ngày)
 

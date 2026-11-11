@@ -51,19 +51,20 @@ All data lives on the SharePoint site `https://trustanavn.sharepoint.com/sites/a
 
 ## 3. The two rules: name and email
 
-The extension finds your row in `AOG_Shifts` by **ShiftDate + Email**. If the email does not match, it cannot find the row the shift lead prepared, so it **creates a second row** for you. Your check-in time and alert counts then go to the new row, and payroll shows two rows for the same night.
+The extension finds tonight's row in `AOG_Shifts` by **ShiftDate + Email**. The row's `Title` (**OperatorName**) is the official operator name.
 
 **Rule 1 — Email.** The `Email` column must be exactly the Microsoft 365 address you use to sign in to SharePoint.
 
 - Operator: open **Settings** and select **Sign in & check**. The result line shows `Signed in: Your Name <you@company>`. That address is your email. Send it to the shift lead once.
 - Shift lead: copy that address into `Email` for every row of that person. No spaces before or after, no personal Gmail address, no second company alias.
 
-**Rule 2 — Name.** The `Title` column (shown as **OperatorName** in `AOG_Shifts`) must be exactly the **Display name** the operator enters in Settings.
+**Rule 2 — Name.** The shift lead enters the official name in `Title`. When the operator selects **Sign in & check** or **Start shift**, the extension copies that name into **Display name** and shows `Name updated to "<name>" from tonight's roster` when it changes.
 
 - Each person uses one English name, and no two people share a name.
-- When you select **Start shift**, the extension writes your Display name into `Title` of your row. If the shift lead wrote "Leah" and you entered "leah t.", the row's name changes to "leah t.".
+- The extension never overwrites `Title` on an existing roster row.
+- **Display name** is only the fallback name when no row exists. In that case WATCHING shows `You are not on tonight's roster. Contact the shift lead.` Monitoring and alerts continue, and the extension creates an operational row using the Display name.
 
-Quick check for both rules: after your first **Start shift**, open `AOG_Shifts`. Tonight's row that the shift lead prepared must now show a time in `CheckIn`, and there must be no extra row with your name for the same night.
+Quick check for both rules: select **Sign in & check**, confirm the displayed name matches `Title`, then select **Start shift**. The prepared row must show a time in `CheckIn`, with its `Title` unchanged.
 
 ## 4. Operator: first-time setup
 
@@ -234,7 +235,7 @@ Change shared settings through **Settings → Publish shared settings**, not by 
 
 | Column | Filled by | Meaning |
 |---|---|---|
-| Title (OperatorName) | Shift lead | Operator name (rule 2) |
+| Title (OperatorName) | Shift lead | Official operator name. The extension reads it and never overwrites an existing value |
 | ShiftDate | Shift lead | Evening date, `YYYY-MM-DD` |
 | Email | Shift lead | Microsoft 365 address (rule 1) |
 | Slot1Role, Slot2Role | Shift lead | Planned role per slot; the extension does not read these yet |
@@ -246,6 +247,8 @@ Change shared settings through **Settings → Publish shared settings**, not by 
 | AcceptedCount | Extension | Messages accepted |
 | MissCount | Extension | Messages missed or reported missed |
 | AcceptLog | Extension | Time and chat of each Accept |
+
+If no row matches tonight's `ShiftDate + Email`, the extension warns the operator but keeps watching and creates a row. Only that newly created row gets its `Title` from the local Display name.
 
 ### AOG_Log — machine log (cleaned after 90 days)
 

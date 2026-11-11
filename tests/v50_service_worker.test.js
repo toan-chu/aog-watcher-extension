@@ -1,6 +1,7 @@
 // Behavioural test of service_worker.js with in-memory chrome.* and a fake SharePoint.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { serializeTag } from "../lib/peer_protocol.js";
+import { shiftDate } from "../lib/shift_row.js";
 
 function createChrome({ browserTabs = [], tabResponder = async () => ({ ok: true }), idleState = "idle" } = {}) {
   const store = {};
@@ -60,6 +61,10 @@ function fakeSharePoint() {
     const u = new URL(url);
     if (u.pathname.endsWith("/_api/contextinfo")) return json(200, { FormDigestValue: "d", FormDigestTimeoutSeconds: 1800 });
     if (u.pathname.endsWith("/_api/web/currentuser")) return json(200, { Title: "Hoài", Email: "hoai@acme.vn" });
+    const listRoot = decodeURIComponent(u.pathname).match(/getbytitle\('([^']+)'\)$/);
+    if (listRoot && method === "GET") return json(200, { Id: 1 });
+    const listFields = decodeURIComponent(u.pathname).match(/getbytitle\('([^']+)'\)\/fields$/);
+    if (listFields && method === "GET") return json(200, { value: [] });
     const match = decodeURIComponent(u.pathname).match(/getbytitle\('([^']+)'\)\/items(?:\((\d+)\))?$/);
     if (!match) return json(404, {});
     const [, title, id] = match;
@@ -95,7 +100,12 @@ async function boot({ config = {}, sharepoint = null, browserTabs = [], tabRespo
   await import("../service_worker.js");
   const send = (message) => new Promise((resolve) => { chrome._listeners.message[0](message, {}, resolve); });
   const alarm = (name) => chrome._listeners.alarm[0]({ name });
-  const settle = async () => { await send({ type: "GET_STATUS" }); };
+  const settle = async () => {
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await send({ type: "GET_STATUS" });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await send({ type: "GET_STATUS" });
+  };
   return { chrome, send, alarm, settle };
 }
 
@@ -103,6 +113,84 @@ beforeEach(() => { vi.useRealTimers(); });
 afterEach(() => { delete globalThis.chrome; });
 
 describe("service worker 5.0 behaviour", () => {
+  it("takes the operator name from tonight's email roster row on Sign in and Start shift", async () => {
+    const sp = fakeSharePoint();
+    sp.rows("AOG_Shifts").push({ Id: 1, ShiftDate: shiftDate(new Date().toISOString()), Title: "Leah", Email: "hoai@acme.vn" });
+    const { chrome, send, alarm, settle } = await boot({ config: { sharepoint_site_url: "https://acme.sharepoint.com/sites/AOG", self_display_name: "Lahe" }, sharepoint: sp });
+
+    const signedIn = await send({ type: "SP_TEST" });
+    expect(signedIn.note).toBe('Name updated to "Leah" from tonight\'s roster');
+    expect(chrome._store.aog_config.self_display_name).toBe("Leah");
+
+    chrome._store.aog_config.self_display_name = "Lahe";
+    const started = await send({ type: "START_SHIFT" });
+    expect(started.note).toBe('Name updated to "Leah" from tonight\'s roster');
+    expect(chrome._store.aog_config.self_display_name).toBe("Leah");
+    alarm("aog:tick"); await settle();
+  });
+
+  it("never overwrites an existing roster Title during Start shift or End shift", async () => {
+    const sp = fakeSharePoint();
+    const roster = { Id: 1, ShiftDate: shiftDate(new Date().toISOString()), Title: "Shift lead name", Email: "hoai@acme.vn" };
+    sp.rows("AOG_Shifts").push(roster);
+    const { send, alarm, settle } = await boot({ config: { sharepoint_site_url: "https://acme.sharepoint.com/sites/AOG", self_display_name: "Old name" }, sharepoint: sp });
+
+    await send({ type: "START_SHIFT" });
+    alarm("aog:tick"); await settle();
+    roster.Title = "Lead corrected";
+    await send({ type: "END_SHIFT" });
+    alarm("aog:tick"); await settle();
+
+    expect(roster.Title).toBe("Lead corrected");
+    expect(roster.CheckIn).toBeTruthy();
+    expect(roster.CheckOut).toBeTruthy();
+  });
+
+  it("warns when no roster row exists but still creates its row and rings", async () => {
+    const sp = fakeSharePoint();
+    const { send, alarm, settle } = await boot({ config: { sharepoint_site_url: "https://acme.sharepoint.com/sites/AOG" }, sharepoint: sp });
+
+    await send({ type: "START_SHIFT" });
+    await send({ type: "ALERT_DETECTED", alert: { source: "whatsapp", group_name: "AOG TEST", unread_count: 1 } });
+    alarm("aog:tick"); await settle();
+    const status = (await send({ type: "GET_STATUS" })).status;
+
+    expect(status.app_state).toBe("ALERTING");
+    expect(status.preflight.items.find((item) => item.key === "roster")).toMatchObject({
+      status: "fail",
+      hint: "You are not on tonight's roster. Contact the shift lead.",
+    });
+    expect(sp.rows("AOG_Shifts")).toEqual([expect.objectContaining({ Title: "Hoài", Email: "hoai@acme.vn" })]);
+  });
+
+  it("claims a matching name row whose Email is null instead of creating a duplicate", async () => {
+    const sp = fakeSharePoint();
+    sp.rows("AOG_Shifts").push({ Id: 1, ShiftDate: shiftDate(new Date().toISOString()), Title: "Hoài", Email: null });
+    const { send, alarm, settle } = await boot({ config: { sharepoint_site_url: "https://acme.sharepoint.com/sites/AOG" }, sharepoint: sp });
+
+    await send({ type: "START_SHIFT" });
+    alarm("aog:tick"); await settle();
+
+    expect(sp.rows("AOG_Shifts")).toHaveLength(1);
+    expect(sp.rows("AOG_Shifts")[0].Email).toBe("hoai@acme.vn");
+  });
+
+  it("uses the roster-corrected name in Machine, Event and peer Signal rows", async () => {
+    const sp = fakeSharePoint();
+    sp.rows("AOG_Shifts").push({ Id: 1, ShiftDate: shiftDate(new Date().toISOString()), Title: "Leah", Email: "hoai@acme.vn" });
+    const { send, alarm, settle } = await boot({ config: { sharepoint_site_url: "https://acme.sharepoint.com/sites/AOG", self_display_name: "Lahe" }, sharepoint: sp });
+
+    await send({ type: "START_SHIFT" });
+    await send({ type: "ALERT_DETECTED", alert: { source: "email", sender: "ops@airline.com", subject: "AOG TEST", message_id: "roster-name" } });
+    await send({ type: "ACCEPT_CURRENT" });
+    alarm("aog:tick"); await settle();
+    const rows = sp.rows("AOG_Log");
+
+    expect(rows.find((row) => row.RecordType === "Machine")?.OperatorName).toBe("Leah");
+    expect(rows.find((row) => row.RecordType === "Event" && row.EventType === "ACCEPT")?.OperatorName).toBe("Leah");
+    expect(JSON.parse(rows.find((row) => row.RecordType === "Signal" && row.EventType === "HANDLED")?.Detail ?? "{}").operator).toBe("Leah");
+  });
+
   it("unknown chat during shift rings and offers a decision; Ignore stops it for this machine only", async () => {
     const { chrome, send } = await boot();
     await send({ type: "START_SHIFT" });

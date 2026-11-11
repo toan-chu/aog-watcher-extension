@@ -61,6 +61,7 @@ describe("blind detector", () => {
 describe("preflight", () => {
   const good = {
     config: { self_display_name: "Hoài" },
+    roster: { checked: true, on_roster: true },
     sources: { whatsapp: { status: "ok" }, outlook: { status: "ok" } },
     sharepoint: { configured: true, ok: true },
     groupsSyncedAt: Date.now(),
@@ -89,6 +90,14 @@ describe("preflight", () => {
     const result = runPreflight({ ...good, peers: [] });
     expect(result.ready).toBe(true);
     expect(result.items.find((item) => item.key === "peer")).toMatchObject({ status: "warn", hint: "No backup on duty" });
+  });
+  it("blocks readiness when the signed-in operator is not on tonight's roster", () => {
+    const result = runPreflight({ ...good, roster: { checked: true, on_roster: false } });
+    expect(result.ready).toBe(false);
+    expect(result.items.find((item) => item.key === "roster")).toMatchObject({
+      status: "fail",
+      hint: "You are not on tonight's roster. Contact the shift lead.",
+    });
   });
 });
 
@@ -247,7 +256,7 @@ describe("night shift row", () => {
     const session = { shift_id: "s1", started_at: new Date(2026, 6, 29, 2, 40).toISOString() };
     expect(shiftRowMatch({ session, name: "B", email: "b@x.vn" })).toEqual({ ShiftDate: "2026-07-28", Email: "b@x.vn" });
     expect(shiftRowMatch({ session, name: "B", email: "" })).toEqual({ ShiftDate: "2026-07-28", Title: "B", Email: "" });
-    expect(shiftRowFallbackMatch({ session, name: "B", email: "b@x.vn" })).toEqual({ ShiftDate: "2026-07-28", Title: "B", Email: "" });
+    expect(shiftRowFallbackMatch({ session, name: "B", email: "b@x.vn" })).toEqual({ ShiftDate: "2026-07-28", Title: "B" });
     expect(shiftRowFallbackMatch({ session, name: "B", email: "" })).toBeNull();
   });
 });

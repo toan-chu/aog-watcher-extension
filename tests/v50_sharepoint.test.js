@@ -154,12 +154,12 @@ describe("team sync", () => {
       { Id: 5, Title: "A", ShiftDate: "2026-07-28", Email: "a@x.vn", Slot1Role: "Primary" },
     ] });
     let cache = {};
-    cache = await executeOp(client, { kind: "upsert", list: SP_LISTS.SHIFTS, match: { ShiftDate: "2026-07-28", Email: "a@x.vn" }, fields: { CheckIn: "t-a", AcceptedCount: 2 } }, cache);
-    cache = await executeOp(client, { kind: "upsert", list: SP_LISTS.SHIFTS, match: { ShiftDate: "2026-07-28", Email: "b@x.vn" }, fields: { Title: "B", CheckIn: "t-b", AcceptedCount: 1 } }, cache);
+    cache = await executeOp(client, { kind: "upsert", list: SP_LISTS.SHIFTS, match: { ShiftDate: "2026-07-28", Email: "a@x.vn" }, fields: { CheckIn: "t-a", AcceptedCount: 2 }, create_fields: { Title: "Wrong" } }, cache);
+    cache = await executeOp(client, { kind: "upsert", list: SP_LISTS.SHIFTS, match: { ShiftDate: "2026-07-28", Email: "b@x.vn" }, fields: { CheckIn: "t-b", AcceptedCount: 1 }, create_fields: { Title: "B" } }, cache);
     cache = await executeOp(client, { kind: "upsert", list: SP_LISTS.SHIFTS, match: { ShiftDate: "2026-07-28", Email: "b@x.vn" }, fields: { CheckOut: "t-b2", Hours: 4.5 } }, cache);
     const rows = client.lists.get(SP_LISTS.SHIFTS);
     expect(rows).toHaveLength(2);
-    expect(rows.find((row) => row.Email === "a@x.vn")).toMatchObject({ Id: 5, Slot1Role: "Primary", CheckIn: "t-a", AcceptedCount: 2 });
+    expect(rows.find((row) => row.Email === "a@x.vn")).toMatchObject({ Id: 5, Title: "A", Slot1Role: "Primary", CheckIn: "t-a", AcceptedCount: 2 });
     expect(rows.find((row) => row.Email === "b@x.vn")).toMatchObject({ Title: "B", ShiftDate: "2026-07-28", CheckIn: "t-b", CheckOut: "t-b2", Hours: 4.5, AcceptedCount: 1 });
   });
 
@@ -168,7 +168,7 @@ describe("team sync", () => {
       { Id: 5, Title: "Leah", ShiftDate: "2026-11-10", Email: "other.leah@x.vn", CheckIn: "theirs" },
       { Id: 6, Title: "Leah", ShiftDate: "2026-11-10", Email: "", Slot1Role: "Primary" },
     ] });
-    const op = (fields) => ({ kind: "upsert", list: SP_LISTS.SHIFTS, match: { ShiftDate: "2026-11-10", Email: "leah@x.vn" }, fallback_match: { ShiftDate: "2026-11-10", Title: "Leah", Email: "" }, claim_field: "Email", fields });
+    const op = (fields) => ({ kind: "upsert", list: SP_LISTS.SHIFTS, match: { ShiftDate: "2026-11-10", Email: "leah@x.vn" }, fallback_match: { ShiftDate: "2026-11-10", Title: "Leah" }, claim_field: "Email", fields });
     let cache = await executeOp(client, op({ Title: "Leah", Email: "leah@x.vn", CheckIn: "t1" }), {});
     cache = await executeOp(client, op({ CheckOut: "t2", Hours: 4 }), cache);
     await executeOp(client, op({ AcceptedCount: 3 }), {});   // no cache (another session): now found by email

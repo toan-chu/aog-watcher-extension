@@ -110,12 +110,13 @@ byId("spTest").addEventListener("click", () => busy(byId("spTest"), async () => 
   }
   const missing = response.missing ?? [];
   const who = `${response.user?.name ?? ""} <${response.user?.email ?? ""}>`;
-  if (missing.length) setResult(`Signed in: ${who}\nThe site is missing ${missing.length} lists. Ask the team lead to select "Create lists".`, "bad");
+  const rosterNotice = response.note ? `\n${response.note}` : "";
+  if (missing.length) setResult(`Signed in: ${who}\nThe site is missing ${missing.length} lists. Ask the team lead to select "Create lists".${rosterNotice}`, "bad");
   else {
-    setResult(`Signed in: ${who}\nAll lists are available. Fetching shared groups and settings…`, "ok");
+    setResult(`Signed in: ${who}\nAll lists are available. Fetching shared groups and settings…${rosterNotice}`, "ok");
     await chrome.runtime.sendMessage({ type: "SETTINGS_UPDATED" });
     await load();
-    setResult(`Signed in: ${who}\nSharePoint connected. Shared groups and settings were fetched.`, "ok");
+    setResult(`Signed in: ${who}\nSharePoint connected. Shared groups and settings were fetched.${rosterNotice}`, "ok");
   }
 }));
 

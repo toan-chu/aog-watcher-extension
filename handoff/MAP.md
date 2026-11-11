@@ -48,7 +48,7 @@ Popup / Settings --------------------------/    |  state machine (giữ từ 4.3
 - Không bao giờ chặn việc canh tin vì checklist chưa đạt; checklist chỉ quyết định trạng thái "Sẵn sàng" gửi cho máy kia.
 - Mọi ghi SharePoint đi qua outbox (lưu local, thử lại theo alarm) để hộp đen không mất khi mạng lỗi. Ngoại lệ: việc dọn dòng cũ của AOG_Log gọi thẳng, vì lỗi thì hôm sau tự chạy lại.
 - Bảng do người sửa (AOG_Groups) chỉ bắt buộc cột Title; thiếu cột phụ như Active thì máy vẫn đọc.
-- Mỗi máy chỉ ghi dòng AOG_Shifts của chính người trực trên máy đó (khớp theo ShiftDate và Email), không có dòng nào hai máy cùng ghi.
+- Mỗi máy chỉ ghi dòng AOG_Shifts của chính người trực trên máy đó (khớp theo ShiftDate và Email; fallback ShiftDate + Title chỉ nhận dòng có Email trống), không có dòng nào hai máy cùng ghi. Title của dòng có sẵn là tên chuẩn và không bị máy ghi đè; Display name chỉ đặt Title khi máy buộc phải tạo dòng mới.
 - Nhóm lạ vẫn reo; "Bỏ qua" chỉ có hiệu lực trên máy bấm.
 - Preset không bao giờ chép tên, vai trò/slot, test mode, dry-run, nhóm bỏ qua, machine id.
 

@@ -2,7 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { serializeTag } from "../lib/peer_protocol.js";
 
-function createChrome({ browserTabs = [], tabResponder = async () => ({ ok: true }) } = {}) {
+function createChrome({ browserTabs = [], tabResponder = async () => ({ ok: true }), idleState = "idle" } = {}) {
   const store = {};
   const listeners = { message: [], alarm: [], installed: [], idle: [] };
   const alarms = new Map();
@@ -38,7 +38,7 @@ function createChrome({ browserTabs = [], tabResponder = async () => ({ ok: true
     },
     notifications: { create: async (id, opts) => notifications.push({ id, ...opts }), clear: async () => true },
     offscreen: { createDocument: async () => {} },
-    idle: { queryState: (_t, cb) => cb("idle"), onStateChanged: { addListener: (fn) => listeners.idle.push(fn) } },
+    idle: { queryState: (_t, cb) => cb(idleState), onStateChanged: { addListener: (fn) => listeners.idle.push(fn) } },
     tabs: {
       query: async () => browserTabs,
       sendMessage: async (tabId, message) => { tabMessages.push({ tabId, message }); return tabResponder(message, tabId); },
@@ -85,9 +85,9 @@ function fakeSharePoint() {
   return { lists, rows, fetch };
 }
 
-async function boot({ config = {}, sharepoint = null, browserTabs = [], tabResponder } = {}) {
+async function boot({ config = {}, sharepoint = null, browserTabs = [], tabResponder, idleState = "idle" } = {}) {
   vi.resetModules();
-  const chrome = createChrome({ browserTabs, tabResponder });
+  const chrome = createChrome({ browserTabs, tabResponder, idleState });
   globalThis.chrome = chrome;
   if (sharepoint) globalThis.fetch = sharepoint.fetch;
   const { DEFAULT_CONFIG } = await import("../lib/constants.js");
@@ -195,6 +195,28 @@ describe("service worker 5.0 behaviour", () => {
     expect(status.recent_events.some((event) => event.event_type === "SHIFT_HANDOFF_SENT" && event.alert_id === "handoff")).toBe(true);
   });
 
+  it("rings from a new SharePoint ESCALATED signal even when the alert was never detected locally", async () => {
+    const sp = fakeSharePoint();
+    const { send, alarm, settle } = await boot({ config: { sharepoint_site_url: "https://acme.sharepoint.com/sites/AOG", test_role: "backup" }, sharepoint: sp });
+    alarm("aog:tick"); await settle();
+    await send({ type: "START_SHIFT" });
+    const timestamp = new Date().toISOString();
+    sp.rows("AOG_Log").push({
+      Id: 900, RecordType: "Signal", EventType: "ESCALATED", AlertId: "from-peer", Source: "whatsapp",
+      MachineId: "peer", At: timestamp,
+      Detail: JSON.stringify({ timestamp, group: "AOG TEST", sender: "Customer One", subject: "AOG A321", unread_count: 3 }),
+    });
+
+    alarm("aog:tick"); await settle();
+    const status = (await send({ type: "GET_STATUS" })).status;
+
+    expect(status.app_state).toBe("ALERTING");
+    expect(status.current_alert).toMatchObject({
+      alert_id: "from-peer", source: "whatsapp", group_name: "AOG TEST",
+      sender: "Customer One", subject: "AOG A321", unread_count: 3,
+    });
+  });
+
   it("Accept creates a follow-up question; missing tabs raise a red source alert on tick", async () => {
     const { chrome, send, alarm, settle } = await boot();
     await send({ type: "START_SHIFT" });
@@ -292,7 +314,7 @@ describe("service worker 5.0 behaviour", () => {
   it("focused exact WhatsApp chat Accepts without navigation or greeting", async () => {
     const sp = fakeSharePoint();
     const browserTabs = [{ id: 7, windowId: 3, url: "https://web.whatsapp.com/" }];
-    const { chrome, send, alarm, settle } = await boot({ config: { sharepoint_site_url: "https://acme.sharepoint.com/sites/AOG" }, sharepoint: sp, browserTabs });
+    const { chrome, send, alarm, settle } = await boot({ config: { sharepoint_site_url: "https://acme.sharepoint.com/sites/AOG" }, sharepoint: sp, browserTabs, idleState: "active" });
     alarm("aog:tick"); await settle();
     await send({ type: "START_SHIFT" });
     await send({ type: "CONTENT_HEALTH", source: "whatsapp", connected: true, stats: { rows_seen: 2 } });
@@ -312,7 +334,7 @@ describe("service worker 5.0 behaviour", () => {
 
   it("opening one of three chats Accepts only that queued alert", async () => {
     const sp = fakeSharePoint();
-    const { send, alarm, settle } = await boot({ config: { sharepoint_site_url: "https://acme.sharepoint.com/sites/AOG" }, sharepoint: sp });
+    const { send, alarm, settle } = await boot({ config: { sharepoint_site_url: "https://acme.sharepoint.com/sites/AOG" }, sharepoint: sp, idleState: "active" });
     alarm("aog:tick"); await settle();
     await send({ type: "START_SHIFT" });
     await send({ type: "CONTENT_HEALTH", source: "whatsapp", connected: true, stats: { rows_seen: 3 } });
@@ -342,8 +364,35 @@ describe("service worker 5.0 behaviour", () => {
     expect(ignored.status.followups).toEqual([]);
   });
 
+  it.each(["idle", "locked"])("does not Accept a focused chat while the computer is %s", async (idleState) => {
+    const { send, alarm, settle } = await boot({ idleState });
+    await send({ type: "START_SHIFT" });
+    await send({ type: "CONTENT_HEALTH", source: "whatsapp", connected: true, stats: { rows_seen: 2 } });
+    alarm("aog:tick"); await settle();
+    await send({ type: "ALERT_DETECTED", alert: { alert_id: "a1", source: "whatsapp", group_name: "AOG ONE", unread_count: 1 } });
+
+    const observed = await send({ type: "WHATSAPP_READ_OBSERVED", focused_active_chat: "AOG ONE", visible_read_chats: [] });
+
+    expect(observed.status.app_state).toBe("ALERTING");
+    expect(observed.status.current_alert.alert_id).toBe("a1");
+    expect(observed.status.followups).toEqual([]);
+  });
+
+  it("still Accepts confirmed unread-zero row evidence while the computer is idle", async () => {
+    const { send, alarm, settle } = await boot({ idleState: "idle" });
+    await send({ type: "START_SHIFT" });
+    await send({ type: "CONTENT_HEALTH", source: "whatsapp", connected: true, stats: { rows_seen: 2 } });
+    alarm("aog:tick"); await settle();
+    await send({ type: "ALERT_DETECTED", alert: { alert_id: "a1", source: "whatsapp", group_name: "AOG ONE", unread_count: 1 } });
+
+    const accepted = await send({ type: "WHATSAPP_READ_OBSERVED", focused_active_chat: "", visible_read_chats: ["AOG ONE"] });
+
+    expect(accepted.status.app_state).toBe("IDLE");
+    expect(accepted.status.followups.map((item) => item.alert_id)).toEqual(["a1"]);
+  });
+
   it("lets Backup auto-Accept an escalated alert after the exact chat opens", async () => {
-    const { send, alarm, settle } = await boot({ config: { test_role: "backup" } });
+    const { send, alarm, settle } = await boot({ config: { test_role: "backup" }, idleState: "active" });
     await send({ type: "START_SHIFT" });
     await send({ type: "CONTENT_HEALTH", source: "whatsapp", connected: true, stats: { rows_seen: 2 } });
     alarm("aog:tick"); await settle();

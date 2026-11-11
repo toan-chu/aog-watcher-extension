@@ -80,6 +80,24 @@ describe("state machine", () => {
     expect(result.effects).toEqual([]);
   });
   it("backup delay starts wake", () => { const queued = reduce(createInitialState({ role: "backup" }), detected()).state; const result = reduce(queued, { type: "TIMER_BACKUP_DELAY", payload: { alert_id: "a", timing } }); expect(result.state.app_state).toBe("ALERTING"); expect(has(result, "START_WAKE")).toBe(true); });
+  it.each(["primary", "backup"])("peer escalation creates and wakes an unseen alert for on-duty %s", (role) => {
+    const result = reduce(createInitialState({ role }), {
+      type: "PEER_ESCALATED_RECEIVED",
+      payload: {
+        alert_id: "from-peer", source: "whatsapp", timestamp: "2026-11-11T02:27:00.000Z",
+        group: "AOG TEST", sender: "Customer One", subject: "AOG A321", unread_count: "3", timing,
+      },
+    });
+
+    expect(result.state.app_state).toBe("ALERTING");
+    expect(result.state.current_alert).toMatchObject({
+      alert_id: "from-peer", source: "whatsapp", detected_at: "2026-11-11T02:27:00.000Z",
+      group_name: "AOG TEST", sender: "Customer One", subject: "AOG A321", unread_count: 3,
+    });
+    expect(result.state.queue.all()).toHaveLength(1);
+    expect(result.effects).toContainEqual(expect.objectContaining({ type: "START_WAKE", alert: expect.objectContaining({ alert_id: "from-peer", group_name: "AOG TEST" }) }));
+    expect(result.effects.some((effect) => effect.payload?.event_type === "PEER_ESCALATED_RECEIVED_NO_MATCH")).toBe(false);
+  });
   it("peer escalation wakes backup", () => { const queued = reduce(createInitialState({ role: "backup" }), detected()).state; const result = reduce(queued, { type: "PEER_ESCALATED_RECEIVED", payload: { alert_id: "a", source: "whatsapp", timestamp: alert().detected_at, timing } }); expect(result.state.app_state).toBe("ALERTING"); });
   it("peer shift handoff wakes an on-duty Primary", () => { const queued = reduce(createInitialState({ role: "primary" }), detected()).state; queued.app_state = "IDLE"; queued.current_alert = null; queued.queue.mark("a", "QUEUED"); const result = reduce(queued, { type: "PEER_ESCALATED_RECEIVED", payload: { alert_id: "a", timing } }); expect(result.state.app_state).toBe("ALERTING"); });
   it("peer HANDLED stops matching active wake", () => { const active = reduce(createInitialState({ role: "primary" }), detected()).state; const result = reduce(active, { type: "PEER_HANDLED_RECEIVED", payload: { alert_id: "a", source: "whatsapp", timestamp: alert().detected_at } }); expect(result.state.app_state).toBe("IDLE"); expect(has(result, "STOP_WAKE")).toBe(true); expect(result.effects).toContainEqual(expect.objectContaining({ payload: expect.objectContaining({ handled_by: "partner" }) })); });

@@ -1,7 +1,7 @@
-Cập nhật: 2026-11-11 09:50 +07 - bởi codex
+Cập nhật: 2026-11-11 10:16 +07 - bởi codex
 
 ## Việc đang mở
-V5-07 - người làm codex - chờ-user - vòng 2/2 (quy ước Title/Email của AOG_Shifts đã sửa; L2 phía nhận vẫn chờ user chọn phương án)
+V5-08 - người làm codex - chờ-soát - vòng 1/2 (ESCALATED chưa có đã reo; focus chỉ Accept khi máy active; chờ claude soát)
 V5-06 - người làm codex - chờ-soát - vòng 2/2 (mã đạt, chờ chạy thử hai máy thật)
 V5-05 - người làm claude - chờ-soát - vòng 1/2 - mã đạt, KS-2..KS-7 chờ hai máy thật
 RF-04 - người làm claude - chờ-soát - vòng 1/2
@@ -15,6 +15,7 @@ V5-02 - người làm claude - chờ-soát - vòng 2/2
 - V5-01 (5.0.0) và V5-02 (popup nền trắng) đã code xong, còn thiếu phép thử thật trên hai máy Windows và chưa có bên soát.
 
 ## Vừa đóng
+V5-07 - đóng-hỏng - 2026-11-11 (user chọn phương án A; phần còn thiếu chuyển sang V5-08)
 V5-03 - đóng-đạt - 2026-11-10
 V5-04 - đóng-đạt - 2026-11-10
 RF-02 - đóng-đạt - 2026-09-28

@@ -4,7 +4,7 @@ Nối tiếp: V5-06
 Người làm: codex
 Người soát: claude
 Hạn: user và Ethan chạy thử ngày 2026-11-11 qua nhóm test
-Trạng thái: chờ-user
+Trạng thái: đóng-hỏng
 Vòng: 2/2
 
 ## ĐỀ BÀI
@@ -204,6 +204,20 @@ Kết quả vòng 2: HỎNG (L2 phía nhận). Đã hai lần HỎNG nên theo m
 - File bổ sung: `lib/shift_row.js`, `lib/sp_schema.js`, `tests/v50_logic.test.js`, `tests/v50_sharepoint.test.js`, `tests/v50_service_worker.test.js`, `README.md`, `docs/SOP.md`, phiếu và `handoff/STATE.md`.
 
 -- codex - 2026-11-11 09:50 +07
+
+Soát bổ sung AOG_Shifts (commit `078de63`, bản sao sạch Linux): `npm run check` đạt MV3, 34/34 tệp, 247/247 test.
+- Mục 1 đạt: `OperatorName` không còn trong schema AOG_Shifts; vẫn còn trong AOG_Log. Khớp với file xuất cấu trúc từ SharePoint ngày 2026-11-11 (AOG_Shifts không có cột `OperatorName`).
+- Mục 2 đạt: `Title` là tên hiển thị. Làm hỏng thử: trả `Title` về dạng "ngày + tên" → 2 test đỏ.
+- Mục 3 đạt: khớp trước theo `ShiftDate` và `Email`.
+- Mục 4 đạt trong phép thử: tắt cả điều kiện Email trống ở hai chỗ → 1 test đỏ. README và SOP đã nêu đúng cách khớp.
+- Mục 4 và 5 có rủi ro trên SharePoint thật, `[RUNTIME UNVERIFIED]`: `shiftRowMatch` và `shiftRowFallbackMatch` đưa `Email: ""` vào điều kiện, nên `upsertByMatch` sinh bộ lọc `... and Email eq ''`. SharePoint lưu ô chữ để trống là null, và bộ lọc so với chuỗi rỗng thường không trả về các dòng đó (phải dùng `eq null`). Client giả trong phép thử so `String(row.Email) === ""` với dòng có sẵn `Email: ""` nên không lộ ra. Nếu đúng như vậy, máy không bao giờ nhận được dòng trưởng ca xếp sẵn theo tên và sẽ tạo dòng thứ hai; máy chưa biết email còn tạo thêm dòng mỗi lần mất bộ nhớ đệm mã dòng. Đề nghị: không đưa `Email` vào bộ lọc; lọc theo `ShiftDate` và `Title`, rồi kiểm ô `Email` trống ở phía máy qua `claimField` (nhánh này đã có sẵn trong `upsertByMatch`); thêm phép thử với dòng không có thuộc tính `Email` và với `Email: null`.
+Kết quả soát bổ sung: phần mã theo bảy mục đạt trong phép thử; còn một rủi ro bộ lọc Email trống cần sửa trước khi thử sổ ca trên SharePoint thật. Trạng thái phiếu giữ `chờ-user`.
+-- claude - 2026-11-11 02:53 UTC
+
+Quyết định của user (2026-11-11): chọn phương án A. V5-07 đóng theo trần hai vòng soát; hai phần còn thiếu được chuyển sang phiếu nối tiếp V5-08. Phần AOG_Shifts giữ nguyên theo commit `078de63` vì user đã điền đủ email cho mọi dòng và tên nhân viên không trùng.
+
+Kết quả: ĐÓNG-HỎNG; phần đã đạt được giữ lại, phần chưa đạt tiếp tục ở V5-08.
+-- codex - 2026-11-11 10:05 +07
 
 ## HISTORY
 ### 2026-11-10

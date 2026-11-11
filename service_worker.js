@@ -365,7 +365,7 @@ async function handleSignal(signal, config) {
   seenSignalKeys.add(dedupe);
   await hydrate();
   await syncSessionRole(config);
-  const payload = { alert_id: signal.alert_id, source: signal.source, timestamp: signal.payload.timestamp ?? signal.sent_at, timing: timing(config) };
+  const payload = { ...signal.payload, alert_id: signal.alert_id, source: signal.source, timestamp: signal.payload.timestamp ?? signal.sent_at, timing: timing(config) };
   if (signal.type === SIGNAL.HANDLED) {
     await markAlertPeerHandled(signal.alert_id);
     await dispatch({ type: "PEER_HANDLED_RECEIVED", payload });
@@ -848,10 +848,12 @@ async function handleWhatsAppReadObservation(message) {
   const evaluation = await getKey(K.SOURCE_EVAL, { sources: {} });
   if (evaluation.sources?.whatsapp?.status !== SOURCE_STATUS.OK) return { accepted: 0 };
   await hydrate();
-  const evidence = [message.focused_active_chat, ...(Array.isArray(message.visible_read_chats) ? message.visible_read_chats : [])].filter(Boolean);
+  const config = await getConfig();
+  const focusedChat = message.focused_active_chat && await queryIdleState(config) === "active" ? message.focused_active_chat : "";
+  const evidence = [focusedChat, ...(Array.isArray(message.visible_read_chats) ? message.visible_read_chats : [])].filter(Boolean);
   const alerts = state.queue.actionable().filter((alert) => alert.source === ALERT_SOURCE.WHATSAPP && evidence.some((name) => isSameGroupName(name, alert.group_name)));
   for (const alert of alerts) await dispatch({ type: "ALERT_ACCEPT_BY_ID", payload: { alert_id: alert.alert_id, method: "open_chat" } });
-  if (alerts.length) await finishAccepted(alerts, await getConfig());
+  if (alerts.length) await finishAccepted(alerts, config);
   return { accepted: alerts.length };
 }
 

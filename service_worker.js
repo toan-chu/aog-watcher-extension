@@ -24,6 +24,7 @@ import { classifyMiss } from "./lib/miss_cause.js";
 import { answerFollowup, createFollowup, tickFollowups } from "./lib/followup.js";
 import { applySharedSettings, changedKeys, publishSharedSettings, pullSharedSettings } from "./lib/shared_settings.js";
 import { shiftDate, shiftRowFallbackMatch, shiftRowFields, shiftRowMatch } from "./lib/shift_row.js";
+import { ensureSharePointOriginRule } from "./lib/sharepoint_origin_rule.js";
 import {
   appendEventLog, clearShiftBaseline, endShiftSession, getConfig, getEventLog, getKey, getMachineId,
   getRoleSession, getRuntimeState, getShiftBaseline, getShiftSessions, getSourceHealth, isAlertEscalated,
@@ -981,6 +982,7 @@ chrome.runtime.onInstalled.addListener(() => enqueue(async () => {
 }));
 chrome.runtime.onStartup?.addListener(() => { ensureTickAlarm(); });
 ensureTickAlarm();
+ensureSharePointOriginRule().catch((error) => console.warn("AOG: could not register the SharePoint request rule", error));
 
 async function handleMessage(message) {
   switch (message.type) {

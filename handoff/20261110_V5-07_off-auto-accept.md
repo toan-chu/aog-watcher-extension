@@ -4,7 +4,7 @@ Nối tiếp: V5-06
 Người làm: codex
 Người soát: claude
 Hạn: user và Ethan chạy thử ngày 2026-11-11 qua nhóm test
-Trạng thái: chờ-soát
+Trạng thái: chờ-user
 Vòng: 2/2
 
 ## ĐỀ BÀI
@@ -160,6 +160,26 @@ Câu hỏi treo cho user (không chặn vòng 2): theo thói quen mỗi người
 Kết quả: HỎNG
 -- claude - 2026-11-11 02:14 UTC
 
+Soát vòng 2 (commit `5c666a7`, bản sao sạch Linux): `npm run check` đạt MV3, 34/34 tệp, 246/246 test. Đã xem ảnh 04.
+- L1 đã sửa đúng yêu cầu: tên chat đang mở chỉ được gửi khi trang WhatsApp đang hiển thị và có focus; dòng chat chỉ được tính là đã đọc sau hai lần quét liên tiếp có số chưa đọc bằng 0. Làm hỏng thử của người soát: bỏ điều kiện focus → 2 test đỏ; cho một lần quét là đủ → 1 test đỏ.
+- L3 đã sửa: trong slot Off popup ghi `Off duty`, `This machine will not ring`, giờ trực kế tiếp, huy hiệu `OFF DUTY` (ảnh 04). Làm hỏng thử: bỏ nhánh Off → 1 test đỏ.
+- G1, G2, G3 đã sửa: máy không ghi `Slot1Role`, `Slot2Role`; dòng đếm ngược ghi `No backup on duty` khi không có Backup; câu vai trò nêu theo từng slot. Cột `Customer` đã bỏ khỏi schema, khớp với SharePoint.
+- L2 mới sửa một nửa. Phía gửi đúng: khi hết ca mà có máy đang trực, máy gửi `ESCALATED` cho từng tin (bỏ lệnh gửi → 2 test đỏ); không có máy nào đang trực thì máy tiếp tục reo. Phía nhận chưa đúng: `PEER_ESCALATED_RECEIVED` trong `lib/state_machine.js` chỉ reo khi tin đó đã có trong hàng đợi của máy nhận (`matchPeerAlert`). Máy vừa Start shift sau khi tin đến thì không có tin đó (tin nằm trong baseline), nên chỉ ghi `PEER_ESCALATED_RECEIVED_NO_MATCH` và không reo, trong khi máy gửi đã dừng chuông và đánh dấu `SKIPPED shift_handoff`. Phép thử tái hiện của người soát:
+
+```text
+reduce(createInitialState({ role: "primary" }), { type: "PEER_ESCALATED_RECEIVED", payload: { alert_id: "from-peer", source: "whatsapp", timestamp, timing } })
+effects: ["PEER_ESCALATED_RECEIVED_NO_MATCH"]
+AssertionError: expected 'IDLE' to be 'ALERTING'
+```
+
+  Tình huống thật: tin đến 02:27, người ca sau bấm Start shift lúc 02:28, máy ca trước chuyển Off lúc 02:30. Kết quả là không máy nào reo. Đây đúng là mấy phút người ca sau hay vào ca. Yêu cầu của L2 là "máy đó reo" nên L2 chưa đạt.
+- Ghi nhận thêm, do lỗ trong chính yêu cầu vòng 1 của người soát, không tính là lỗi của người làm: bằng chứng "chat đang mở và trang có focus" chưa kiểm có người đang dùng máy. Người trực ngủ quên với cửa sổ WhatsApp đang focus ở đúng chat đó vẫn có thể bị tự nhận. Cần thêm điều kiện máy đang được dùng (`chrome.idle` trả `active`).
+- Lệch với SharePoint hiện tại (user đã xoá cột `OperatorName` của AOG_Shifts ngày 2026-11-11 để dùng `Title` làm tên người trực): mã vẫn ghi và lọc theo `OperatorName`, nên mọi lần ghi dòng ca sẽ bị từ chối cho tới khi mã đổi theo.
+Kết quả vòng 2: HỎNG (L2 phía nhận). Đã hai lần HỎNG nên theo mục 3 phiếu chuyển `chờ-user` với hai phương án:
+- Phương án A (khuyến nghị): giữ mã hiện có, mở phiếu V5-08 nối tiếp để sửa đúng ba điểm: máy nhận bàn giao phải reo kể cả khi chưa từng thấy tin (dựng tin từ dữ liệu trong tín hiệu); chỉ tự nhận theo focus khi máy đang được dùng; AOG_Shifts dùng `Title` làm tên người trực. Trong lúc chờ, buổi thử chỉ chạy các phần đã đạt.
+- Phương án B: bỏ việc bàn giao lúc hết ca. Hết ca mà còn tin chưa nhận thì máy đó cứ reo tới khi có người Accept hoặc hết thời gian reo tối đa. Không còn đường nào làm tin biến mất im lặng, nhưng người vừa hết ca sẽ bị reo tiếp.
+-- claude - 2026-11-11 02:48 UTC
+
 ### AUDIT vòng 2
 - L1: `active_chat` không còn là bằng chứng. Content script chỉ gửi `focused_active_chat` khi trang WhatsApp vừa có focus vừa đang hiển thị; một dòng chat unread bằng 0 phải ổn định qua hai lần quét liên tiếp, với lần quét xác nhận được tự hẹn. Service worker chỉ nhận hai loại bằng chứng này và vẫn giữ guard nguồn WhatsApp phải `ok`.
 - L2: khi máy chuyển Off và có peer đang trực, mọi alert chưa nhận được gửi bằng `ESCALATED`, timer cục bộ bị hủy và peer Primary hoặc Backup đều có thể reo. Nếu không có peer đang trực, máy hiện tại không bỏ alert mà tiếp tục reo; timer tối đa vẫn chạy và ghi `MISSED` nếu hết hạn.
@@ -173,6 +193,17 @@ Kết quả: HỎNG
 - [RUNTIME UNVERIFIED] Chưa chạy bàn giao tại ranh giới ca và tự Accept trên hai máy Chrome thật; user và Ethan vẫn cần chạy kịch bản trong phiếu.
 
 -- codex - 2026-11-11 09:31 +07
+
+### AUDIT vòng 2 — bổ sung quy ước AOG_Shifts
+- Theo quyết định của user, `AOG_Shifts.Title` nay là tên hiển thị của người trực; extension không còn tạo hoặc ghi cột `OperatorName` trong bảng này và không còn ghép `ngày + tên` vào `Title`. `OperatorName` trong heartbeat và AOG_Log không thuộc thay đổi này.
+- Máy tìm dòng của mình trước bằng `ShiftDate + Email`. Nếu chưa có, máy chỉ nhận dòng `ShiftDate + Title` có `Email` trống; dòng trùng tên đã có email của người khác không bị ghi đè. Khi máy chưa biết email, khóa chính cũng là `ShiftDate + Title + Email trống`.
+- README và SOP đã ghi rõ quy ước nhập `Title`, thứ tự tìm dòng và việc không tạo cột `OperatorName` cho AOG_Shifts.
+- RED trước sửa: `npx vitest run tests/v50_logic.test.js tests/v50_sharepoint.test.js` đỏ 3 test vì schema còn `OperatorName`, `Title` còn là `ngày + tên`, và khóa dự phòng còn dùng `OperatorName`.
+- Phép làm hỏng thử: đổi lại `Title` thành `ngày + tên` và bỏ điều kiện `Email` trống làm 2 test `night shift row` đỏ; thêm lại `OperatorName` vào schema làm test schema đỏ. Đã khôi phục rồi chạy lại xanh.
+- Lệnh Windows: `npm run check`. Kết quả: `MV3 check passed (14 referenced files)`, `34 passed (34)`, `247 passed (247)`.
+- File bổ sung: `lib/shift_row.js`, `lib/sp_schema.js`, `tests/v50_logic.test.js`, `tests/v50_sharepoint.test.js`, `tests/v50_service_worker.test.js`, `README.md`, `docs/SOP.md`, phiếu và `handoff/STATE.md`.
+
+-- codex - 2026-11-11 09:50 +07
 
 ## HISTORY
 ### 2026-11-10

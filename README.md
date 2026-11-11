@@ -40,6 +40,8 @@ The **Create lists** button prepares these four SharePoint lists:
 | `AOG_Shifts` | Roster and one operational row per operator per night |
 | `AOG_Log` | Events, machine heartbeats and peer signals |
 
+In `AOG_Shifts`, **Title** is the operator's display name. The extension first finds tonight's row by `ShiftDate` and `Email`; if no row matches, it can claim the row with the same `ShiftDate` and **Title** only when that row's `Email` is blank.
+
 See the [operating procedure](docs/SOP.md) for setup and verification details.
 
 ## Run a shift

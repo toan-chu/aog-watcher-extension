@@ -18,6 +18,8 @@ AOG Watcher monitors WhatsApp Web and Outlook Web during the night shift, rings 
    | `AOG_Shifts` | Planned roster and one actual shift row per operator per night |
    | `AOG_Log` | Operational events, machine heartbeats and peer signals |
 
+   In `AOG_Shifts`, enter the operator's display name in **Title**. The extension matches a row by `ShiftDate` and `Email`; when that is not found, it matches the same `ShiftDate` and **Title** only if `Email` is blank. Do not add an `OperatorName` column.
+
 5. Select **Create lists** again. It must report `All lists already exist; nothing to create.` and must not duplicate lists or columns.
 6. Add the current customer chats to `AOG_Groups`. The chat title must match the title shown in WhatsApp.
 7. In **Settings**, enter the coordination group and Outlook mailbox path, then publish the approved shared settings.

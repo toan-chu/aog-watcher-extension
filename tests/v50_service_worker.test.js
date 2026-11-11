@@ -436,7 +436,9 @@ describe("service worker 5.0 behaviour", () => {
     expect(log("Machine")).toHaveLength(1);                // heartbeat updates its own row, event rows with the same MachineId are left alone
     const night = sp.rows("AOG_Shifts");
     expect(night).toHaveLength(1);
+    expect(night[0].Title).toBe("Hoài");
     expect(night[0].Email).toBe("hoai@acme.vn");
+    expect(night[0]).not.toHaveProperty("OperatorName");
     expect(night[0].AcceptedCount).toBe(1);
     expect(night[0].AcceptLog).toMatch(/AOG A321/);
     for (const title of ["AOG_Events", "AOG_Signals", "AOG_Machines"]) expect(sp.lists[title]).toBeUndefined();

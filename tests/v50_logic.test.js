@@ -232,7 +232,8 @@ describe("night shift row", () => {
     ];
     const shiftSlots = [{ start: "22:00", end: "02:30", role: "primary" }, { start: "02:30", end: "07:00", role: "off" }];
     const open = shiftRowFields({ session, name: "B", email: "b@x.vn", ready: true, events, shiftSlots });
-    expect(open).toMatchObject({ ShiftDate: "2026-07-28", OperatorName: "B", Email: "b@x.vn", Ready: "Ready", AlertCount: 2, AcceptedCount: 1, MissCount: 1 });
+    expect(open).toMatchObject({ Title: "B", ShiftDate: "2026-07-28", Email: "b@x.vn", Ready: "Ready", AlertCount: 2, AcceptedCount: 1, MissCount: 1 });
+    expect(open).not.toHaveProperty("OperatorName");
     expect(open.Slot1Role).toBeUndefined();
     expect(open.Slot2Role).toBeUndefined();
     expect(open.CheckOut).toBeUndefined();
@@ -242,11 +243,11 @@ describe("night shift row", () => {
     expect(closed.Ready).toBe("Not ready");
     expect(acceptLog(events, "s1")).toMatch(/23:10 Runway ABC/);
   });
-  it("finds the operator's own row by email, or by name when the email is unknown", () => {
+  it("finds the operator's own row by email, then by an unclaimed display-name row", () => {
     const session = { shift_id: "s1", started_at: new Date(2026, 6, 29, 2, 40).toISOString() };
     expect(shiftRowMatch({ session, name: "B", email: "b@x.vn" })).toEqual({ ShiftDate: "2026-07-28", Email: "b@x.vn" });
-    expect(shiftRowMatch({ session, name: "B", email: "" })).toEqual({ ShiftDate: "2026-07-28", OperatorName: "B" });
-    expect(shiftRowFallbackMatch({ session, name: "B", email: "b@x.vn" })).toEqual({ ShiftDate: "2026-07-28", OperatorName: "B" });
+    expect(shiftRowMatch({ session, name: "B", email: "" })).toEqual({ ShiftDate: "2026-07-28", Title: "B", Email: "" });
+    expect(shiftRowFallbackMatch({ session, name: "B", email: "b@x.vn" })).toEqual({ ShiftDate: "2026-07-28", Title: "B", Email: "" });
     expect(shiftRowFallbackMatch({ session, name: "B", email: "" })).toBeNull();
   });
 });

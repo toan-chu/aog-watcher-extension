@@ -1,7 +1,7 @@
-Cập nhật: 2026-11-11 09:31 +07 - bởi codex
+Cập nhật: 2026-11-11 09:50 +07 - bởi codex
 
 ## Việc đang mở
-V5-07 - người làm codex - chờ-soát - vòng 2/2 (đã sửa L1-L3 và G1-G3; chờ claude soát lại)
+V5-07 - người làm codex - chờ-user - vòng 2/2 (quy ước Title/Email của AOG_Shifts đã sửa; L2 phía nhận vẫn chờ user chọn phương án)
 V5-06 - người làm codex - chờ-soát - vòng 2/2 (mã đạt, chờ chạy thử hai máy thật)
 V5-05 - người làm claude - chờ-soát - vòng 1/2 - mã đạt, KS-2..KS-7 chờ hai máy thật
 RF-04 - người làm claude - chờ-soát - vòng 1/2

@@ -246,10 +246,13 @@ describe("night shift row", () => {
     expect(open).not.toHaveProperty("OperatorName");
     expect(open.Slot1Role).toBeUndefined();
     expect(open.Slot2Role).toBeUndefined();
-    expect(open.CheckOut).toBeUndefined();
+    expect(open.CheckOut).toBe("");
+    expect(open.Hours).toBe(0);
+    expect(open.CheckIn).toMatch(/^2026-07-28T22:00:00[+-]\d{2}:\d{2}$/);
     expect(Object.keys(open).some((key) => key.startsWith("Primary") || key.startsWith("Backup"))).toBe(false);
     const closed = shiftRowFields({ session, name: "B", email: "b@x.vn", ready: false, events, ended: true, now: new Date(start.getTime() + 4.5 * 3_600_000) });
     expect(closed.Hours).toBe(4.5);
+    expect(closed.CheckOut).toMatch(/^2026-07-29T02:30:00[+-]\d{2}:\d{2}$/);
     expect(closed.Ready).toBe("Not ready");
     expect(acceptLog(events, "s1")).toMatch(/23:10 Runway ABC/);
   });

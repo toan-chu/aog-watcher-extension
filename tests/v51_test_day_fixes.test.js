@@ -32,11 +32,12 @@ describe("test day: partner machine", () => {
 });
 
 describe("test day: greeting typed once", () => {
-  it("only sends the synthetic input event when execCommand typed nothing", async () => {
+  it("never sends the synthetic input event after execCommand already typed the greeting", async () => {
     const source = await readFile(new URL("../content_whatsapp.js", import.meta.url), "utf8");
     const helper = source.slice(source.indexOf("function typeIntoComposer"), source.indexOf("async function openChatAndDraft"));
-    expect(helper).toContain('if (inserted && (composer.textContent ?? "") !== before) return;');
+    expect(helper).toContain('if (!document.execCommand("insertText", false, text)) {');
+    expect(helper).toContain("await sleep(50)");
     expect(source.match(/composer\.dispatchEvent\(new InputEvent/g)).toHaveLength(1);
-    expect(source.match(/typeIntoComposer\(composer, text\);/g)).toHaveLength(2);
+    expect(source.match(/await typeIntoComposer\(composer, text\);/g)).toHaveLength(2);
   });
 });

@@ -208,14 +208,17 @@
     } catch { /* ignore */ }
   }
 
-  // WhatsApp's editor already reacts to execCommand("insertText"). Sending an extra synthetic input event
-  // on top made it insert the text a second time, so the event is only a fallback when nothing was typed.
-  function typeIntoComposer(composer, text) {
+  // WhatsApp's editor already reacts to execCommand("insertText") and repaints a moment later. An extra
+  // synthetic input event on top typed the greeting twice in front of the customer, so the event is only
+  // used when execCommand itself refuses. A missing greeting is harmless; a doubled one is not.
+  const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  async function typeIntoComposer(composer, text) {
     composer.focus();
-    const before = composer.textContent ?? "";
-    const inserted = document.execCommand("insertText", false, text);
-    if (inserted && (composer.textContent ?? "") !== before) return;
-    composer.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: text }));
+    if (!document.execCommand("insertText", false, text)) {
+      composer.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: text }));
+    }
+    for (let waited = 0; waited < 500 && !(composer.textContent ?? "").includes(text); waited += 50) await sleep(50);
   }
 
   async function openChatAndDraft(chatName, text = "") {
@@ -229,7 +232,7 @@
       if (!decision.ok) throw new Error(decision.error);
       if (!decision.shouldDraft) return { ok: true, chat: activeChat, drafted: false };
       if (!composer) throw new Error("WhatsApp composer not found");
-      typeIntoComposer(composer, text);
+      await typeIntoComposer(composer, text);
       return { ok: true, chat: activeChat, drafted: true };
     } finally {
       clearSearchBox();
@@ -246,7 +249,7 @@
       if (messageExistsInCoordGroup(text)) return true;
       const composer = first(document, selectors.composer);
       if (!composer) throw new Error("WhatsApp composer not found");
-      typeIntoComposer(composer, text);
+      await typeIntoComposer(composer, text);
       await new Promise((resolve) => setTimeout(resolve, 200));
       const send = first(document, selectors.sendButton);
       const clickable = send?.closest("button") ?? send;

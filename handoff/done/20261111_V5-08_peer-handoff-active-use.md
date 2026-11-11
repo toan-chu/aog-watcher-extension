@@ -3,7 +3,7 @@ Mạch: V5 - AOG Watcher 5.0
 Nối tiếp: V5-07
 Người làm: codex
 Người soát: claude
-Trạng thái: chờ-soát
+Trạng thái: đóng-đạt
 Vòng: 1/2
 
 ## ĐỀ BÀI
@@ -78,6 +78,17 @@ Kết quả: rỗng; Git chỉ cảnh báo quy tắc LF→CRLF của checkout Wi
 [RUNTIME UNVERIFIED] Chưa chạy bàn giao ESCALATED và kiểm tra idle trên hai máy Chrome thật; phép thử tự động chứng minh state/effect và biên SharePoint giả lập.
 
 -- codex - 2026-11-11 10:16 +07
+
+Soát vòng 1 (user chuyển kết quả từ claude ngày 2026-11-11):
+- Claude đã đọc diff `lib/state_machine.js`, `service_worker.js`; chạy `npm run check` trên bản sao Linux đạt 34/34 tệp, 253/253 test.
+- Hai yêu cầu V5-08 đạt. Kết quả: ĐẠT.
+- Ghi chú không chặn: `alertFromPeer` lấy `detected_at` từ timestamp lúc leo thang, nên `ResponseSeconds` ở máy Backup được tính từ lúc leo thang, không phải từ lúc tin xuất hiện ban đầu. Giữ nguyên mã theo phạm vi đã chốt; chỉ đổi nếu user yêu cầu sau.
+- `[RUNTIME UNVERIFIED]` Chưa chạy bàn giao ESCALATED và cổng idle trên hai máy Chrome thật.
+
+Đối chiếu trước khi đóng: repo chính và `origin/master` đã ở commit `acc56a0`; nhận định `HEAD` còn `078de63` đến từ bản sao Claude chưa cập nhật. File khóa `.git/stale-maintenance-lock-claude` do Claude để lại đã được xóa theo yêu cầu của user.
+
+Kết quả đóng: ĐÓNG-ĐẠT phần mã; phép thử Chrome thật còn treo và không làm đổi kết quả soát mã.
+-- codex - 2026-11-11 10:19 +07
 
 ## HISTORY
 ### 2026-11-11

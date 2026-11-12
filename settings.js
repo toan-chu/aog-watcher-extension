@@ -36,9 +36,6 @@ async function load() {
   byId("peerLost").value = config.peer_lost_minutes;
   byId("reminderGrace").value = config.shift_reminder_grace_minutes;
   byId("blindAfter").value = config.blind_after_minutes;
-  byId("testMode").checked = config.test_mode;
-  byId("testRole").value = config.test_role === "backup" ? "backup" : "primary";
-  byId("dryRun").checked = config.dry_run;
   const stored = await chrome.storage.local.get(["aog_team_groups", "aog_team_groups_synced_at"]);
   const team = stored.aog_team_groups ?? [];
   byId("teamGroupsInfo").textContent = team.length ? `${team.length} shared groups (synced at ${new Date(stored.aog_team_groups_synced_at).toLocaleString("en-GB", { hour12: false })}).` : "Shared groups have not been synced.";
@@ -82,9 +79,6 @@ async function save({ quiet = false } = {}) {
     peer_lost_minutes: numberOr("peerLost", 5),
     shift_reminder_grace_minutes: numberOr("reminderGrace", 10),
     blind_after_minutes: numberOr("blindAfter", 5),
-    test_mode: byId("testMode").checked,
-    test_role: byId("testRole").value === "backup" ? "backup" : "primary",
-    dry_run: byId("dryRun").checked,
   };
   await setConfig(config);
   // Shared settings: publish only the keys this person changed, before the sync pulls the team copy back.

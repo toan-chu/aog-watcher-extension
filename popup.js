@@ -1,14 +1,19 @@
 import { acceptAllView, backupCountdownText, eventSentence, formatAgo, formatClock24, peerEvidence, popupMode, slotRoleSummary, statusBadge, watchingSummary } from "./lib/popup_view.js";
 
-const ids = ["versionValue", "stateBadge", "readyBadge", "dryRunBadge", "testModeBadge", "tonightTab", "searchTab", "helpTab", "tonightPanel", "searchPanel", "helpPanel",
+const ids = ["versionValue", "stateBadge", "readyBadge", "dryRunBadge", "testModeBadge", "tonightTab", "searchTab", "helpTab", "testTab", "tonightPanel", "searchPanel", "helpPanel", "testPanel",
   "offShiftScreen", "watchingScreen", "watchingTitle", "watchingCopy", "ringingScreen", "roleValue", "startShiftButton", "shiftStatusHint", "endShiftButton", "whatsappDot", "whatsappValue",
   "outlookDot", "outlookValue", "sharepointDot", "sharepointValue", "peerDot", "peerValue", "soundDot", "soundValue", "latestEventValue", "preflight",
   "preflightList", "testSoundButton", "soundOkButton", "watchSystemAlerts", "watchUnknownChats", "watchUnknownList", "recentEvents", "acceptButton", "acceptAllButton", "alertPanel",
   "alertTitle", "alertMeta", "pendingCount", "backupCountdown", "systemAlerts", "unknownChats", "unknownList", "searchChatInput", "helpButton", "helpButtonVi", "leakSource", "leakWhat", "leakAt",
-  "leakButton", "diagnosticsRows", "sharepointButton", "settingsButton", "feedback"];
+  "leakButton", "diagnosticsRows", "sharepointButton", "settingsButton", "feedback",
+  "testLockIcon", "testLock", "testPassword", "testTools", "testModeInput", "testRoleInput", "dryRunInput", "testSaveButton",
+  "simChatInput", "simWhatsAppButton", "simSubjectInput", "simEmailButton", "testLockButton"];
 const elements = Object.fromEntries(ids.map((id) => [id, document.getElementById(id)]));
 const slotRows = [...document.querySelectorAll(".slot-row")];
-const ROLE_LABEL = { primary: "Primary", backup: "Backup", off: "Off" };
+const ROLE_LABEL = { primary: "Primary", backup: "Backup", off: "Off", solo: "Solo" };
+// The lock only keeps the test tools out of everyday view; it is not a security control.
+const TEST_PASSWORD = "deptrai";
+const TEST_UNLOCK_KEY = "aog_test_unlocked";
 const TIME_PATTERN = /^(?:[01]\d|2[0-3]):[0-5]\d$/;
 const PREFLIGHT_ACTION = {
   identity: "Open Settings and enter the operator name.",
@@ -173,6 +178,7 @@ function renderCountdown() {
 
 function render(status) {
   lastStatus = status;
+  if (testUnlocked) fillTestTools(status);
   const mode = popupMode(status);
   elements.offShiftScreen.hidden = mode !== "off-shift";
   elements.watchingScreen.hidden = mode !== "watching";
@@ -240,7 +246,7 @@ async function populateActiveChat() {
   if (response?.ok === false) showFeedback(response.error);
 }
 function showTab(name) {
-  for (const tabName of ["tonight", "search", "help"]) {
+  for (const tabName of ["tonight", "search", "help", "test"]) {
     const active = tabName === name;
     elements[`${tabName}Tab`].classList.toggle("tab--active", active);
     elements[`${tabName}Tab`].setAttribute("aria-selected", String(active));
@@ -254,6 +260,7 @@ slotRows.forEach((row) => row.addEventListener("change", saveSlots));
 elements.tonightTab.addEventListener("click", () => showTab("tonight"));
 elements.searchTab.addEventListener("click", () => showTab("search"));
 elements.helpTab.addEventListener("click", () => showTab("help"));
+elements.testTab.addEventListener("click", () => { showTab("test"); renderTestLock(); });
 elements.acceptButton.addEventListener("click", async () => {
   elements.acceptButton.disabled = true;
   elements.acceptButton.textContent = "ACCEPTING…";
@@ -294,6 +301,49 @@ elements.sharepointButton.addEventListener("click", async () => {
   const stored = await chrome.storage.local.get("aog_config");
   if (stored.aog_config?.sharepoint_site_url) chrome.tabs.create({ url: stored.aog_config.sharepoint_site_url });
 });
+
+// ---------- Test tab ----------
+const sessionStore = chrome.storage.session ?? chrome.storage.local;
+let testUnlocked = false;
+async function loadTestUnlock() {
+  try { testUnlocked = Boolean((await sessionStore.get(TEST_UNLOCK_KEY))[TEST_UNLOCK_KEY]); } catch { testUnlocked = false; }
+  renderTestLock();
+}
+function renderTestLock() {
+  elements.testLock.hidden = testUnlocked;
+  elements.testTools.hidden = !testUnlocked;
+  elements.testLockIcon.textContent = testUnlocked ? "🔓" : "🔒";
+  if (testUnlocked && lastStatus) fillTestTools(lastStatus);
+}
+function fillTestTools(status) {
+  if (document.activeElement && elements.testTools.contains(document.activeElement)) return;
+  elements.testModeInput.checked = Boolean(status.test_mode);
+  elements.testRoleInput.value = ["primary", "backup", "solo"].includes(status.test_role) ? status.test_role : "primary";
+  elements.dryRunInput.checked = Boolean(status.dry_run);
+}
+elements.testLock.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (elements.testPassword.value.trim().toLowerCase() !== TEST_PASSWORD) { showFeedback("Wrong test password."); return; }
+  elements.testPassword.value = "";
+  testUnlocked = true;
+  try { await sessionStore.set({ [TEST_UNLOCK_KEY]: true }); } catch { /* stays unlocked while the popup is open */ }
+  showFeedback("");
+  renderTestLock();
+});
+elements.testLockButton.addEventListener("click", async () => {
+  testUnlocked = false;
+  try { await sessionStore.remove(TEST_UNLOCK_KEY); } catch { /* ignore */ }
+  renderTestLock();
+});
+elements.testSaveButton.addEventListener("click", () => act({
+  type: "UPDATE_TEST_SETTINGS",
+  test_mode: elements.testModeInput.checked,
+  test_role: elements.testRoleInput.value,
+  dry_run: elements.dryRunInput.checked,
+}, "Test mode saved."));
+elements.simWhatsAppButton.addEventListener("click", () => act({ type: "SIMULATE_ALERT", source: "whatsapp", name: elements.simChatInput.value }));
+elements.simEmailButton.addEventListener("click", () => act({ type: "SIMULATE_ALERT", source: "email", name: elements.simSubjectInput.value }));
+loadTestUnlock();
 
 chrome.runtime.onMessage.addListener((message) => { if (message.type === "STATUS_UPDATED") render(message.payload); });
 getStatus();

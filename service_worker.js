@@ -1,9 +1,9 @@
-import { ALERT_SOURCE, APP_STATE, APP_VERSION, DEFAULT_CONFIG, MESSAGE, ROLE, STORAGE_KEYS } from "./lib/constants.js";
+import { ALERT_SOURCE, APP_STATE, APP_VERSION, DEFAULT_CONFIG, MESSAGE, ROLE, STORAGE_KEYS, TEST_ROLES } from "./lib/constants.js";
 import { deterministicAlertId } from "./lib/hash.js";
 import { shouldSkipEmail } from "./lib/filter.js";
 import { isDutyRole, nextDutyStart, resolveRoleAtTime } from "./lib/shift_engine.js";
 import { enrichEventRecord } from "./lib/event_log.js";
-import { reduce } from "./lib/state_machine.js";
+import { createInitialState, reduce } from "./lib/state_machine.js";
 import { hydrateRuntimeState, serializeRuntimeState } from "./lib/runtime_state.js";
 import { parseTag, serializeTag } from "./lib/peer_protocol.js";
 import { dispatchPeerOnce, PeerDispatchGuard } from "./lib/peer_dispatch_guard.js";
@@ -59,7 +59,7 @@ const spClient = (config) => createSharePointClient({ siteUrl: config.sharepoint
 function resolveCurrentRole(config, now = new Date()) {
   if (config.test_mode) {
     const forced = config.test_role === ROLE.BACKUP ? ROLE.BACKUP : ROLE.PRIMARY;
-    return { role: forced, source: "test_mode", slot_index: null };
+    return { role: forced, source: "test_mode", slot_index: null, solo: config.test_role === "solo" };
   }
   const resolved = resolveRoleAtTime(now, config.shift_slots);
   if (!resolved) return null;
@@ -182,11 +182,14 @@ async function raiseSystemAlert(key, { kind, title, message, ring = true, rearm 
   const alerts = await getSystemAlerts();
   const existing = alerts[key];
   if (existing && !rearm) return false;
-  alerts[key] = { key, kind, title, message, ring, dismissed: false, created_at: new Date().toISOString() };
+  // Off shift nothing rings except the "Shift not started" reminder, whose whole point is that no shift is running.
+  await hydrate();
+  const mayRing = ring && (Boolean(state.session) || kind === "shift_reminder");
+  alerts[key] = { key, kind, title, message, ring: mayRing, dismissed: false, created_at: new Date().toISOString() };
   await setKey(K.SYSTEM_ALERTS, alerts);
   await appendServiceEvent({ event_type: "SYSTEM_ALERT", kind, detail_key: key, title, message });
   await notify(`sys-${key}`, title, message);
-  if (ring) await playWakeAudio(await getConfig());
+  if (mayRing) await playWakeAudio(await getConfig());
   broadcastStatus();
   return true;
 }
@@ -421,7 +424,7 @@ async function handleSignal(signal, config) {
   } else if (signal.type === SIGNAL.SHIFT_NOT_STARTED && isDutyRole(state.session?.role)) {
     const peer = (await getKey(K.PEERS, [])).find((item) => item.machine_id === signal.from);
     if (peer?.on_shift !== false) await raiseSystemAlert(`peer_shift:${signal.from}:${signal.payload.night ?? ""}`, { kind: "peer_shift", title: "Partner machine has not started its shift", message: `${signal.payload.operator || "Partner machine"} is past the shift start time but has not selected Start shift.` });
-  } else if (signal.type === SIGNAL.FOLLOWUP_OVERDUE) {
+  } else if (signal.type === SIGNAL.FOLLOWUP_OVERDUE && isDutyRole(state.session?.role)) {
     await raiseSystemAlert(`peer_followup:${signal.alert_id}`, { kind: "peer_followup", title: "AOG message handling has not been confirmed", message: `${signal.payload.operator || "Partner machine"} accepted "${signal.payload.title || signal.alert_id}" but did not confirm whether handling was complete.` });
   } else if (signal.type === SIGNAL.SOURCE_BLIND) {
     await raiseSystemAlert(`peer_blind:${signal.from}:${signal.source}`, { kind: "peer_source", title: "Partner machine cannot read a source", message: `${signal.payload.operator || "Partner machine"}: ${signal.payload.message || signal.source}`, ring: false });
@@ -479,6 +482,55 @@ async function focusOutlook() {
   await focusTab(tabs[0]);
   return { ok: true };
 }
+
+// ---------- test tools (popup Test tab) ----------
+function isSoloTest(config) { return Boolean(config.test_mode) && config.test_role === "solo"; }
+
+// Solo test: the Primary timeout reached, so this machine now plays the Backup machine's part.
+async function startSoloBackupStage(alert, config) {
+  await hydrate();
+  if (state.app_state !== APP_STATE.ALERTING || state.current_alert?.alert_id !== alert.alert_id) return;
+  state.current_alert = { ...state.current_alert, backup_stage: true };
+  state.pending_wake = null;
+  await persist();
+  await appendServiceEvent({ event_type: "SOLO_BACKUP_STAGE", alert_id: alert.alert_id, source: alert.source, group_name: alert.group_name, subject: alert.subject });
+  await notify(`aog-${alert.alert_id}`, "Backup stage (simulated)", alert.group_name || alert.subject || "AOG alert");
+  if (!config.dry_run) await playWakeAudio({ ...config, wake_audio_mode: "escalate" });
+}
+
+function simulatedAlert(source, name = "") {
+  const id = `sim-${Date.now()}`;
+  const label = String(name ?? "").trim();
+  const base = { alert_id: id, detected_at: new Date().toISOString(), simulated: true, simulated_target: Boolean(label), unread_count: 1 };
+  if (source === ALERT_SOURCE.EMAIL) return { ...base, source: ALERT_SOURCE.EMAIL, sender: "simulator@aog-watcher.test", subject: label || "AOG TEST · Simulated email", message_id: id };
+  return { ...base, source: ALERT_SOURCE.WHATSAPP, group_name: label || "Simulated WhatsApp chat", sender: "Simulator" };
+}
+
+async function simulateAlert(message) {
+  const config = await getConfig();
+  if (!config.test_mode) return { ok: false, error: "Turn on Test mode first." };
+  await hydrate();
+  if (!state.session) return { ok: false, error: "Select Start shift on the Tonight tab first." };
+  const alert = simulatedAlert(message.source === ALERT_SOURCE.EMAIL ? ALERT_SOURCE.EMAIL : ALERT_SOURCE.WHATSAPP, message.name);
+  await handleAlert(alert);
+  return { ok: true, note: `Simulated ${alert.source === ALERT_SOURCE.EMAIL ? "Outlook email" : "WhatsApp message"} sent: ${alert.group_name || alert.subject}.`, status: await status() };
+}
+
+async function updateTestSettings(message) {
+  const config = await getConfig();
+  const next = {
+    ...config,
+    test_mode: Boolean(message.test_mode),
+    test_role: TEST_ROLES.includes(message.test_role) ? message.test_role : ROLE.PRIMARY,
+    dry_run: Boolean(message.dry_run),
+  };
+  await setConfig(next);
+  await syncSessionRole(next);
+  return { ok: true, status: await status() };
+}
+
+// A simulated alert without a real chat or subject has nothing to open after Accept.
+function hasSourceToOpen(alert) { return !alert?.simulated || alert.simulated_target; }
 
 async function openAlertTarget(target, draftText = "") {
   if (target?.source === ALERT_SOURCE.WHATSAPP) {
@@ -601,6 +653,7 @@ async function executeEffect(effect) {
       await clearTimers(effect.name, effect.alert_id);
       break;
     case "SEND_PEER_TAG": {
+      if (effect.tag === "ESCALATED" && isSoloTest(config)) await startSoloBackupStage(effect.alert, config);
       if (config.dry_run) {
         await appendServiceEvent({ event_type: "DRY_RUN_WOULD_SEND_TAG", alert_id: effect.alert.alert_id, source: effect.alert.source, tag: effect.tag });
         break;
@@ -642,7 +695,7 @@ async function handleAlert(rawAlert) {
     await appendServiceEvent({ event_type: "SKIPPED_NO_SHIFT", source: rawAlert.source, group_name: rawAlert.group_name, subject: rawAlert.subject });
     return;
   }
-  if (rawAlert.source === "email" && shouldSkipEmail(rawAlert, config)) {
+  if (rawAlert.source === "email" && !rawAlert.simulated && shouldSkipEmail(rawAlert, config)) {
     await appendServiceEvent({ event_type: "SKIPPED_EMAIL_FILTER", source: rawAlert.source, sender: rawAlert.sender, subject: rawAlert.subject });
     return;
   }
@@ -747,6 +800,14 @@ async function endCurrentShift() {
   await setKey(K.FOLLOWUPS, []);
   await setKey(K.SYSTEM_ALERTS, {});
   await setKey(K.PREFLIGHT, null);
+  // End shift must mean silence: drop the alert queue, the deferred ring and every alert timer.
+  for (const alert of state.queue?.actionable?.() ?? []) await chrome.notifications.clear(`aog-${alert.alert_id}`).catch(() => {});
+  const fresh = createInitialState(null, []);
+  state.app_state = fresh.app_state;
+  state.current_alert = fresh.current_alert;
+  state.queue = fresh.queue;
+  state.pending_wake = null;
+  for (const name of ["primary_timeout", "backup_delay", "max_alert_duration"]) await clearTimers(name);
   await stopAudio();
   await persist();
   if (spConfigured(config)) await syncTeam(config).catch(() => {});
@@ -948,6 +1009,7 @@ async function status() {
     shift_slots: config.shift_slots ?? [],
     test_mode: Boolean(config.test_mode),
     test_role: config.test_role ?? ROLE.PRIMARY,
+    solo: isSoloTest(config),
     dry_run: Boolean(config.dry_run),
     backup_call_at: state.current_alert ? Date.parse(state.current_alert.detected_at) + timing(config).primary_timeout_seconds * 1000 : null,
     sound_confirmed_at: soundConfirmedAt,
@@ -1006,7 +1068,7 @@ async function handleMessage(message) {
       const config = await getConfig();
       const accepted = state.queue.findById(alert.alert_id)?.status === "HANDLED" ? [alert] : [];
       await finishAccepted(accepted, config);
-      if (alert && state.current_alert?.alert_id !== alert.alert_id) {
+      if (alert && state.current_alert?.alert_id !== alert.alert_id && hasSourceToOpen(alert)) {
         try { await openAlertTarget(alert, alert.source === ALERT_SOURCE.WHATSAPP ? config.whatsapp_greeting : ""); }
         catch (error) { return { ok: false, error: `Accepted, but the source could not be opened: ${error.message}` }; }
       }
@@ -1020,13 +1082,15 @@ async function handleMessage(message) {
       const config = await getConfig();
       const accepted = alerts.filter((alert) => state.queue.findById(alert.alert_id)?.status === "HANDLED");
       await finishAccepted(accepted, config);
-      if (current && accepted.some((alert) => alert.alert_id === current.alert_id)) {
+      if (current && accepted.some((alert) => alert.alert_id === current.alert_id) && hasSourceToOpen(current)) {
         try { await openAlertTarget(current, current.source === ALERT_SOURCE.WHATSAPP ? config.whatsapp_greeting : ""); }
         catch (error) { return { ok: false, error: `Accepted all, but the current source could not be opened: ${error.message}` }; }
       }
       return {};
     }
     case MESSAGE.OPEN_ALERT_TARGET: return openAlertTarget(message.target, message.draft_text ?? "");
+    case MESSAGE.SIMULATE_ALERT: return simulateAlert(message);
+    case MESSAGE.UPDATE_TEST_SETTINGS: return updateTestSettings(message);
     case MESSAGE.OPEN_WHATSAPP_CHAT: return openWhatsAppChat(message.chat_name, message.draft_text ?? "");
     case MESSAGE.GET_ACTIVE_WHATSAPP_CHAT: return { chat: await getActiveWhatsAppChat() };
     case MESSAGE.START_SHIFT: return startShift();
@@ -1114,7 +1178,7 @@ chrome.alarms.onAlarm.addListener((alarm) => enqueue(async () => {
 chrome.idle?.onStateChanged?.addListener((idleState) => enqueue(async () => {
   if (idleState !== "idle" && idleState !== "locked") return;
   await hydrate();
-  if (state.app_state !== APP_STATE.ALERTING || !state.pending_wake || state.pending_wake !== state.current_alert?.alert_id) return;
+  if (!state.session || state.app_state !== APP_STATE.ALERTING || !state.pending_wake || state.pending_wake !== state.current_alert?.alert_id) return;
   const config = await getConfig();
   await playWakeAudio(config);
   state.pending_wake = null;

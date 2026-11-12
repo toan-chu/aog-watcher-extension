@@ -592,4 +592,88 @@ describe("service worker 5.0 behaviour", () => {
     alarm("aog:tick"); await settle();
     expect(sp.rows("AOG_Groups").map((row) => row.Title)).toEqual(["Runway New"]);
   });
+
+  it("End shift silences everything: no queued alert, no alert timers, no ring when the person walks away", async () => {
+    const { chrome, send, alarm, settle } = await boot({ idleState: "active" });
+    await send({ type: "START_SHIFT" });
+    await send({ type: "CONTENT_HEALTH", source: "whatsapp", connected: true, stats: { rows_seen: 2 } });
+    alarm("aog:tick"); await settle();
+    await send({ type: "ALERT_DETECTED", alert: { alert_id: "loud", source: "whatsapp", group_name: "AOG ONE", unread_count: 1 } });
+    expect((await send({ type: "GET_STATUS" })).status.app_state).toBe("ALERTING");
+
+    await send({ type: "END_SHIFT" }); await settle();
+    const status = (await send({ type: "GET_STATUS" })).status;
+    expect(status.app_state).toBe("IDLE");
+    expect(status.pending_count).toBe(0);
+    expect([...chrome._alarms.keys()].filter((name) => /^aog:(primary_timeout|backup_delay|max_alert_duration):/.test(name))).toEqual([]);
+
+    const before = chrome._sent.filter((message) => message.type === "AUDIO_PLAY").length;
+    await chrome._listeners.idle[0]("idle"); await settle();
+    expect(chrome._sent.filter((message) => message.type === "AUDIO_PLAY").length).toBe(before);
+  });
+
+  it("a partner's follow-up signal does not ring a machine that is off shift", async () => {
+    const sp = fakeSharePoint();
+    const { chrome, send, alarm, settle } = await boot({ config: { sharepoint_site_url: "https://acme.sharepoint.com/sites/AOG", test_role: "backup" }, sharepoint: sp });
+    alarm("aog:tick"); await settle();
+    await send({ type: "START_SHIFT" });
+    await send({ type: "END_SHIFT" }); await settle();
+    const timestamp = new Date().toISOString();
+    sp.rows("AOG_Log").push({
+      Id: 901, RecordType: "Signal", EventType: "FOLLOWUP_OVERDUE", AlertId: "done-earlier", Source: "whatsapp",
+      MachineId: "peer", At: timestamp, Detail: JSON.stringify({ timestamp, operator: "Ethan", title: "AOG TEST" }),
+    });
+    const before = chrome._sent.filter((message) => message.type === "AUDIO_PLAY").length;
+    alarm("aog:tick"); await settle();
+    const status = (await send({ type: "GET_STATUS" })).status;
+    expect((status.system_alerts ?? []).map((item) => item.key)).not.toContain("peer_followup:done-earlier");
+    expect(chrome._sent.filter((message) => message.type === "AUDIO_PLAY").length).toBe(before);
+  });
+
+  it("Test tab: simulated messages need Test mode and a started shift", async () => {
+    const { send } = await boot({ config: { test_mode: false } });
+    expect(await send({ type: "SIMULATE_ALERT", source: "whatsapp" })).toMatchObject({ ok: false, error: "Turn on Test mode first." });
+    await send({ type: "UPDATE_TEST_SETTINGS", test_mode: true, test_role: "primary", dry_run: false });
+    expect(await send({ type: "SIMULATE_ALERT", source: "whatsapp" })).toMatchObject({ ok: false, error: "Select Start shift on the Tonight tab first." });
+  });
+
+  it("Test tab: saving keeps only known roles", async () => {
+    const { chrome, send } = await boot();
+    const saved = await send({ type: "UPDATE_TEST_SETTINGS", test_mode: true, test_role: "solo", dry_run: true });
+    expect(saved.status).toMatchObject({ test_mode: true, test_role: "solo", dry_run: true, solo: true });
+    await send({ type: "UPDATE_TEST_SETTINGS", test_mode: true, test_role: "boss", dry_run: false });
+    expect(chrome._store.aog_config.test_role).toBe("primary");
+  });
+
+  it("Solo: a simulated WhatsApp message rings as Primary, then the Primary timeout starts a simulated Backup stage", async () => {
+    const { chrome, send, alarm, settle } = await boot({ config: { test_role: "solo" } });
+    await send({ type: "START_SHIFT" });
+    await send({ type: "CONTENT_HEALTH", source: "whatsapp", connected: true, stats: { rows_seen: 2 } });
+    alarm("aog:tick"); await settle();
+    const simulated = await send({ type: "SIMULATE_ALERT", source: "whatsapp", name: "" });
+    expect(simulated.ok).toBe(true);
+    const alert = simulated.status.current_alert;
+    expect(simulated.status.app_state).toBe("ALERTING");
+    expect(alert).toMatchObject({ simulated: true, simulated_target: false, group_name: "Simulated WhatsApp chat" });
+    expect(simulated.status.current_role).toBe("primary");
+
+    alarm(`aog:primary_timeout:${alert.alert_id}`); await settle();
+    const status = (await send({ type: "GET_STATUS" })).status;
+    expect(status.current_alert.backup_stage).toBe(true);
+    expect(chrome._sent.some((message) => message.type === "AUDIO_PLAY" && message.mode === "escalate")).toBe(true);
+    expect(status.recent_events.some((event) => event.event_type === "SOLO_BACKUP_STAGE")).toBe(true);
+
+    await send({ type: "ACCEPT_CURRENT" }); await settle();
+    expect(chrome._tabMessages.some((item) => item.message.type === "OPEN_WHATSAPP_CHAT")).toBe(false);
+    expect((await send({ type: "GET_STATUS" })).status.app_state).toBe("IDLE");
+  });
+
+  it("a simulated Outlook email rings even when the email filters would skip it", async () => {
+    const { send, alarm, settle } = await boot({ config: { subject_keywords: ["NEVER MATCHES"], skip_sender_domains: ["aog-watcher.test"] } });
+    await send({ type: "START_SHIFT" });
+    alarm("aog:tick"); await settle();
+    const simulated = await send({ type: "SIMULATE_ALERT", source: "email", name: "AOG TEST 42" });
+    expect(simulated.status.app_state).toBe("ALERTING");
+    expect(simulated.status.current_alert).toMatchObject({ source: "email", subject: "AOG TEST 42", simulated: true });
+  });
 });

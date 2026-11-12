@@ -211,17 +211,34 @@ Machines reload the list when a shift starts and when Settings are saved. A chat
 
 </details>
 
-<details>
-<summary><b>🧪 Testing</b></summary>
+---
 
-| Setting | Meaning |
+## 🧪 Test tab: try it without waiting for a real AOG
+
+The popup has a fourth tab, **Test 🔒**. It is locked so it stays out of the way during real shifts. Ask the shift lead for the password.
+
+**1 · Mode**
+
+| Role on this machine | What happens |
 |---|---|
-| Test mode + Test role | Ignore shift hours and act as Primary or Backup. |
-| Dry-run | Do not ring and do not notify the partner machine. |
+| 🟣 Primary | Rings first, as on a real night. |
+| 🟠 Backup | Rings when the partner machine escalates. |
+| 🔁 **Solo** | One machine plays both: it rings as Primary, and if nobody accepts within 2 minutes it switches to a **simulated Backup stage** with a louder ring. No second machine needed. |
 
-Turn both off before a real shift.
+**Dry-run** checks the flow silently: no ring, no signal to the partner. Click **Save test mode** after any change.
 
-</details>
+**2 · Simulate a message** (select **Start shift** first)
+
+- 💬 **Simulate WhatsApp message**: rings like a real customer message. Type a real chat name (for example `AOG test`) and Accept will open that chat and type the greeting; leave it blank and Accept opens nothing.
+- 📧 **Simulate Outlook email**: rings like a real AOG email, even if the email filters would skip it.
+
+A simulated message follows the real path: if a partner machine is on shift as Backup, it receives the escalation too.
+
+> [!TIP]
+> To test a real WhatsApp message on one machine, send it **from your phone** to the test group. A message you type in WhatsApp Web on the same machine is outgoing, so it never rings.
+
+> [!WARNING]
+> Turn **Test mode** off and click **Save test mode** before a real shift.
 
 ---
 

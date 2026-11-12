@@ -37,7 +37,7 @@ h1, h2, h3, .eyebrow, .state, .ready, .tag, .accept, .cta, .tab { font-family: v
 .ready--bad { background: var(--danger); }
 .ready--off { opacity: .72; }
 
-.tabs { display: grid; grid-template-columns: repeat(3, 1fr); background: var(--surface); border-bottom: 1px solid var(--line); }
+.tabs { display: grid; grid-template-columns: repeat(4, 1fr); background: var(--surface); border-bottom: 1px solid var(--line); }
 .tab { border: 0; border-bottom: 3px solid transparent; background: transparent; color: var(--muted); padding: 10px 8px 8px; cursor: pointer; font-size: 12px; font-weight: 700; }
 .tab--active { border-bottom-color: var(--brand-orange); color: var(--heading); }
 .shell { display: grid; gap: 10px; padding: 14px 14px 10px; }
@@ -122,3 +122,15 @@ footer { display: flex; align-items: center; justify-content: space-between; gap
 
 @keyframes pulse { 50% { opacity: .72; } }
 @media (prefers-reduced-motion: reduce) { .state--alerting { animation: none; } }
+
+/* Test tab */
+.test-lock, .test-tools, .test-card { display: grid; gap: 9px; }
+.test-lock input, .test-field input, .test-field select { width: 100%; min-width: 0; border: 1px solid var(--line); border-radius: 6px; background: #fff; color: var(--ink); padding: 9px 10px; font-size: 13px; }
+.test-card { border: 1px solid var(--line); border-radius: 8px; background: var(--surface); padding: 11px 12px; }
+.test-card h3 { margin: 0; color: var(--heading); font-size: 13px; }
+.test-field { display: grid; gap: 5px; color: var(--ink); font-size: 12px; font-weight: 700; }
+.test-field small, .test-toggle small { display: block; color: var(--muted); font-weight: 400; }
+.test-toggle { display: flex; gap: 9px; align-items: flex-start; font-size: 12px; cursor: pointer; }
+.test-toggle input { margin: 2px 0 0; width: 16px; height: 16px; accent-color: var(--heading); }
+.test-button { border: 1px solid var(--heading); border-radius: 6px; background: transparent; color: var(--heading); padding: 9px 10px; font-weight: 700; cursor: pointer; }
+.test-error { color: var(--danger); font-size: 12px; }

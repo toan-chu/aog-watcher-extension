@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { describe, expect, it } from "vitest";
 import { evaluatePeers } from "../lib/heartbeat.js";
-import { peerEvidence } from "../lib/popup_view.js";
+import { backupCountdownText, peerEvidence } from "../lib/popup_view.js";
 
 const slots = [{ start: "22:00", end: "02:30", role: "primary" }, { start: "02:30", end: "07:00", role: "backup" }];
 const afternoon = new Date(2026, 10, 11, 14, 43).getTime();
@@ -39,5 +39,25 @@ describe("test day: greeting typed once", () => {
     expect(helper).toContain("await sleep(50)");
     expect(source.match(/composer\.dispatchEvent\(new InputEvent/g)).toHaveLength(1);
     expect(source.match(/await typeIntoComposer\(composer, text\);/g)).toHaveLength(2);
+  });
+});
+
+describe("Test tab in the popup", () => {
+  it("is a fourth tab behind a password, and Settings no longer has a Testing section", async () => {
+    const [html, js, settings] = await Promise.all(["popup.html", "popup.js", "settings.html"].map((name) => readFile(new URL(`../${name}`, import.meta.url), "utf8")));
+    expect(html).toContain('id="testTab"');
+    expect(html).toContain('<option value="solo">');
+    expect(js).toContain('const TEST_PASSWORD = "deptrai";');
+    expect(js).toContain('type: "SIMULATE_ALERT", source: "whatsapp"');
+    expect(js).toContain('type: "SIMULATE_ALERT", source: "email"');
+    expect(settings).not.toContain('id="testMode"');
+    expect(settings).not.toContain('id="dryRun"');
+  });
+
+  it("explains Solo on the ringing screen and the partner row", () => {
+    const now = 1_000_000;
+    expect(backupCountdownText({ solo: true, backup_call_at: now + 65_000 }, now)).toBe("Simulated Backup in 01:05");
+    expect(backupCountdownText({ solo: true, current_alert: { backup_stage: true } }, now)).toBe("Backup stage (simulated)");
+    expect(peerEvidence({ solo: true })).toEqual({ tone: "ok", text: "Solo test: this machine plays both" });
   });
 });

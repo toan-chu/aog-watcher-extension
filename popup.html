@@ -25,6 +25,7 @@
     <button id="tonightTab" class="tab tab--active" type="button" aria-selected="true">Tonight</button>
     <button id="searchTab" class="tab" type="button" aria-selected="false">Search</button>
     <button id="helpTab" class="tab" type="button" aria-selected="false">Help</button>
+    <button id="testTab" class="tab" type="button" aria-selected="false">Test <span id="testLockIcon" aria-hidden="true">🔒</span></button>
   </nav>
 
   <main class="shell">
@@ -125,6 +126,44 @@
       </details>
       <details class="fold diagnostics"><summary>Diagnostics</summary><div id="diagnosticsRows" class="diagnostics__rows"></div></details>
       <button id="sharepointButton" class="text-button" type="button" hidden>Open SharePoint</button>
+    </section>
+
+    <section id="testPanel" class="tab-panel" hidden>
+      <p class="screen-kicker">Test</p>
+      <h2 class="screen-title">Test tools</h2>
+      <form id="testLock" class="test-lock">
+        <p class="help-copy">For trial runs only. Enter the test password to continue.</p>
+        <input id="testPassword" type="password" autocomplete="off" placeholder="Password" aria-label="Test password">
+        <button class="cta cta--wide" type="submit">UNLOCK</button>
+      </form>
+      <div id="testTools" class="test-tools" hidden>
+        <section class="test-card">
+          <h3>1 · Mode</h3>
+          <label class="test-toggle"><input id="testModeInput" type="checkbox"><span><b>Test mode</b><small>Ignore shift hours and use the role below.</small></span></label>
+          <label class="test-field">Role on this machine
+            <select id="testRoleInput">
+              <option value="primary">Primary</option>
+              <option value="backup">Backup</option>
+              <option value="solo">Solo: Primary, then simulated Backup</option>
+            </select>
+          </label>
+          <label class="test-toggle"><input id="dryRunInput" type="checkbox"><span><b>Dry-run</b><small>Do not ring and do not notify the partner machine.</small></span></label>
+          <button id="testSaveButton" class="cta cta--wide" type="button">SAVE TEST MODE</button>
+        </section>
+        <section class="test-card">
+          <h3>2 · Simulate a message</h3>
+          <p class="hint">Select Start shift first. A simulated message follows the real path: it rings, escalates to the partner machine and is logged.</p>
+          <label class="test-field">WhatsApp chat <small>Optional. A real chat name opens it and types the greeting on Accept.</small>
+            <input id="simChatInput" placeholder="e.g. AOG test">
+          </label>
+          <button id="simWhatsAppButton" class="test-button" type="button">💬 Simulate WhatsApp message</button>
+          <label class="test-field">Email subject <small>Optional.</small>
+            <input id="simSubjectInput" placeholder="AOG TEST · Simulated email">
+          </label>
+          <button id="simEmailButton" class="test-button" type="button">📧 Simulate Outlook email</button>
+        </section>
+        <button id="testLockButton" class="text-button" type="button">🔒 Lock test tools</button>
+      </div>
     </section>
 
     <footer>

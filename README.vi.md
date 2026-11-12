@@ -212,17 +212,34 @@ Máy tải lại danh sách mỗi lần bắt đầu ca và mỗi lần lưu Set
 
 </details>
 
-<details>
-<summary><b>🧪 Testing (chạy thử)</b></summary>
+---
 
-| Thiết lập | Ý nghĩa |
+## 🧪 Tab Test: thử mà không cần chờ tin AOG thật
+
+Popup có tab thứ tư là **Test 🔒**. Tab này bị khoá để không làm rối mắt trong ca thật; hỏi trưởng ca mật khẩu.
+
+**1 · Mode (chế độ)**
+
+| Vai trò trên máy này | Điều gì xảy ra |
 |---|---|
-| Test mode + Test role | Bỏ qua giờ ca, đóng vai Primary hoặc Backup. |
-| Dry-run | Không reo, không báo máy kia. |
+| 🟣 Primary | Reo trước, như một đêm thật. |
+| 🟠 Backup | Reo khi máy kia chuyển tin sang. |
+| 🔁 **Solo** | Một máy đóng cả hai vai: reo như Primary; nếu sau 2 phút chưa ai nhận thì chuyển sang **giai đoạn Backup giả lập**, chuông to hơn. Không cần máy thứ hai. |
 
-Tắt cả hai trước ca thật.
+**Dry-run** chạy thử im lặng: không reo, không báo máy kia. Đổi gì thì bấm **Save test mode**.
 
-</details>
+**2 · Simulate a message (giả lập tin)** (bấm **Start shift** trước)
+
+- 💬 **Simulate WhatsApp message**: reo như tin khách thật. Gõ tên một chat có thật (ví dụ `AOG test`) thì khi Accept máy sẽ mở chat đó và gõ sẵn câu chào; để trống thì Accept không mở gì.
+- 📧 **Simulate Outlook email**: reo như thư AOG thật, kể cả khi bộ lọc thư lẽ ra sẽ bỏ qua.
+
+Tin giả lập đi đúng đường của tin thật: nếu có máy khác đang trực vai Backup, máy đó cũng nhận được tín hiệu chuyển tin.
+
+> [!TIP]
+> Muốn thử tin WhatsApp thật trên một máy, hãy nhắn **từ điện thoại** vào nhóm test. Tin bạn gõ trên WhatsApp Web của chính máy đó là tin gửi đi, nên không bao giờ reo.
+
+> [!WARNING]
+> Trước ca thật, tắt **Test mode** và bấm **Save test mode**.
 
 ---
 

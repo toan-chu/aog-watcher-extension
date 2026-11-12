@@ -8,7 +8,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-5.0.0-4d148c" alt="Phiên bản 5.0.0">
+  <img src="https://img.shields.io/badge/version-5.0.1-4d148c" alt="Phiên bản 5.0.1">
   <img src="https://img.shields.io/badge/Chrome%20%2F%20Edge-Manifest%20V3-ff6200" alt="Chrome MV3">
   <img src="https://img.shields.io/badge/data-SharePoint%20Lists-4d148c" alt="SharePoint">
 </p>
@@ -208,7 +208,7 @@ Máy tải lại danh sách mỗi lần bắt đầu ca và mỗi lần lưu Set
 | Backup rings on its own after (Backup tự reo sau) | 180 giây |
 | Stop ringing after (tự tắt chuông sau) | 540 giây |
 | Ring style (+ ▶ Preview để nghe thử) | Gentle, repeating |
-| Follow up after Accept → Ask after → Ring again if no answer in (hỏi lại vụ việc xong chưa) | bật · 10 phút · 5 phút |
+| Follow up after Accept → Ask after → Ring again if no answer in (mỗi chat một câu "Is it done?" hiện im lặng; chỉ reo khi để quá hạn không trả lời) | bật · 10 phút · 5 phút |
 | Machine unattended after (máy coi như không có người sau) | 15 giây |
 | Partner machine lost after (mất liên lạc máy kia sau) | 5 phút |
 | Start-shift reminder after (nhắc bấm Start shift sau) | 10 phút |

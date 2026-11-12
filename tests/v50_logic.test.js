@@ -281,3 +281,21 @@ describe("shared settings: blank values and the Outlook watch path", () => {
     expect(parseOutlookWatchPath("https://outlook.office.com/mail/inbox/id/AAQkAGI2").error).toMatch(/one email/);
   });
 });
+
+describe("follow-up: one question per chat", () => {
+  it("several accepted alerts from the same chat create one question, and Done clears it", async () => {
+    const { addFollowups, answerFollowup } = await import("../lib/followup.js");
+    const alerts = ["a1", "a2", "a3"].map((alert_id) => ({ alert_id, source: "whatsapp", group_name: "Simulated WhatsApp chat" }));
+    let list = addFollowups([], alerts.slice(0, 2), { now: 0 });
+    list = addFollowups(list, [alerts[2], { alert_id: "b1", source: "whatsapp", group_name: "Other chat" }], { now: 60_000 });
+    expect(list.map((item) => item.alert_id)).toEqual(["a1", "b1"]);
+    expect(answerFollowup(list, "a1", "done").map((item) => item.alert_id)).toEqual(["b1"]);
+  });
+
+  it("Done on one alert also clears older questions left for the same chat", async () => {
+    const { answerFollowup, createFollowup } = await import("../lib/followup.js");
+    const same = (alert_id) => createFollowup({ alert_id, source: "email", subject: "AOG A321" }, { now: 0 });
+    const list = [same("e1"), same("e2"), createFollowup({ alert_id: "w1", source: "whatsapp", group_name: "AOG A321" }, { now: 0 })];
+    expect(answerFollowup(list, "e2", "done").map((item) => item.alert_id)).toEqual(["w1"]);
+  });
+});

@@ -8,7 +8,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-5.0.0-4d148c" alt="Version 5.0.0">
+  <img src="https://img.shields.io/badge/version-5.0.1-4d148c" alt="Version 5.0.1">
   <img src="https://img.shields.io/badge/Chrome%20%2F%20Edge-Manifest%20V3-ff6200" alt="Chrome MV3">
   <img src="https://img.shields.io/badge/data-SharePoint%20Lists-4d148c" alt="SharePoint">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT">
@@ -207,7 +207,7 @@ Machines reload the list when a shift starts and when Settings are saved. A chat
 | Backup rings on its own after | 180 sec |
 | Stop ringing after | 540 sec |
 | Ring style (+ ▶ Preview) | Gentle, repeating |
-| Follow up after Accept → Ask after → Ring again if no answer in | on · 10 min · 5 min |
+| Follow up after Accept → Ask after → Ring again if no answer in (one quiet "Is it done?" per chat; it rings only when left unanswered) | on · 10 min · 5 min |
 | Machine unattended after | 15 sec |
 | Partner machine lost after | 5 min |
 | Start-shift reminder after | 10 min |

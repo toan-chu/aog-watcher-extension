@@ -717,4 +717,45 @@ describe("service worker 5.0 behaviour", () => {
     await send({ type: "ACCEPT_CURRENT" }); await settle();
     expect(chrome._tabUpdates.at(-1)).toMatchObject({ tabId: 21, options: { active: true } });
   });
+
+  it("Accept on a simulated email without a subject still brings Outlook forward", async () => {
+    const browserTabs = [{ id: 31, windowId: 7, url: "https://outlook.cloud.microsoft/mail/" }];
+    const tabResponder = async () => ({ ok: true, opened: false });
+    const { chrome, send, alarm, settle } = await boot({ browserTabs, tabResponder });
+    await send({ type: "START_SHIFT" });
+    alarm("aog:tick"); await settle();
+    await send({ type: "SIMULATE_ALERT", source: "email", name: "" });
+    await send({ type: "ACCEPT_CURRENT" }); await settle();
+    expect(chrome._tabUpdates.at(-1)).toMatchObject({ tabId: 31, options: { active: true } });
+  });
+
+  it("Is it done? appears quietly; only an unanswered question rings", async () => {
+    const { chrome, send, alarm, settle } = await boot();
+    await send({ type: "START_SHIFT" });
+    await send({ type: "ALERT_DETECTED", alert: { source: "email", sender: "ops@airline.com", subject: "AOG A321", message_id: "m1" } });
+    await send({ type: "ACCEPT_CURRENT" }); await settle();
+    const plays = () => chrome._sent.filter((message) => message.type === "AUDIO_PLAY").length;
+
+    chrome._store.aog_followups = chrome._store.aog_followups.map((item) => ({ ...item, ask_at: Date.now() - 1000 }));
+    const before = plays();
+    alarm("aog:tick"); await settle();
+    const asked = (await send({ type: "GET_STATUS" })).status.system_alerts.find((item) => item.kind === "followup");
+    expect(asked).toMatchObject({ title: "Is it done?", ring: false });
+    expect(plays()).toBe(before);
+
+    chrome._store.aog_followups = chrome._store.aog_followups.map((item) => ({ ...item, asked_at: Date.now() - 6 * 60_000 }));
+    alarm("aog:tick"); await settle();
+    const overdue = (await send({ type: "GET_STATUS" })).status.system_alerts.find((item) => item.kind === "followup_overdue");
+    expect(overdue.ring).toBe(true);
+    expect(plays()).toBeGreaterThan(before);
+  });
+
+  it("simulated messages create no Is it done? question", async () => {
+    const { send, alarm, settle } = await boot();
+    await send({ type: "START_SHIFT" });
+    alarm("aog:tick"); await settle();
+    await send({ type: "SIMULATE_ALERT", source: "whatsapp", name: "" });
+    const accepted = await send({ type: "ACCEPT_CURRENT" });
+    expect(accepted.status.followups).toEqual([]);
+  });
 });

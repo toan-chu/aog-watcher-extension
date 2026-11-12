@@ -21,7 +21,7 @@ import { runPreflight } from "./lib/preflight.js";
 import { shiftReminderState } from "./lib/shift_reminder.js";
 import { evaluatePeers, wasOfflineAt } from "./lib/heartbeat.js";
 import { classifyMiss } from "./lib/miss_cause.js";
-import { answerFollowup, createFollowup, tickFollowups } from "./lib/followup.js";
+import { addFollowups, answerFollowup, tickFollowups } from "./lib/followup.js";
 import { applySharedSettings, changedKeys, publishSharedSettings, pullSharedSettings } from "./lib/shared_settings.js";
 import { shiftDate, shiftRowFallbackMatch, shiftRowFields, shiftRowMatch } from "./lib/shift_row.js";
 import { ensureSharePointOriginRule } from "./lib/sharepoint_origin_rule.js";
@@ -539,8 +539,9 @@ async function updateTestSettings(message) {
   return { ok: true, status: await status() };
 }
 
-// A simulated alert without a real chat or subject has nothing to open after Accept.
-function hasSourceToOpen(alert) { return !alert?.simulated || alert.simulated_target; }
+// A simulated WhatsApp alert without a real chat name has nothing to open after Accept.
+// Email always brings Outlook forward, simulated or not.
+function hasSourceToOpen(alert) { return !alert?.simulated || alert.simulated_target || alert.source === ALERT_SOURCE.EMAIL; }
 
 async function openAlertTarget(target, draftText = "") {
   if (target?.source === ALERT_SOURCE.WHATSAPP) {
@@ -896,7 +897,8 @@ async function evaluateSelf() {
       const item = action.followup;
       if (action.type === "ask") {
         await appendServiceEvent({ event_type: "FOLLOWUP_ASKED", alert_id: item.alert_id, source: item.source, group_name: item.title });
-        await raiseSystemAlert(`followup:${item.alert_id}`, { kind: "followup", title: "Is it done?", message: `"${item.title}" — select Done or Need more time.`, rearm: true });
+        // The question itself is quiet; only an unanswered question (overdue) rings and tells the partner.
+        await raiseSystemAlert(`followup:${item.alert_id}`, { kind: "followup", title: "Is it done?", message: `"${item.title}" — select Done or Need more time.`, rearm: true, ring: false });
       } else {
         await clearSystemAlert(`followup:${item.alert_id}`);
         await appendServiceEvent({ event_type: "FOLLOWUP_OVERDUE", alert_id: item.alert_id, source: item.source, group_name: item.title });
@@ -977,9 +979,10 @@ async function finishAccepted(alerts, config) {
   if (!alerts.length) return;
   await writeShiftRow(config, state.session);
   if (!config.followup_enabled) return;
-  const acceptedIds = new Set(alerts.map((alert) => alert.alert_id));
-  const followups = (await getKey(K.FOLLOWUPS, [])).filter((item) => !acceptedIds.has(item.alert_id));
-  await setKey(K.FOLLOWUPS, [...followups, ...alerts.map((alert) => createFollowup(alert, { askAfterMinutes: Number(config.followup_after_minutes) || 10 }))]);
+  // Simulated test messages need no "Is it done?" afterwards.
+  const real = alerts.filter((alert) => !alert.simulated);
+  if (!real.length) return;
+  await setKey(K.FOLLOWUPS, addFollowups(await getKey(K.FOLLOWUPS, []), real, { askAfterMinutes: Number(config.followup_after_minutes) || 10 }));
 }
 
 async function handleWhatsAppReadObservation(message) {

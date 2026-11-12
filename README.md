@@ -8,7 +8,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-5.0.2-4d148c" alt="Version 5.0.2">
+  <img src="https://img.shields.io/badge/version-5.0.3-4d148c" alt="Version 5.0.3">
   <img src="https://img.shields.io/badge/Chrome%20%2F%20Edge-Manifest%20V3-ff6200" alt="Chrome MV3">
   <img src="https://img.shields.io/badge/data-SharePoint%20Lists-4d148c" alt="SharePoint">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT">
@@ -210,7 +210,7 @@ Machines reload the list when a shift starts and when Settings are saved. A chat
 | Follow up after Accept → Ask after → Ring again if no answer in (one quiet "Is it done?" per chat; it rings only when left unanswered) | on · 10 min · 5 min |
 | Machine unattended after | 15 sec |
 | Partner machine lost after | 5 min |
-| Start-shift reminder after | 10 min |
+| Start-shift reminder after (only if you are on tonight's roster in `AOG_Shifts`) | 10 min |
 | Blind warning after (cannot read WhatsApp/Outlook) | 5 min |
 
 </details>
@@ -237,6 +237,8 @@ The popup has a fourth tab, **Test 🔒**. It is locked so it stays out of the w
 - 📧 **Simulate Outlook email**: rings like a real AOG email, even if the email filters would skip it.
 
 A simulated message follows the real path: if a partner machine is on shift as Backup, it receives the escalation too.
+
+While **Test mode** is on, nothing is written to `AOG_Shifts` (no check-in, hours or counts) or to the event log in `AOG_Log`. Only the rows two machines need to see and escalate to each other (`Machine` and `Signal`) are still sent.
 
 > [!TIP]
 > To test a real WhatsApp message on one machine, send it **from your phone** to the test group. A message you type in WhatsApp Web on the same machine is outgoing, so it never rings.
@@ -308,7 +310,7 @@ Change these from **Settings**, not here. Only `log_keep_days` (default 90) is e
 | MissCause | Why an alert was missed |
 | Ready, Version, Detail | Readiness, version, extra detail |
 
-All 🤖.
+All 🤖. Only what is needed to reconstruct a night is written here, and only during a shift (plus **Shift ended** and missed-message reports). Test mode writes no `Event` rows.
 
 </details>
 

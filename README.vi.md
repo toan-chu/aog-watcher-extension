@@ -8,7 +8,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-5.0.2-4d148c" alt="Phiên bản 5.0.2">
+  <img src="https://img.shields.io/badge/version-5.0.3-4d148c" alt="Phiên bản 5.0.3">
   <img src="https://img.shields.io/badge/Chrome%20%2F%20Edge-Manifest%20V3-ff6200" alt="Chrome MV3">
   <img src="https://img.shields.io/badge/data-SharePoint%20Lists-4d148c" alt="SharePoint">
 </p>
@@ -211,7 +211,7 @@ Máy tải lại danh sách mỗi lần bắt đầu ca và mỗi lần lưu Set
 | Follow up after Accept → Ask after → Ring again if no answer in (mỗi chat một câu "Is it done?" hiện im lặng; chỉ reo khi để quá hạn không trả lời) | bật · 10 phút · 5 phút |
 | Machine unattended after (máy coi như không có người sau) | 15 giây |
 | Partner machine lost after (mất liên lạc máy kia sau) | 5 phút |
-| Start-shift reminder after (nhắc bấm Start shift sau) | 10 phút |
+| Start-shift reminder after (nhắc bấm Start shift sau; chỉ nhắc người có tên trong lịch trực tối nay ở `AOG_Shifts`) | 10 phút |
 | Blind warning after (báo không đọc được WhatsApp/Outlook sau) | 5 phút |
 
 </details>
@@ -238,6 +238,8 @@ Popup có tab thứ tư là **Test 🔒**. Tab này bị khoá để không làm
 - 📧 **Simulate Outlook email**: reo như thư AOG thật, kể cả khi bộ lọc thư lẽ ra sẽ bỏ qua.
 
 Tin giả lập đi đúng đường của tin thật: nếu có máy khác đang trực vai Backup, máy đó cũng nhận được tín hiệu chuyển tin.
+
+Khi bật **Test mode**, máy không ghi gì vào `AOG_Shifts` (không giờ vào/ra ca, không số giờ, không số đếm) và không ghi nhật ký sự kiện vào `AOG_Log`. Máy chỉ vẫn gửi hai loại dòng cần để hai máy thấy nhau và chuyển tin cho nhau (`Machine` và `Signal`).
 
 > [!TIP]
 > Muốn thử tin WhatsApp thật trên một máy, hãy nhắn **từ điện thoại** vào nhóm test. Tin bạn gõ trên WhatsApp Web của chính máy đó là tin gửi đi, nên không bao giờ reo.
@@ -309,7 +311,7 @@ Mọi dữ liệu nằm trên `https://trustanavn.sharepoint.com/sites/aog`. ✍
 | MissCause | Lý do lỡ tin |
 | Ready, Version, Detail | Trạng thái sẵn sàng, phiên bản, chi tiết |
 
-Toàn bộ là 🤖.
+Toàn bộ là 🤖. Chỉ ghi những gì cần để dựng lại một đêm trực, và chỉ ghi trong ca (cộng thêm dòng **Shift ended** và báo cáo tin bị lỡ). Test mode không ghi dòng `Event`.
 
 </details>
 

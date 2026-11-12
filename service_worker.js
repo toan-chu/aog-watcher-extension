@@ -11,7 +11,7 @@ import { markAlertSourceSeen, markSourceSeen } from "./lib/source_health.js";
 import { createSharePointClient, normalizeSiteUrl, odataString } from "./lib/sharepoint_client.js";
 import { SP_LISTS } from "./lib/sp_schema.js";
 import {
-  BLACKBOX_EVENTS, SIGNAL, checkSchema, ensureSchema, eventFields, executeOp, latestSignalId,
+  BLACKBOX_EVENTS, OFF_SHIFT_BLACKBOX_EVENTS, SIGNAL, checkSchema, ensureSchema, eventFields, executeOp, latestSignalId,
   pullMachines, pullSignals, pullTeamGroups, purgeOldLog, signalFields, upsertMachine,
 } from "./lib/team_sync.js";
 import { enqueueOp, dueOps, completeOp, failOp } from "./lib/outbox.js";
@@ -259,6 +259,18 @@ async function reconcileRosterIdentity(config, { client = spClient(config), who 
   };
   await setKey(K.ROSTER_STATUS, status);
   return { config: nextConfig, note, status };
+}
+
+// true when tonight's AOG_Shifts has a row for this machine's account; also true when SharePoint
+// is not set up or cannot be read, so a reminder is never lost to a network problem.
+async function isOnTonightsRoster(config, now = new Date()) {
+  if (!spConfigured(config)) return true;
+  try {
+    const { status } = await reconcileRosterIdentity(config, { startedAt: now.toISOString() });
+    return status.on_roster;
+  } catch {
+    return true;
+  }
 }
 
 async function queueWrite(op) {
@@ -620,7 +632,11 @@ async function appendServiceEvent(record) {
   }
   const enriched = enrichEventRecord(eventRecord, { session: state?.session, config, detectedById });
   await appendEventLog(enriched);
-  if (BLACKBOX_EVENTS.has(enriched.event_type)) {
+  // Test runs keep their events on this machine only. Machine and Signal rows still go to SharePoint,
+  // because two test machines need them to see and escalate to each other.
+  // Off shift nothing is logged to SharePoint except the end of the shift and missed-message reports.
+  const onShiftOrAllowed = Boolean(state?.session) || OFF_SHIFT_BLACKBOX_EVENTS.has(enriched.event_type);
+  if (BLACKBOX_EVENTS.has(enriched.event_type) && !config.test_mode && onShiftOrAllowed) {
     const who = await identity();
     await queueWrite({ kind: "add", list: SP_LISTS.LOG, fields: eventFields(enriched, { machineId: await getMachineId(), email: who.email }) });
   }
@@ -750,6 +766,8 @@ async function handlePeerText(text) {
 // ---------- shift ----------
 async function writeShiftRow(config, session, { ended = false } = {}) {
   if (!session?.shift_id) return;
+  // Test runs never touch the roster or payroll.
+  if (config.test_mode) return;
   const who = await identity();
   const preflight = await getKey(K.PREFLIGHT, null);
   const name = config.self_display_name || who.name;
@@ -881,7 +899,11 @@ async function evaluateSelf() {
     if (!done[doneKey]) {
       done[doneKey] = now;
       await setKey(K.REMINDER_STATE, Object.fromEntries(Object.entries(done).slice(-20)));
-      if (reminder.level === "nudge") await notify(`reminder-${reminder.key}`, "Time to start the AOG shift", "Open the AOG Watcher popup and select Start shift.");
+      // Only someone on tonight's roster is reminded (and only then is the partner told).
+      // A day off is not a missed shift. If the roster cannot be read, remind anyway: safer.
+      const rostered = await isOnTonightsRoster(config, new Date(now));
+      if (!rostered) await appendServiceEvent({ event_type: "SHIFT_REMINDER_SKIPPED", reason: "not_on_roster", night: reminder.key });
+      else if (reminder.level === "nudge") await notify(`reminder-${reminder.key}`, "Time to start the AOG shift", "Open the AOG Watcher popup and select Start shift.");
       else {
         await raiseSystemAlert(`reminder:${reminder.key}`, { kind: "shift_reminder", title: "Shift not started", message: `${config.shift_reminder_grace_minutes || 10} minutes have passed since the shift start time. Select Start shift now. The partner machine has been notified.` });
         await sendSignal(SIGNAL.SHIFT_NOT_STARTED, { payload: { operator: config.self_display_name, night: reminder.key } });

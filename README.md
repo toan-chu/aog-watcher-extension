@@ -116,7 +116,10 @@ Click **Start shift**. The **WATCHING** screen lists five checks. Fix each red o
 
 ### 4️⃣ End
 
-Click **End shift** twice. Your check-out time and hours go to the roster.
+Click **End shift** twice. Your check-out time and hours go to the roster, and nothing on this machine rings again until the next **Start shift**.
+
+> [!WARNING]
+> Always **End shift** before removing or reinstalling the extension. Otherwise the roster has no check-out time, and the partner machine shows **Partner machine lost** until this machine has been silent for 12 hours.
 
 ---
 
@@ -137,6 +140,7 @@ In the `AOG_Shifts` list, add **one row per person per night**. The extension fi
 - 📧 Copy emails from the operator's `Signed in:` line. No spaces, no personal Gmail.
 - 🔢 **Slot 1 = 22:00–02:30.** Do not use the old "Ca 1" numbering.
 - ℹ️ `Slot1Role` / `Slot2Role` are the plan for people to read. Each machine still takes its role from its own popup.
+- 👥 **Both Primary and Backup must be members of every customer chat** in `AOG_Groups`. Accept opens the chat in the operator's own WhatsApp; if they are not in the chat, the ring stops but the chat cannot open.
 
 ---
 
@@ -316,7 +320,8 @@ All 🤖.
 |---|---|
 | 🔴 WhatsApp or Outlook | Open or reload that tab. For Outlook, open the mailbox or folder set in **Outlook watch path** (or leave that blank). |
 | 🔴 SharePoint | Open the AOG site and sign in again. Ringing keeps working meanwhile. |
-| 🔴 Partner machine lost | Call the other operator: is their browser open and their shift started? |
+| 🔴 Partner machine lost | Call the other operator: is their browser open and their shift started? A machine removed without **End shift** stops counting after 12 hours; to clear it sooner, delete its `Machine` row in `AOG_Log`. |
+| 💬 Accepted, but the chat could not be opened | Your WhatsApp is not in that chat. Ask to be added; meanwhile answer from a phone that is. |
 | 🔴 You are not on tonight's roster | Ask the shift lead to add your row (right date and email). Ringing keeps working. |
 | 📄 A second row of you in AOG_Shifts | Email or ShiftDate did not match. The shift lead fixes the planned row and deletes the extra one. |
 | 💬 Wrong chat opened | Nothing was typed. Open the right chat, or reopen the alert from **Recent events**. |

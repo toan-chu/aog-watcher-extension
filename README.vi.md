@@ -117,7 +117,10 @@ Bấm **Start shift**. Màn **WATCHING** có năm dòng kiểm. Xử lý từng 
 
 ### 4️⃣ Kết thúc ca
 
-Bấm **End shift** hai lần. Giờ ra ca và số giờ trực được ghi vào lịch.
+Bấm **End shift** hai lần. Giờ ra ca và số giờ trực được ghi vào lịch, và máy không reo gì nữa cho đến lần **Start shift** kế tiếp.
+
+> [!WARNING]
+> Luôn bấm **End shift** trước khi gỡ hoặc cài lại extension. Nếu không, lịch trực thiếu giờ ra ca, và máy đồng đội báo **Partner machine lost** cho đến khi máy này im lặng đủ 12 tiếng.
 
 ---
 
@@ -138,6 +141,7 @@ Trong list `AOG_Shifts`, mỗi người mỗi đêm **một dòng**. Các cột 
 - 📧 Chép email từ dòng `Signed in:` của người trực. Không có dấu cách thừa, không dùng Gmail cá nhân.
 - 🔢 **Slot 1 = 22:00–02:30.** Đừng dùng cách đánh số "Ca 1" của lịch cũ.
 - ℹ️ `Slot1Role` / `Slot2Role` là kế hoạch để người đọc. Mỗi máy vẫn lấy vai trò từ popup của chính nó.
+- 👥 **Cả Primary lẫn Backup phải có mặt trong mọi nhóm khách** ở `AOG_Groups`. Accept mở chat trong WhatsApp của chính người trực; không có trong nhóm thì chuông vẫn tắt nhưng không mở được chat.
 
 ---
 
@@ -317,7 +321,8 @@ Toàn bộ là 🤖.
 |---|---|
 | 🔴 WhatsApp hoặc Outlook | Mở hoặc tải lại tab đó. Với Outlook, mở đúng hộp thư/thư mục đã điền ở **Outlook watch path** (hoặc để trống ô đó). |
 | 🔴 SharePoint | Mở site AOG và đăng nhập lại. Trong lúc đó máy vẫn reo bình thường. |
-| 🔴 Partner machine lost | Gọi người trực máy kia: trình duyệt có mở không, đã bấm Start shift chưa? |
+| 🔴 Partner machine lost | Gọi người trực máy kia: trình duyệt có mở không, đã bấm Start shift chưa? Máy bị gỡ mà chưa **End shift** sẽ tự hết bị tính sau 12 tiếng; muốn hết ngay thì xoá dòng `Machine` của máy đó trong `AOG_Log`. |
+| 💬 Accepted, but the chat could not be opened | WhatsApp của bạn không có trong nhóm đó. Nhờ thêm vào nhóm; trong lúc chờ, trả lời bằng điện thoại có trong nhóm. |
 | 🔴 You are not on tonight's roster | Nhờ trưởng ca thêm dòng của bạn (đúng ngày, đúng email). Máy vẫn reo bình thường. |
 | 📄 AOG_Shifts có thêm một dòng tên bạn | Email hoặc ShiftDate không khớp. Trưởng ca sửa dòng đã xếp và xoá dòng thừa. |
 | 💬 Mở nhầm chat | Ô nhập không bị gõ gì. Mở đúng chat, hoặc mở lại tin từ **Recent events**. |

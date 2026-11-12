@@ -13,3 +13,14 @@ describe("filters", () => {
   it("identifies coordination group", () => expect(isCoordGroup("aog coord", config)).toBe(true));
 });
 
+
+describe("internal senders shown by display name only", () => {
+  const config = { skip_sender_domains: ["trustana.vn"] };
+  it("skips 'Leena | TRUSTANA' when trustana.vn is an ignored domain", () => {
+    expect(shouldSkipEmail({ sender: "Leena | TRUSTANA", subject: "Re: AOG A321" }, config)).toBe(true);
+  });
+  it("does not skip a customer whose name merely contains the letters", () => {
+    expect(shouldSkipEmail({ sender: "Trustanative Airlines Ops", subject: "AOG" }, config)).toBe(false);
+    expect(shouldSkipEmail({ sender: "Vietjet AOG Desk", subject: "AOG" }, config)).toBe(false);
+  });
+});

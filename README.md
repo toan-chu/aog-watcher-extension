@@ -8,7 +8,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-5.0.1-4d148c" alt="Version 5.0.1">
+  <img src="https://img.shields.io/badge/version-5.0.2-4d148c" alt="Version 5.0.2">
   <img src="https://img.shields.io/badge/Chrome%20%2F%20Edge-Manifest%20V3-ff6200" alt="Chrome MV3">
   <img src="https://img.shields.io/badge/data-SharePoint%20Lists-4d148c" alt="SharePoint">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT">
@@ -193,7 +193,7 @@ Machines reload the list when a shift starts and when Settings are saved. A chat
 |---|---|
 | Outlook watch path | This machine only. Blank = watch whichever Outlook folder is open. Or a mailbox/folder path such as `/mail/aog@trustana.vn/`. Pasting the whole Outlook address works; the address of a single email is refused. |
 | 🔄 Only accept from senders | Optional. Only these emails or domains ring. |
-| 🔄 Ignored sender domains | Never ring for these. Default `trustana.vn`. |
+| 🔄 Ignored sender domains | Never ring for these. Default `trustana.vn`; it also skips internal senders Outlook shows by name only, such as "Leena \| TRUSTANA". |
 | 🔄 Subject keywords | Only these subjects ring. Blank = all. |
 
 </details>

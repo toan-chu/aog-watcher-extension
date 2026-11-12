@@ -8,7 +8,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-5.0.1-4d148c" alt="Phiên bản 5.0.1">
+  <img src="https://img.shields.io/badge/version-5.0.2-4d148c" alt="Phiên bản 5.0.2">
   <img src="https://img.shields.io/badge/Chrome%20%2F%20Edge-Manifest%20V3-ff6200" alt="Chrome MV3">
   <img src="https://img.shields.io/badge/data-SharePoint%20Lists-4d148c" alt="SharePoint">
 </p>
@@ -194,7 +194,7 @@ Máy tải lại danh sách mỗi lần bắt đầu ca và mỗi lần lưu Set
 |---|---|
 | Outlook watch path | Chỉ máy này. Để trống = theo dõi thư mục Outlook đang mở. Hoặc điền đường dẫn hộp thư/thư mục, ví dụ `/mail/aog@trustana.vn/`. Dán cả địa chỉ Outlook cũng được; dán địa chỉ của một thư cụ thể thì bị từ chối. |
 | 🔄 Only accept from senders | Không bắt buộc. Chỉ thư từ các email hoặc tên miền này mới reo. |
-| 🔄 Ignored sender domains | Thư từ các tên miền này không reo. Mặc định `trustana.vn`. |
+| 🔄 Ignored sender domains | Thư từ các tên miền này không reo. Mặc định `trustana.vn`; cũng bỏ qua thư nội bộ mà Outlook chỉ hiện tên, ví dụ "Leena \| TRUSTANA". |
 | 🔄 Subject keywords | Chỉ tiêu đề có các từ này mới reo. Để trống thì mọi thư đều reo. |
 
 </details>

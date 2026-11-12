@@ -355,13 +355,14 @@ async function syncTeam(config, { problems = [], forceGroups = false } = {}) {
     await hydrate();
     for (const peer of peers) {
       const key = `peer:${peer.machine_id}`;
-      if (state.session && peer.status === "lost") {
+      // Solo test plays both roles on this machine, so other machines are not its partner.
+      if (state.session && peer.status === "lost" && !isSoloTest(config)) {
         await raiseSystemAlert(key, { kind: "peer_lost", title: "Partner machine lost", message: `${peer.name || peer.email || "Partner machine"} has not sent a signal since ${peer.last_beat ? new Date(peer.last_beat).toLocaleTimeString("en-GB", { hour12: false }) : "?"}.` });
       } else {
         await clearSystemAlert(key);
       }
       const blindKey = `peer_src:${peer.machine_id}`;
-      if (state.session && peer.on_shift && peer.problems.length) {
+      if (state.session && peer.on_shift && peer.problems.length && !isSoloTest(config)) {
         await raiseSystemAlert(blindKey, { kind: "peer_source", title: "Partner machine has source problems", message: `${peer.name}: ${peer.problems.map((item) => item.message).join(" · ")}`, ring: false });
       } else await clearSystemAlert(blindKey);
       if (!peer.on_shift) {
@@ -476,11 +477,20 @@ async function getActiveWhatsAppChat() {
   throw new Error("Open WhatsApp Web before using Search");
 }
 
-async function focusOutlook() {
+// Brings Outlook forward and, when the alert says which email rang, opens that email in the tab that has it.
+async function focusOutlook(target = null) {
   const tabs = await chrome.tabs.query({ url: ["https://outlook.office.com/*", "https://outlook.office365.com/*", "https://outlook.live.com/*", "https://outlook.cloud.microsoft/*"] });
   if (!tabs.length) throw new Error("No Outlook tab found");
+  if (target?.message_id || target?.subject) {
+    for (const tab of tabs) {
+      try {
+        const result = await chrome.tabs.sendMessage(tab.id, { type: MESSAGE.OPEN_OUTLOOK_MESSAGE, message_id: target.message_id ?? "", subject: target.subject ?? "", sender: target.sender ?? "" });
+        if (result?.opened) { await focusTab(tab); return { ok: true, opened: true }; }
+      } catch { /* that tab has no content script yet; try the next one */ }
+    }
+  }
   await focusTab(tabs[0]);
-  return { ok: true };
+  return { ok: true, opened: false };
 }
 
 // ---------- test tools (popup Test tab) ----------
@@ -537,7 +547,7 @@ async function openAlertTarget(target, draftText = "") {
     if (!target.group_name) throw new Error("The WhatsApp chat name is missing");
     return openWhatsAppChat(target.group_name, draftText);
   }
-  if (target?.source === ALERT_SOURCE.EMAIL || target?.source === "outlook") return focusOutlook();
+  if (target?.source === ALERT_SOURCE.EMAIL || target?.source === "outlook") return focusOutlook(target);
   throw new Error("This event has no source to open");
 }
 

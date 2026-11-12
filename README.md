@@ -110,7 +110,7 @@ Click **Start shift**. The **WATCHING** screen lists five checks. Fix each red o
 
 ### 3️⃣ When it rings
 
-- 👆 **Accept**: stops the ring, tells your partner, opens the chat with the greeting.
+- 👆 **Accept**: stops the ring and tells your partner. WhatsApp: opens the chat with the greeting typed. Outlook: brings Outlook forward and opens the email that rang.
 - 👆👆 **Accept all (N)**: when several alerts wait.
 - 👀 **Just open the chat** and read it while at your desk: that counts as Accept too.
 

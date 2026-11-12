@@ -174,6 +174,27 @@
     lastStats = stats;
   }
 
+  // Accept on an email: open the exact message that rang. Match the stable row id first,
+  // then the subject (and sender when known), because a fallback id contains row text that can change.
+  function findMessageRow({ message_id: messageId = "", subject = "", sender = "" } = {}) {
+    const rows = candidateRows();
+    const byId = messageId ? rows.find((row) => extractMessageId(row, extractSender(row), extractSubject(row)) === messageId) : null;
+    if (byId) return byId;
+    const wantSubject = normalized(subject);
+    if (!wantSubject) return null;
+    const wantSender = normalized(sender);
+    const sameSubject = rows.filter((row) => normalized(extractSubject(row)) === wantSubject);
+    return sameSubject.find((row) => !wantSender || normalized(extractSender(row)) === wantSender) ?? sameSubject[0] ?? null;
+  }
+
+  function openMessage(target) {
+    const row = findMessageRow(target);
+    if (!row) return { ok: true, opened: false };
+    row.scrollIntoView?.({ block: "center" });
+    row.click();
+    return { ok: true, opened: true };
+  }
+
   function scheduleScan() { clearTimeout(scanTimer); scanTimer = setTimeout(scan, 300); }
   runtime.addStorageChangedListener((changes, area) => { if (area === "local" && changes.aog_config) { config = changes.aog_config.newValue; scheduleScan(); } });
   function sendHealth() {
@@ -185,6 +206,11 @@
     seen.clear();
     syncBaseline().then(() => { scheduleScan(); sendResponse({ ok: true }); }).catch((error) => sendResponse({ ok: false, error: error.message }));
     return true;
+  });
+  runtime.addRuntimeMessageListener((message, _sender, sendResponse) => {
+    if (message.type !== "OPEN_OUTLOOK_MESSAGE") return false;
+    try { sendResponse(openMessage(message)); } catch (error) { sendResponse({ ok: false, error: error.message }); }
+    return false;
   });
   refreshConfig().then(() => {
     syncBaseline().catch(() => {});

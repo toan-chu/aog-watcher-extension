@@ -61,3 +61,29 @@ describe("Test tab in the popup", () => {
     expect(peerEvidence({ solo: true })).toEqual({ tone: "ok", text: "Solo test: this machine plays both" });
   });
 });
+
+describe("silent machines", () => {
+  it("a machine silent for more than 12 hours is off duty, not lost", () => {
+    const old = { ...row("primary", true), LastBeat: new Date(afternoon - 13 * 3_600_000).toISOString() };
+    const [peer] = evaluatePeers([old], { selfId: "me", now: afternoon });
+    expect(peer).toMatchObject({ on_shift: false, status: "off" });
+  });
+
+  it("a machine silent for 10 minutes is still lost", () => {
+    const recent = { ...row("primary", true), LastBeat: new Date(afternoon - 10 * 60_000).toISOString() };
+    const [peer] = evaluatePeers([recent], { selfId: "me", now: afternoon });
+    expect(peer).toMatchObject({ on_shift: true, status: "lost" });
+  });
+});
+
+describe("Outlook: open the email that rang", () => {
+  it("the Outlook content script answers OPEN_OUTLOOK_MESSAGE by id, then by subject, and never sends anything", async () => {
+    const source = await readFile(new URL("../content_outlook.js", import.meta.url), "utf8");
+    expect(source).toContain('message.type !== "OPEN_OUTLOOK_MESSAGE"');
+    const finder = source.slice(source.indexOf("function findMessageRow"), source.indexOf("function openMessage"));
+    expect(finder.indexOf("=== messageId")).toBeLessThan(finder.indexOf("wantSubject"));
+    const opener = source.slice(source.indexOf("function openMessage"), source.indexOf("function scheduleScan"));
+    expect(opener).toContain("row.click()");
+    expect(opener).not.toMatch(/send|reply/i);
+  });
+});

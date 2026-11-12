@@ -111,7 +111,7 @@ Bấm **Start shift**. Màn **WATCHING** có năm dòng kiểm. Xử lý từng 
 
 ### 3️⃣ Khi máy reo
 
-- 👆 **Accept**: tắt chuông, báo máy kia, mở chat kèm câu chào.
+- 👆 **Accept**: tắt chuông, báo máy kia. WhatsApp: mở chat, gõ sẵn câu chào. Outlook: đưa Outlook lên trước và mở đúng thư đang reo.
 - 👆👆 **Accept all (N)**: khi có nhiều tin đang chờ.
 - 👀 **Mở thẳng chat đó** và đọc khi bạn đang ngồi ở máy: cũng được tính là Accept.
 

@@ -676,4 +676,45 @@ describe("service worker 5.0 behaviour", () => {
     expect(simulated.status.app_state).toBe("ALERTING");
     expect(simulated.status.current_alert).toMatchObject({ source: "email", subject: "AOG TEST 42", simulated: true });
   });
+
+  it("Solo test does not raise Partner machine lost for other machines", async () => {
+    const sp = fakeSharePoint();
+    const { send, alarm, settle } = await boot({ config: { sharepoint_site_url: "https://acme.sharepoint.com/sites/AOG", test_role: "solo" }, sharepoint: sp });
+    sp.rows("AOG_Log").push({
+      Id: 950, RecordType: "Machine", MachineId: "ethan", OperatorName: "Ethan", Role: "backup", ShiftId: "s-old",
+      At: new Date(Date.now() - 20 * 60_000).toISOString(), Detail: JSON.stringify({ problems: [], shift_slots: [], test_mode: true }),
+    });
+    await send({ type: "START_SHIFT" });
+    alarm("aog:tick"); await settle();
+    const status = (await send({ type: "GET_STATUS" })).status;
+    expect(status.peers.find((peer) => peer.machine_id === "ethan").status).toBe("lost");
+    expect(status.system_alerts.map((item) => item.kind)).not.toContain("peer_lost");
+  });
+
+  it("Accept on an email opens that exact email in the Outlook tab that has it", async () => {
+    const browserTabs = [{ id: 21, windowId: 5, url: "https://outlook.cloud.microsoft/mail/" }, { id: 22, windowId: 6, url: "https://outlook.office.com/mail/" }];
+    const tabResponder = async (message, tabId) => (message.type === "OPEN_OUTLOOK_MESSAGE" ? { ok: true, opened: tabId === 22 } : { ok: true });
+    const { chrome, send, alarm, settle } = await boot({ browserTabs, tabResponder });
+    await send({ type: "START_SHIFT" });
+    alarm("aog:tick"); await settle();
+    await send({ type: "ALERT_DETECTED", alert: { source: "email", sender: "ops@airline.com", subject: "AOG A321 at SGN", message_id: "conv-42" } });
+
+    const accepted = await send({ type: "ACCEPT_CURRENT" }); await settle();
+    expect(accepted.ok).not.toBe(false);
+    const asked = chrome._tabMessages.filter((item) => item.message.type === "OPEN_OUTLOOK_MESSAGE");
+    expect(asked.map((item) => item.tabId)).toEqual([21, 22]);
+    expect(asked[0].message).toMatchObject({ message_id: "conv-42", subject: "AOG A321 at SGN", sender: "ops@airline.com" });
+    expect(chrome._tabUpdates.at(-1)).toMatchObject({ tabId: 22, options: { active: true } });
+  });
+
+  it("Accept on an email still brings Outlook forward when the email is not in the list", async () => {
+    const browserTabs = [{ id: 21, windowId: 5, url: "https://outlook.cloud.microsoft/mail/" }];
+    const tabResponder = async () => ({ ok: true, opened: false });
+    const { chrome, send, alarm, settle } = await boot({ browserTabs, tabResponder });
+    await send({ type: "START_SHIFT" });
+    alarm("aog:tick"); await settle();
+    await send({ type: "ALERT_DETECTED", alert: { source: "email", sender: "ops@airline.com", subject: "Gone", message_id: "gone" } });
+    await send({ type: "ACCEPT_CURRENT" }); await settle();
+    expect(chrome._tabUpdates.at(-1)).toMatchObject({ tabId: 21, options: { active: true } });
+  });
 });

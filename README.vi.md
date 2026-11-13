@@ -113,12 +113,19 @@ Nếu người đang trực không có AOG Watcher nào đang chạy, máy Backu
 - 👆 **Accept**: tắt chuông trên mọi máy. **Accept là xong việc**: máy không hỏi lại nữa. WhatsApp: mở chat, gõ sẵn câu chào. Outlook: đưa Outlook lên trước.
 - 👆👆 **Accept all (N)**: khi có nhiều tin đang chờ.
 - 👀 **Mở thẳng chat đó** và đọc khi bạn đang ngồi ở máy: cũng được tính là Accept.
+- ⌨️ **Đang dùng máy thì không reo.** Khi bạn đang gõ phím hay di chuột, máy chỉ hiện thông báo; chuông chỉ reo khi máy để yên 15 giây (Settings → Machine unattended after).
+- ⏱️ Trong 2 phút đầu ca, máy chưa báo lỗi tab: các tab cần chút thời gian để báo về.
+
+### 🔔 Thử chuông
+
+Tab Tonight luôn có nút **Test ring** (reo thử 6 giây, kể cả khi đang tắt Sound) và **I hear it**. Bấm thử trước 22:00 và mỗi khi đổi loa hay chỉnh âm lượng.
 
 ### 🔕 Công tắc reo
 
 Khi bạn đang trực, tab Tonight có ba công tắc: **Sound**, **WhatsApp**, **Outlook**. Dùng khi máy reo sai.
 
 - **Tắt Sound**: máy này không reo gì cả. **Tắt WhatsApp** / **tắt Outlook**: chỉ nguồn đó thôi reo.
+- Nguồn đã tắt thì máy không đòi nữa: tab Tonight hiện **Ringing off** và thôi nhắc mở tab đó.
 - Chỉ có tác dụng trên máy bạn. Tin vẫn chờ bạn bấm Accept; bạn không bấm thì sau thời gian chờ như thường lệ, tin vẫn chuyển sang người dự phòng. Tin đã tắt tiếng mà bạn không bấm Accept thì tính là Miss.
 - Hết ca trực, cả ba công tắc tự bật lại.
 
@@ -235,7 +242,7 @@ Bật **Test mode** là máy trực ngay, bất kể lịch; tắt đi thì máy
 
 Tin giả lập đi đúng đường của tin thật: nếu có máy khác đang trực vai Backup, máy đó cũng nhận được tín hiệu chuyển tin.
 
-Khi bật **Test mode**, máy không ghi nhật ký sự kiện vào `AOG_Log`. Máy chỉ vẫn gửi hai loại dòng cần để hai máy thấy nhau và chuyển tin cho nhau (`Machine` và `Signal`).
+Khi bật **Test mode**, máy không ghi nhật ký sự kiện vào `AOG_Log`. Máy chỉ vẫn gửi hai loại dòng cần để hai máy thấy nhau và chuyển tin cho nhau (`Machine` và `Signal`); lỗi tab không bao giờ được báo sang máy khác.
 
 > [!TIP]
 > Muốn thử tin WhatsApp thật trên một máy, hãy nhắn **từ điện thoại** vào nhóm test. Tin bạn gõ trên WhatsApp Web của chính máy đó là tin gửi đi, nên không bao giờ reo.
@@ -311,7 +318,7 @@ Các cột cũ (ShiftDate, Slot1Role, Slot2Role, CheckIn, CheckOut, Hours, Ready
 | MissCause | Lý do lỡ tin |
 | Ready, Version, Detail | Trạng thái sẵn sàng, phiên bản, chi tiết |
 
-Toàn bộ là 🤖. Chỉ ghi những gì cần để dựng lại một đêm trực, và chỉ ghi trong ca (cộng thêm dòng **Shift ended** và báo cáo tin bị lỡ). Test mode không ghi dòng `Event`.
+Toàn bộ là 🤖. Chỉ ghi những gì cần để tìm và sửa lỗi, và chỉ ghi trong ca (cộng thêm dòng **Shift ended** và báo cáo tin bị lỡ): vào ca/hết ca, phát hiện tin, Accept, Miss, chuyển tin sang hoặc nhận tin từ người kia, cảnh báo, tab đổi trạng thái, bật/tắt công tắc reo. Test mode không ghi dòng `Event`. Dòng cũ hơn `log_keep_days` (AOG_Settings) tự xoá.
 
 </details>
 

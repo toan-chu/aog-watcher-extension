@@ -8,7 +8,7 @@ const ids = ["versionValue", "stateBadge", "readyBadge", "dryRunBadge", "testMod
   "leakButton", "diagnosticsRows", "sharepointButton", "settingsButton", "feedback",
   "testLockIcon", "testLock", "testPassword", "testTools", "testModeInput", "testRoleInput", "dryRunInput", "testSaveButton",
   "simChatInput", "simWhatsAppButton", "simSubjectInput", "simEmailButton", "testLockButton",
-  "muteBar", "muteSoundButton", "muteWhatsAppButton", "muteOutlookButton"];
+  "muteBar", "muteSoundButton", "muteWhatsAppButton", "muteOutlookButton", "ringTestButton", "ringHeardButton"];
 const elements = Object.fromEntries(ids.map((id) => [id, document.getElementById(id)]));
 const slotRows = [...document.querySelectorAll(".slot-row")];
 const ROLE_LABEL = { primary: "Primary", backup: "Backup", off: "Off", solo: "Solo" };
@@ -314,6 +314,8 @@ elements.endShiftButton.addEventListener("click", async () => {
 });
 elements.testSoundButton.addEventListener("click", () => act({ type: "TEST_SOUND" }, "Playing the test ring for 6 seconds…"));
 elements.soundOkButton.addEventListener("click", () => act({ type: "SOUND_CONFIRMED" }, "Test ring confirmed audible."));
+elements.ringTestButton.addEventListener("click", () => act({ type: "TEST_SOUND" }, "Playing the test ring for 6 seconds…"));
+elements.ringHeardButton.addEventListener("click", () => act({ type: "SOUND_CONFIRMED" }, "Test ring confirmed audible."));
 elements.leakButton.addEventListener("click", async () => {
   const what = elements.leakWhat.value.trim();
   if (!what) { showFeedback("Enter a group name or email subject."); return; }

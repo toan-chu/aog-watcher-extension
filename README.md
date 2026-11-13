@@ -112,12 +112,19 @@ If the person on watch has no running AOG Watcher, the Backup machine shows **"�
 - 👆 **Accept**: stops the ring on every machine. **Accept means done**: nothing asks again later. WhatsApp: opens the chat with the greeting typed. Outlook: brings Outlook forward.
 - 👆👆 **Accept all (N)**: when several alerts wait.
 - 👀 **Just open the chat** and read it while at your desk: that counts as Accept too.
+- ⌨️ **At your desk, it does not ring.** While you are using the computer it only shows a notification; the sound starts once the computer has been untouched for 15 seconds (Settings → Machine unattended after).
+- ⏱️ In the first 2 minutes of a watch, tab problems are not reported yet: the tabs need a moment to check in.
+
+### 🔔 Test ring
+
+The Tonight tab always has **Test ring** (plays the alarm for 6 seconds, even with Sound off) and **I hear it**. Use it before 22:00 and whenever you change speakers or volume.
 
 ### 🔕 Ring switches
 
 While you are on watch, the Tonight tab shows three switches: **Sound**, **WhatsApp**, **Outlook**. Use them when your machine rings wrongly.
 
 - **Sound off**: nothing rings on this machine. **WhatsApp off** / **Outlook off**: only that source stops ringing.
+- A source that is off is not required: the Tonight tab shows it as **Ringing off** and stops asking you to open it.
 - Only your machine. The alert still waits for your Accept, and if you do not accept it goes to the Backup after the usual wait, as normal. A silenced alert you do not accept counts as a miss.
 - All switches turn back on by themselves when your watch ends.
 
@@ -234,7 +241,7 @@ The popup has a fourth tab, **Test 🔒**. It is locked so it stays out of the w
 
 A simulated message follows the real path: if a partner machine is on shift as Backup, it receives the escalation too.
 
-While **Test mode** is on, nothing is written to the event log in `AOG_Log`. Only the rows two machines need to see and escalate to each other (`Machine` and `Signal`) are still sent.
+While **Test mode** is on, nothing is written to the event log in `AOG_Log`. Only the rows two machines need to see and escalate to each other (`Machine` and `Signal`) are still sent; tab problems are never signalled to other machines.
 
 > [!TIP]
 > To test a real WhatsApp message on one machine, send it **from your phone** to the test group. A message you type in WhatsApp Web on the same machine is outgoing, so it never rings.
@@ -310,7 +317,7 @@ Older columns (ShiftDate, Slot1Role, Slot2Role, CheckIn, CheckOut, Hours, Ready)
 | MissCause | Why an alert was missed |
 | Ready, Version, Detail | Readiness, version, extra detail |
 
-All 🤖. Only what is needed to reconstruct a night is written here, and only during a shift (plus **Shift ended** and missed-message reports). Test mode writes no `Event` rows.
+All 🤖. Only what is needed to find and fix a problem is written here, and only during a watch (plus **Shift ended** and missed-message reports): watch started/ended, message detected, Accept, missed, handed to/received from the partner, warnings, tab status changes, ring switches. Test mode writes no `Event` rows. Rows older than `log_keep_days` (AOG_Settings) are deleted.
 
 </details>
 

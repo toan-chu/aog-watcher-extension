@@ -144,3 +144,9 @@ footer { display: flex; align-items: center; justify-content: space-between; gap
 .mute-bar__buttons button[aria-pressed="true"] { border-color: var(--danger); background: var(--danger); color: #fff; }
 .mute-bar__buttons button[aria-pressed="true"]::before { content: "Off · "; }
 .mute-bar .hint { display: block; margin: 8px 0 0; }
+
+/* Test ring, always on the Tonight tab */
+.ring-test { margin-top: 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 6px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); padding: 9px 11px; }
+.ring-test button { border: 1px solid var(--brand-purple); border-radius: 6px; background: var(--surface); color: var(--brand-purple); padding: 7px 4px; font-weight: 700; cursor: pointer; }
+.ring-test button.primary { border-color: var(--brand-orange); background: var(--brand-orange); color: var(--on-orange); }
+.ring-test .hint { grid-column: 1 / -1; margin: 2px 0 0; }

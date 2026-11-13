@@ -23,7 +23,7 @@ const PREFLIGHT_ACTION = {
   sharepoint: "Open SharePoint and sign in.",
   groups: "Reconnect SharePoint to refresh the shared group list.",
   sound: "Select Test ring, confirm the sound, then select I hear it.",
-  peer: "Ask the partner operator to start their shift.",
+  peer: "Your partner's AOG Watcher is not running. Call them.",
 };
 
 let endShiftConfirmTimer = null;
@@ -121,7 +121,8 @@ function renderSources(status) {
   for (const source of ["whatsapp", "outlook"]) {
     const value = status.sources?.[source];
     const checked = formatAgo(status.health?.[source]?.last_seen);
-    if (value?.status === "ok") setDot(source, "ok", checked);
+    if (status.mute?.[source]) setDot(source, "warn", "Ringing off");
+    else if (value?.status === "ok") setDot(source, "ok", checked);
     else if (value?.status === "blind") setDot(source, "bad", "BLIND — reload the tab");
     else if (value?.status === "wrong_folder") setDot(source, "bad", "Open the AOG mailbox");
     else setDot(source, "bad", "Open the tab");
@@ -147,7 +148,8 @@ function renderPreflight(status) {
     textContent: PREFLIGHT_ACTION[item.key] || item.hint || `Fix ${item.label}.`,
   })));
 }
-function renderRecent(events = []) {
+function renderRecent(all = []) {
+  const events = all.filter((event) => eventSentence(event));
   const latest = events.at(-1);
   elements.latestEventValue.textContent = latest ? `${formatClock24(latest.timestamp)} · ${eventSentence(latest)}` : "No events yet";
   const nodes = events.slice(-6).reverse().map((event) => {

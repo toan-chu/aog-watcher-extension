@@ -27,7 +27,8 @@ describe("V5-06 contextual popup", () => {
   it("writes recent events as English sentences instead of event codes", () => {
     expect(eventSentence({ event_type: "ACCEPT", group_name: "AOG CX", operator_name: "Toan" })).toBe("Toan accepted AOG CX.");
     expect(eventSentence({ event_type: "SHIFT_STARTED" })).toBe("Shift started.");
-    expect(eventSentence({ event_type: "UNMAPPED_CODE" })).toBe("Watcher recorded an update.");
+    expect(eventSentence({ event_type: "UNMAPPED_CODE" })).toBe("");
+    expect(eventSentence({ event_type: "MUTE_CHANGED", what: "outlook", on: true })).toBe("Outlook ringing turned off.");
   });
 
   it("marks WATCHING red when either message detector is unhealthy", () => {

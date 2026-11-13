@@ -172,6 +172,8 @@ async function setMute(message) {
   const on = Boolean(message.on);
   await setKey(K.MUTE, { ...(await muteState()), [what]: on });
   await appendServiceEvent({ event_type: "MUTE_CHANGED", what, on });
+  if (on && what !== "sound") await clearSystemAlert(`source:${what}`);
+  await refreshPreflight(await getConfig());
   await reconcileAudio();
   broadcastStatus();
   return { ok: true, status: await status() };
@@ -354,7 +356,8 @@ async function machineFields(config, { problems = [], ready = null } = {}) {
     Role: resolveCurrentRole(config)?.role ?? (state.session ? ROLE.OFF : ""),
     ShiftId: state.session && currentWithinShift(config) ? state.session.shift_id : "",
     Ready: (ready ?? preflight?.ready) ? "1" : "0",
-    Problems: { problems, shift_slots: config.shift_slots ?? [], test_mode: Boolean(config.test_mode) },
+    // 5.1: duty comes from the roster, so the old per-machine slot times are not published any more.
+    Problems: { problems, test_mode: Boolean(config.test_mode) },
     LastBeat: new Date().toISOString(),
     Version: APP_VERSION,
   };
@@ -905,6 +908,7 @@ async function evaluateSources_(config, now = Date.now()) {
   return evaluation;
 }
 
+const SOURCE_GRACE_MS = 2 * 60_000;
 async function evaluateSelf() {
   const config = await getConfig();
   await hydrate();
@@ -915,12 +919,18 @@ async function evaluateSelf() {
   const problems = problemsOf(evaluation);
 
   if (state.session && isDutyRole(activeRole)) {
+    const mute = await muteState();
+    // The tabs need a moment to report after the watch starts: no "Source problem" (and no ring) in the first 2 minutes.
+    const watchingFor = now - (Date.parse(state.session.started_at ?? "") || 0);
     for (const source of ["whatsapp", "outlook"]) {
       const value = evaluation.sources[source];
       const key = `source:${source}`;
-      if (value.status === SOURCE_STATUS.OK) { await clearSystemAlert(key); continue; }
+      // Switched off by the operator: no "Source problem" for it, and the partner is not told it is blind.
+      if (value.status === SOURCE_STATUS.OK || mute[source]) { await clearSystemAlert(key); continue; }
+      if (watchingFor < SOURCE_GRACE_MS) continue;
       const raised = await raiseSystemAlert(key, { kind: "source", title: value.status === SOURCE_STATUS.BLIND ? "Watcher is BLIND" : "Source problem", message: value.message });
-      if (raised) await sendSignal(SIGNAL.SOURCE_BLIND, { source, payload: { operator: config.self_display_name, message: value.message, status: value.status } });
+      // Test mode never tells the other machines anything about its sources.
+      if (raised && !config.test_mode) await sendSignal(SIGNAL.SOURCE_BLIND, { source, payload: { operator: config.self_display_name, message: value.message, status: value.status } });
     }
   }
 
@@ -972,6 +982,8 @@ async function refreshPreflight(config, evaluation = null) {
     soundConfirmedAt: await getKey(K.SOUND_CONFIRMED_AT, 0),
     shiftStartedAt: Date.parse(state?.session?.started_at ?? "") || 0,
     peers: await getKey(K.PEERS, []),
+    muted: await muteState(),
+    testMode: Boolean(config.test_mode),
   });
   const previous = await getKey(K.PREFLIGHT, null);
   await setKey(K.PREFLIGHT, result);
@@ -1086,7 +1098,7 @@ async function status() {
     followups: await getKey(K.FOLLOWUPS, []),
     outbox_size: (await getKey(K.OUTBOX, [])).length,
     groups: { team: team.length, personal: (config.customer_groups ?? []).length, ignored: (config.ignored_chats ?? []).length, effective: effectiveGroups({ team, personal: config.customer_groups, ignored: config.ignored_chats, coord: config.coord_group }).length },
-    recent_events: (await getEventLog()).slice(-6),
+    recent_events: (await getEventLog()).slice(-40),
   };
 }
 function broadcastStatus() {

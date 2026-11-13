@@ -176,6 +176,20 @@ describe("service worker 5.0 behaviour", () => {
     expect(sp.rows("AOG_Shifts")[1]).toMatchObject({ AlertCount: 1, MissCount: 0 });
   });
 
+  it("Test mode tells no other machine about its sources, and heartbeats carry no old slot times", async () => {
+    const sp = fakeSharePoint();
+    const { send, alarm, settle } = await boot({ config: { ...REAL_DUTY, test_mode: true, test_role: "primary", sharepoint_site_url: "https://acme.sharepoint.com/sites/AOG" }, sharepoint: sp });
+    alarm("aog:tick"); await settle();
+    await send({ type: "START_SHIFT" });
+    const realNow = Date.now;
+    Date.now = () => realNow() + 3 * 60_000;
+    try { alarm("aog:tick"); await settle(); alarm("aog:tick"); await settle(); } finally { Date.now = realNow; }
+    expect((await send({ type: "GET_STATUS" })).status.system_alerts.map((item) => item.kind)).toContain("source");
+    expect(sp.rows("AOG_Log").filter((row) => row.EventType === "SOURCE_BLIND")).toEqual([]);
+    const machine = sp.rows("AOG_Log").find((row) => row.RecordType === "Machine");
+    expect(machine.Detail).not.toContain("shift_slots");
+  });
+
   it("payroll: nothing is written in test mode", async () => {
     const sp = fakeSharePoint();
     addWindow(sp);
@@ -202,6 +216,16 @@ describe("service worker 5.0 behaviour", () => {
     await send({ type: "END_SHIFT" });
     expect((await send({ type: "GET_STATUS" })).status.mute).toEqual({ sound: false, whatsapp: false, outlook: false });
     expect((await send({ type: "SET_MUTE", what: "sound", on: true })).ok).toBe(false);
+  });
+
+  it("ring switches: Outlook off removes the Outlook source problem and the Outlook pre-shift demand", async () => {
+    const { send } = await boot({ config: REAL_DUTY });
+    await send({ type: "START_SHIFT" });
+    let status = (await send({ type: "GET_STATUS" })).status;
+    expect(status.preflight.failed).toContain("outlook");
+    status = (await send({ type: "SET_MUTE", what: "outlook", on: true })).status;
+    expect(status.preflight.failed).not.toContain("outlook");
+    expect(status.system_alerts.map((item) => item.key)).not.toContain("source:outlook");
   });
 
   it("ring switches: Sound off silences everything on this machine; the other source still rings when only one is off", async () => {
@@ -367,15 +391,19 @@ describe("service worker 5.0 behaviour", () => {
     expect(accepted.status.followups).toHaveLength(1);
     alarm("aog:tick");
     await settle();
+    // first 2 minutes of the watch: tabs may not have reported yet, so no source alert
+    expect((await send({ type: "GET_STATUS" })).status.system_alerts).toEqual([]);
+    const realNow = Date.now;
+    Date.now = () => realNow() + 3 * 60_000;
+    try { alarm("aog:tick"); await settle(); } finally { Date.now = realNow; }
     const status = (await send({ type: "GET_STATUS" })).status;
+    // Neither tab ever reported (the Outlook alert 3 minutes ago no longer counts as alive).
     expect(status.sources.whatsapp.status).toBe("missing");
-    // Outlook just delivered an alert, so it counts as alive; WhatsApp tab never reported.
-    expect(status.sources.outlook.status).toBe("ok");
-    expect(status.system_alerts.map((item) => item.key)).toEqual(["source:whatsapp"]);
+    expect(status.system_alerts.map((item) => item.key)).toContain("source:whatsapp");
     expect(status.preflight.ready).toBe(false);
     expect(chrome._notifications.some((item) => item.title === "Source problem")).toBe(true);
     const dismissed = await send({ type: "DISMISS_SYSTEM_ALERT", key: "source:whatsapp" });
-    expect(dismissed.status.system_alerts[0].dismissed).toBe(true);
+    expect(dismissed.status.system_alerts.find((item) => item.key === "source:whatsapp").dismissed).toBe(true);
   });
 
   it("Accept finishes handling and sends the fallback tag before a failed WhatsApp jump", async () => {

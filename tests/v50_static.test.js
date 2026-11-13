@@ -8,10 +8,10 @@ const whatsapp = await read("content_whatsapp.js");
 const stateMachine = await read("lib/state_machine.js");
 
 describe("5.0 wiring", () => {
-  it("is a 5.0.x version, the same in manifest, package.json and the popup, with SharePoint host access", async () => {
+  it("is a 5.x version, the same in manifest, package.json and the popup, with SharePoint host access", async () => {
     const { APP_VERSION } = await import("../lib/constants.js");
     const pkg = JSON.parse(await read("package.json"));
-    expect(manifest.version).toMatch(/^5\.0\.\d+$/);
+    expect(manifest.version).toMatch(/^5\.\d+\.\d+$/);
     expect(APP_VERSION).toBe(manifest.version);
     expect(pkg.version).toBe(manifest.version);
     expect(manifest.host_permissions).toContain("https://*.sharepoint.com/*");
@@ -32,7 +32,7 @@ describe("5.0 wiring", () => {
   it("system alerts ring independently and are cleared through reconcileAudio", () => {
     expect(worker).toContain("async function raiseSystemAlert(");
     expect(worker).toContain("async function reconcileAudio(");
-    expect(worker).toContain("if ((await ringingSystemAlerts()).length) await playWakeAudio(config);");
+    expect(worker).toContain("if ((await ringingSystemAlerts()).length && !(await muteState()).sound) await playWakeAudio(config);");
   });
 
   it("unknown WhatsApp chats still ring and ignored chats never do", () => {
@@ -51,8 +51,8 @@ describe("5.0 wiring", () => {
     for (const word of ["sharepoint", "followup", "preflight", "unknown_chat", "system"]) expect(stateMachine.toLowerCase()).not.toContain(word);
   });
 
-  it("the shift row is upserted per operator, never as a row shared by two machines", () => {
-    expect(worker).toContain("match: shiftRowMatch(");
-    expect(worker).not.toContain("shared: true");
+  it("AOG_Shifts: only the payroll counts are updated on an existing row, never created", () => {
+    expect(worker).toContain('await queueWrite({ kind: "update", list: SP_LISTS.SHIFTS, id: window.id, fields });');
+    expect(worker).not.toMatch(/kind: "upsert",\s*list: SP_LISTS\.SHIFTS/);
   });
 });

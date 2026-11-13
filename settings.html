@@ -71,17 +71,10 @@
           <div class="field"><label for="maxDuration">Stop ringing after</label><div class="unit"><input id="maxDuration" type="number" min="10" max="7200" required><span>sec</span></div></div>
           <div class="field"><label for="wakeAudioMode">Ring style</label><div class="inline"><select id="wakeAudioMode"><option value="gentle">Gentle, repeating</option><option value="escalate">Increasing volume</option></select><button id="previewAudio" type="button" class="ghost">▶ Preview</button></div></div>
         </div>
-        <h3>After Accept</h3>
-        <div class="grid three">
-          <label class="toggle"><input id="followupEnabled" type="checkbox"><span><b>Follow up after Accept</b><small>Ask later whether the case is resolved.</small></span></label>
-          <div class="field"><label for="followupAfter">Ask after</label><div class="unit"><input id="followupAfter" type="number" min="1" max="120"><span>min</span></div></div>
-          <div class="field"><label for="followupAnswer">Ring again if no answer in</label><div class="unit"><input id="followupAnswer" type="number" min="1" max="60"><span>min</span></div></div>
-        </div>
         <h3>Warnings</h3>
-        <div class="grid four">
+        <div class="grid three">
           <div class="field"><label for="idleThreshold">Machine unattended after</label><div class="unit"><input id="idleThreshold" type="number" min="15" max="3600" required><span>sec</span></div></div>
           <div class="field"><label for="peerLost">Partner machine lost after</label><div class="unit"><input id="peerLost" type="number" min="2" max="60"><span>min</span></div></div>
-          <div class="field"><label for="reminderGrace">Start-shift reminder after</label><div class="unit"><input id="reminderGrace" type="number" min="1" max="120"><span>min</span></div></div>
           <div class="field"><label for="blindAfter">Blind warning after</label><div class="unit"><input id="blindAfter" type="number" min="1" max="60"><span>min</span></div></div>
         </div>
       </section>

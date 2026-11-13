@@ -98,6 +98,16 @@
           <div id="unknownList"></div>
         </section>
       </section>
+
+      <section id="muteBar" class="mute-bar" aria-label="Ring switches" hidden>
+        <h3>Ringing on this machine</h3>
+        <div class="mute-bar__buttons">
+          <button id="muteSoundButton" type="button" data-mute="sound" aria-pressed="false">Sound</button>
+          <button id="muteWhatsAppButton" type="button" data-mute="whatsapp" aria-pressed="false">WhatsApp</button>
+          <button id="muteOutlookButton" type="button" data-mute="outlook" aria-pressed="false">Outlook</button>
+        </div>
+        <p id="muteHint" class="hint">Only this machine. Messages you do not accept still go to Backup. All turn back on when your watch ends.</p>
+      </section>
     </section>
 
     <section id="searchPanel" class="tab-panel" hidden>

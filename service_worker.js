@@ -23,8 +23,9 @@ import { evaluatePeers, wasOfflineAt } from "./lib/heartbeat.js";
 import { classifyMiss } from "./lib/miss_cause.js";
 import { addFollowups, answerFollowup, tickFollowups } from "./lib/followup.js";
 import { applySharedSettings, changedKeys, publishSharedSettings, pullSharedSettings } from "./lib/shared_settings.js";
-import { shiftDate, shiftRowFallbackMatch, shiftRowFields, shiftRowMatch } from "./lib/shift_row.js";
 import { ensureSharePointOriginRule } from "./lib/sharepoint_origin_rule.js";
+import { hydrateNight, myNight, myWindow, rosterName, rosterRoleAt, serializeNight } from "./lib/roster.js";
+import { shiftCounts } from "./lib/shift_row.js";
 import {
   appendEventLog, clearShiftBaseline, endShiftSession, getConfig, getEventLog, getKey, getMachineId,
   getRoleSession, getRuntimeState, getShiftBaseline, getShiftSessions, getSourceHealth, isAlertEscalated,
@@ -56,10 +57,20 @@ const idleThreshold = (config) => Math.max(15, Number(config.idle_threshold_seco
 const spConfigured = (config) => Boolean(normalizeSiteUrl(config.sharepoint_site_url));
 const spClient = (config) => createSharePointClient({ siteUrl: config.sharepoint_site_url });
 
+// The roster night this machine belongs to (from AOG_Shifts), kept in memory for the synchronous role checks.
+let rosterNight = null;
+let rosterEmail = "";
+let rosterLoaded = false;
+
 function resolveCurrentRole(config, now = new Date()) {
   if (config.test_mode) {
     const forced = config.test_role === ROLE.BACKUP ? ROLE.BACKUP : ROLE.PRIMARY;
     return { role: forced, source: "test_mode", slot_index: null, solo: config.test_role === "solo" };
+  }
+  // With SharePoint, the roster decides: own window = Primary, rest of the same night = Backup, else off.
+  if (spConfigured(config) && rosterLoaded) {
+    const { role, window } = rosterRoleAt(rosterNight, rosterEmail, now);
+    return { role, source: "roster", slot_index: null, window };
   }
   const resolved = resolveRoleAtTime(now, config.shift_slots);
   if (!resolved) return null;
@@ -95,7 +106,12 @@ async function syncSessionRole(config, now = new Date()) {
 
 async function hydrate() {
   if (state) return state;
-  const [stored, session] = await Promise.all([getRuntimeState(), getRoleSession()]);
+  const [stored, session, night, identityRecord] = await Promise.all([getRuntimeState(), getRoleSession(), getKey(K.ROSTER_NIGHT, undefined), getKey(K.IDENTITY, { email: "" })]);
+  if (night !== undefined) {
+    rosterNight = hydrateNight(night);
+    rosterEmail = identityRecord?.email ?? "";
+    rosterLoaded = true;
+  }
   state = hydrateRuntimeState(stored, session);
   return state;
 }
@@ -137,6 +153,28 @@ async function playWakeAudio(config) {
     await setKey(K.AUDIO_ERROR_AT, Date.now());
     await appendEventLog({ event_type: "AUDIO_FAILED", error: String(error?.message ?? error) });
   }
+}
+// Personal ring switches for the person on watch (a machine ringing wrongly can be silenced for the night).
+// They only stop the sound on this machine: the alert still waits for Accept and still goes to Backup
+// after the usual timeout, so muting never hides a message. They reset when the watch ends.
+const NO_MUTE = Object.freeze({ sound: false, whatsapp: false, outlook: false });
+async function muteState() { return { ...NO_MUTE, ...(await getKey(K.MUTE, NO_MUTE)) }; }
+async function ringMuted(source) {
+  const mute = await muteState();
+  if (mute.sound) return true;
+  return source === ALERT_SOURCE.WHATSAPP ? mute.whatsapp : source === ALERT_SOURCE.EMAIL ? mute.outlook : false;
+}
+async function setMute(message) {
+  await hydrate();
+  const what = String(message.what ?? "");
+  if (!Object.hasOwn(NO_MUTE, what)) return { ok: false, error: "Unknown switch", status: await status() };
+  if (!state.session) return { ok: false, error: "These switches work only while you are on watch", status: await status() };
+  const on = Boolean(message.on);
+  await setKey(K.MUTE, { ...(await muteState()), [what]: on });
+  await appendServiceEvent({ event_type: "MUTE_CHANGED", what, on });
+  await reconcileAudio();
+  broadcastStatus();
+  return { ok: true, status: await status() };
 }
 async function stopAudio() { await chrome.runtime.sendMessage({ type: MESSAGE.AUDIO_STOP }).catch(() => {}); }
 async function notify(id, title, message) {
@@ -189,7 +227,7 @@ async function raiseSystemAlert(key, { kind, title, message, ring = true, rearm 
   await setKey(K.SYSTEM_ALERTS, alerts);
   await appendServiceEvent({ event_type: "SYSTEM_ALERT", kind, detail_key: key, title, message });
   await notify(`sys-${key}`, title, message);
-  if (mayRing) await playWakeAudio(await getConfig());
+  if (mayRing && !(await muteState()).sound) await playWakeAudio(await getConfig());
   broadcastStatus();
   return true;
 }
@@ -209,68 +247,53 @@ async function clearSystemAlert(key, { dismissed = false } = {}) {
 }
 async function reconcileAudio() {
   await hydrate();
-  const aogRinging = state.app_state === APP_STATE.ALERTING && !state.pending_wake;
-  if (!aogRinging && (await ringingSystemAlerts()).length === 0) await stopAudio();
+  const aogRinging = state.app_state === APP_STATE.ALERTING && !state.pending_wake && !(await ringMuted(state.current_alert?.source));
+  const systemRinging = (await ringingSystemAlerts()).length > 0 && !(await muteState()).sound;
+  if (!aogRinging && !systemRinging) await stopAudio();
 }
 
 // ---------- team sync (SharePoint) ----------
 async function identity() { return getKey(K.IDENTITY, { name: "", email: "" }); }
 
+// Reads this account's night from AOG_Shifts (Start/End with date and time), keeps it for the role
+// checks, and takes the roster name as the official operator name.
 async function reconcileRosterIdentity(config, { client = spClient(config), who = null, startedAt = new Date().toISOString() } = {}) {
   who ??= await identity();
   if (!who.email) {
     who = await client.currentUser();
     await setKey(K.IDENTITY, who);
   }
-  const date = shiftDate(startedAt);
-  const select = ["Id", "Title", "ShiftDate", "Email"];
-  const byEmail = await client.items(SP_LISTS.SHIFTS, {
-    select,
-    filter: `ShiftDate eq ${odataString(date)} and Email eq ${odataString(who.email)}`,
-    orderby: "Id asc",
-    top: 1,
-  });
-  let row = byEmail[0] ?? null;
-  let matchedBy = row ? "email" : "";
-  if (!row && config.self_display_name) {
-    const byName = await client.items(SP_LISTS.SHIFTS, {
-      select,
-      filter: `ShiftDate eq ${odataString(date)} and Title eq ${odataString(config.self_display_name)}`,
-      orderby: "Id asc",
-      top: 20,
-    });
-    row = byName.find((candidate) => !String(candidate.Email ?? "").trim()) ?? null;
-    matchedBy = row ? "title" : "";
-  }
+  const rows = await client.items(SP_LISTS.SHIFTS, { select: ["Id", "Title", "Email", "Start", "End"], orderby: "Id desc", top: 500 });
+  const night = myNight(rows, who.email, new Date(startedAt));
+  rosterNight = night;
+  rosterEmail = who.email;
+  rosterLoaded = true;
+  await setKey(K.ROSTER_NIGHT, serializeNight(night));
 
   let nextConfig = config;
   let note = "";
-  const rosterName = String(row?.Title ?? "").trim();
-  if (rosterName && rosterName !== config.self_display_name) {
-    nextConfig = await setConfig({ ...config, self_display_name: rosterName });
-    note = `Name updated to "${rosterName}" from tonight's roster`;
+  const name = rosterName(night, who.email);
+  if (name && name !== config.self_display_name) {
+    nextConfig = await setConfig({ ...config, self_display_name: name });
+    note = `Name updated to "${name}" from the roster`;
   }
-  const status = {
-    checked: true,
-    on_roster: Boolean(row),
-    shift_date: date,
-    row_id: row?.Id ?? null,
-    matched_by: matchedBy,
-  };
+  const status = { checked: true, on_roster: Boolean(night), night_start: night?.start?.toISOString() ?? null, night_end: night?.end?.toISOString() ?? null };
   await setKey(K.ROSTER_STATUS, status);
   return { config: nextConfig, note, status };
 }
 
-// true when tonight's AOG_Shifts has a row for this machine's account; also true when SharePoint
-// is not set up or cannot be read, so a reminder is never lost to a network problem.
-async function isOnTonightsRoster(config, now = new Date()) {
-  if (!spConfigured(config)) return true;
-  try {
-    const { status } = await reconcileRosterIdentity(config, { startedAt: now.toISOString() });
-    return status.on_roster;
-  } catch {
-    return true;
-  }
+const sameEmail = (a, b) => String(a ?? "").trim().toLowerCase() === String(b ?? "").trim().toLowerCase();
+async function checkWatcherOnline(config, peers, now = Date.now()) {
+  await hydrate();
+  const current = rosterLoaded && !config.test_mode ? rosterRoleAt(rosterNight, rosterEmail, new Date(now)) : { role: ROLE.OFF, window: null };
+  const watching = current.role === ROLE.BACKUP ? current.window : null;
+  const key = watching ? `roster_offline:${watching.email.toLowerCase()}:${watching.start.toISOString()}` : "";
+  for (const existing of Object.keys(await getSystemAlerts())) if (existing.startsWith("roster_offline:") && existing !== key) await clearSystemAlert(existing);
+  if (!watching || !state.session) return;
+  const alive = peers.some((peer) => sameEmail(peer.email, watching.email) && peer.last_beat && now - peer.last_beat < 3 * 60_000);
+  if (alive) { await clearSystemAlert(key); return; }
+  const until = watching.end.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false });
+  await raiseSystemAlert(key, { kind: "roster_offline", title: `${watching.name || watching.email}'s AOG Watcher is offline`, message: `${watching.name || watching.email} is on watch until ${until}, but their AOG Watcher is not running. Call them, and watch for AOG messages yourself.`, ring: false });
 }
 
 async function queueWrite(op) {
@@ -369,7 +392,7 @@ async function syncTeam(config, { problems = [], forceGroups = false } = {}) {
       const key = `peer:${peer.machine_id}`;
       // Solo test plays both roles on this machine, so other machines are not its partner.
       if (state.session && peer.status === "lost" && !isSoloTest(config)) {
-        await raiseSystemAlert(key, { kind: "peer_lost", title: "Partner machine lost", message: `${peer.name || peer.email || "Partner machine"} has not sent a signal since ${peer.last_beat ? new Date(peer.last_beat).toLocaleTimeString("en-GB", { hour12: false }) : "?"}.` });
+        await raiseSystemAlert(key, { kind: "peer_lost", title: "Partner machine lost", message: `${peer.name || peer.email || "Partner machine"} has not sent a signal since ${peer.last_beat ? new Date(peer.last_beat).toLocaleTimeString("en-GB", { hour12: false }) : "?"}.`, ring: false });
       } else {
         await clearSystemAlert(key);
       }
@@ -384,9 +407,17 @@ async function syncTeam(config, { problems = [], forceGroups = false } = {}) {
       }
     }
 
+    // The person on watch now must have a live machine; if not, the rest of the night is told.
+    await checkWatcherOnline(config, peers);
+
+    // Payroll counts follow the night as it goes (rang out, partner took it), not only Accept and shift end.
+    if (state.session) await writeShiftRow(config, state.session);
+
     // groups
     const syncedAt = await getKey(K.TEAM_GROUPS_SYNCED_AT, 0);
-    if (forceGroups || Date.now() - syncedAt > GROUP_PULL_MS) {
+    if (forceGroups || Date.now() - syncedAt > GROUP_PULL_MS || !rosterLoaded) {
+      try { await reconcileRosterIdentity(await getConfig(), { client }); }
+      catch (error) { await setKey(K.ROSTER_STATUS, { checked: false, on_roster: false, error: englishSharePointError(error.message) }); }
       await setKey(K.TEAM_GROUPS, await pullTeamGroups(client));
       await setKey(K.TEAM_GROUPS_SYNCED_AT, Date.now());
       const shared = await pullSharedSettings(client);
@@ -532,7 +563,7 @@ async function simulateAlert(message) {
   const config = await getConfig();
   if (!config.test_mode) return { ok: false, error: "Turn on Test mode first." };
   await hydrate();
-  if (!state.session) return { ok: false, error: "Select Start shift on the Tonight tab first." };
+  if (!state.session) await startShift({ auto: true });
   const alert = simulatedAlert(message.source === ALERT_SOURCE.EMAIL ? ALERT_SOURCE.EMAIL : ALERT_SOURCE.WHATSAPP, message.name);
   await handleAlert(alert);
   return { ok: true, note: `Simulated ${alert.source === ALERT_SOURCE.EMAIL ? "Outlook email" : "WhatsApp message"} sent: ${alert.group_name || alert.subject}.`, status: await status() };
@@ -548,6 +579,9 @@ async function updateTestSettings(message) {
   };
   await setConfig(next);
   await syncSessionRole(next);
+  // Test mode watches right away; turning it off hands the watch back to the roster.
+  if (next.test_mode && !state.session) await startShift({ auto: true });
+  else if (!next.test_mode && state.session && !isDutyRole(resolveCurrentRole(next)?.role)) await endCurrentShift();
   return { ok: true, status: await status() };
 }
 
@@ -651,6 +685,10 @@ async function executeEffect(effect) {
         await appendServiceEvent({ event_type: "DRY_RUN_WOULD_WAKE", alert_id: effect.alert.alert_id, source: effect.alert.source, group_name: effect.alert.group_name, sender: effect.alert.sender, subject: effect.alert.subject });
         break;
       }
+      if (await ringMuted(effect.alert.source)) {
+        await showWakeNotification(effect.alert);
+        break;
+      }
       if (await queryIdleState(config) === "active") {
         if (effect.alert.source === ALERT_SOURCE.WHATSAPP && isSameGroupName(effect.alert.group_name, effect.alert.active_conversation)) {
           state.pending_wake = effect.alert.alert_id;
@@ -671,7 +709,7 @@ async function executeEffect(effect) {
       state.pending_wake = null;
       await persist();
       await stopAudio();
-      if ((await ringingSystemAlerts()).length) await playWakeAudio(config);
+      if ((await ringingSystemAlerts()).length && !(await muteState()).sound) await playWakeAudio(config);
       break;
     case "SCHEDULE_TIMER":
       await chrome.alarms.create(`aog:${effect.name}:${effect.alert_id}`, { when: Date.now() + Math.max(1000, effect.delay_ms) });
@@ -764,25 +802,19 @@ async function handlePeerText(text) {
 }
 
 // ---------- shift ----------
+// Payroll: the four count cells (AlertCount, AcceptedCount, MissCount, AcceptLog) on this person's own
+// AOG_Shifts row for the night the session belongs to. Only that existing row is updated; rows are never
+// created, and Start/End/Email/OperatorName stay the shift lead's. Unchanged counts are not rewritten.
 async function writeShiftRow(config, session, { ended = false } = {}) {
-  if (!session?.shift_id) return;
-  // Test runs never touch the roster or payroll.
-  if (config.test_mode) return;
-  const who = await identity();
-  const preflight = await getKey(K.PREFLIGHT, null);
-  const name = config.self_display_name || who.name;
-  const fields = shiftRowFields({ session, name, email: who.email, ready: preflight ? preflight.ready : null, events: await getEventLog(), ended });
-  delete fields.Title;
-  const who2 = { session, name, email: who.email };
-  await queueWrite({
-    kind: "upsert",
-    list: SP_LISTS.SHIFTS,
-    match: shiftRowMatch(who2),
-    fallback_match: shiftRowFallbackMatch(who2),
-    claim_field: "Email",
-    fields,
-    create_fields: { Title: name },
-  });
+  if (!session || config.test_mode || !spConfigured(config)) return;
+  const night = hydrateNight(session.night) ?? rosterNight;
+  const window = myWindow(night, rosterEmail);
+  if (!window?.id) return;
+  const fields = shiftCounts(await getEventLog(), { from: night.start.getTime() - 5 * 60_000, to: night.end.getTime() + 30 * 60_000, ended });
+  const signature = JSON.stringify([window.id, fields]);
+  if (signature === await getKey(K.SHIFT_ROW_WRITTEN, "")) return;
+  await setKey(K.SHIFT_ROW_WRITTEN, signature);
+  await queueWrite({ kind: "update", list: SP_LISTS.SHIFTS, id: window.id, fields });
 }
 
 async function startShift() {
@@ -800,7 +832,7 @@ async function startShift() {
   const resolved = resolveCurrentRole(config);
   const initialRole = resolved?.role ?? ROLE.OFF;
   const shift = await startShiftSession({ role: initialRole, config });
-  const session = { role: initialRole, initial_role: initialRole, slot_index: resolved?.slot_index ?? null, started_at: shift.started_at, shift_id: shift.shift_id, operator_name: shift.operator_name, partner_name: shift.partner_name };
+  const session = { role: initialRole, initial_role: initialRole, slot_index: resolved?.slot_index ?? null, started_at: shift.started_at, shift_id: shift.shift_id, operator_name: shift.operator_name, partner_name: shift.partner_name, night: resolved?.source === "roster" ? serializeNight(rosterNight) : null };
   await setRoleSession(session);
   await hydrate();
   state.session = session;
@@ -827,6 +859,7 @@ async function endCurrentShift() {
   await appendServiceEvent({ event_type: "SHIFT_ENDED", shift_id: shiftId ?? null });
   await writeShiftRow(config, session, { ended: true });
   await setKey(K.FOLLOWUPS, []);
+  await setKey(K.MUTE, NO_MUTE);
   await setKey(K.SYSTEM_ALERTS, {});
   await setKey(K.PREFLIGHT, null);
   // End shift must mean silence: drop the alert queue, the deferred ring and every alert timer.
@@ -891,24 +924,14 @@ async function evaluateSelf() {
     }
   }
 
-  // shift reminder
-  const reminder = shiftReminderState({ slots: config.shift_slots, now: new Date(now), hasSession: Boolean(state.session), graceMinutes: Number(config.shift_reminder_grace_minutes) || 10 });
-  if (reminder.level !== "none" && !config.test_mode) {
-    const done = await getKey(K.REMINDER_STATE, {});
-    const doneKey = `${reminder.key}:${reminder.level}`;
-    if (!done[doneKey]) {
-      done[doneKey] = now;
-      await setKey(K.REMINDER_STATE, Object.fromEntries(Object.entries(done).slice(-20)));
-      // Only someone on tonight's roster is reminded (and only then is the partner told).
-      // A day off is not a missed shift. If the roster cannot be read, remind anyway: safer.
-      const rostered = await isOnTonightsRoster(config, new Date(now));
-      if (!rostered) await appendServiceEvent({ event_type: "SHIFT_REMINDER_SKIPPED", reason: "not_on_roster", night: reminder.key });
-      else if (reminder.level === "nudge") await notify(`reminder-${reminder.key}`, "Time to start the AOG shift", "Open the AOG Watcher popup and select Start shift.");
-      else {
-        await raiseSystemAlert(`reminder:${reminder.key}`, { kind: "shift_reminder", title: "Shift not started", message: `${config.shift_reminder_grace_minutes || 10} minutes have passed since the shift start time. Select Start shift now. The partner machine has been notified.` });
-        await sendSignal(SIGNAL.SHIFT_NOT_STARTED, { payload: { operator: config.self_display_name, night: reminder.key } });
-      }
-    }
+  // Duty follows the roster (or Test mode): start and end the watch automatically.
+  // There is no Start shift / End shift for people any more, so no "Shift not started" reminder either.
+  const wanted = resolveCurrentRole(config, new Date(now));
+  if (isDutyRole(wanted?.role) && !state.session) {
+    await startShift({ auto: true });
+    await hydrate();
+  } else if (state.session && !isDutyRole(wanted?.role) && (wanted?.source === "roster" || wanted?.source === "test_mode")) {
+    await endCurrentShift();
   }
 
   // follow-ups
@@ -994,6 +1017,7 @@ async function reportLeak({ source, what, at }) {
   const sourceStatus = timeline.at(-1)?.status ?? "ok";
   const verdict = classifyMiss({ kind: "leak", shiftActive, sourceStatus, machineOffline: wasOfflineAt(await getKey(K.TICKS, []), time) });
   await appendServiceEvent({ event_type: "LEAK_REPORTED", source, group_name: source === "whatsapp" ? what : "", subject: source === "whatsapp" ? "" : what, reported_for: new Date(time).toISOString(), miss_cause: verdict.cause, miss_reason: verdict.reason });
+  if (state.session) await writeShiftRow(await getConfig(), state.session);
   return { ok: true, cause: verdict.cause, reason: verdict.reason };
 }
 
@@ -1042,6 +1066,9 @@ async function status() {
     next_duty_at: nextDutyStart(new Date(), config.shift_slots)?.toISOString() ?? null,
     role_source: resolved?.source ?? null,
     shift_slots: config.shift_slots ?? [],
+    roster_night: await getKey(K.ROSTER_NIGHT, null),
+    mute: await muteState(),
+    roster_status: await getKey(K.ROSTER_STATUS, null),
     test_mode: Boolean(config.test_mode),
     test_role: config.test_role ?? ROLE.PRIMARY,
     solo: isSoloTest(config),
@@ -1126,6 +1153,7 @@ async function handleMessage(message) {
     case MESSAGE.OPEN_ALERT_TARGET: return openAlertTarget(message.target, message.draft_text ?? "");
     case MESSAGE.SIMULATE_ALERT: return simulateAlert(message);
     case MESSAGE.UPDATE_TEST_SETTINGS: return updateTestSettings(message);
+    case MESSAGE.SET_MUTE: return setMute(message);
     case MESSAGE.OPEN_WHATSAPP_CHAT: return openWhatsAppChat(message.chat_name, message.draft_text ?? "");
     case MESSAGE.GET_ACTIVE_WHATSAPP_CHAT: return { chat: await getActiveWhatsAppChat() };
     case MESSAGE.START_SHIFT: return startShift();
@@ -1215,7 +1243,7 @@ chrome.idle?.onStateChanged?.addListener((idleState) => enqueue(async () => {
   await hydrate();
   if (!state.session || state.app_state !== APP_STATE.ALERTING || !state.pending_wake || state.pending_wake !== state.current_alert?.alert_id) return;
   const config = await getConfig();
-  await playWakeAudio(config);
+  if (!(await ringMuted(state.current_alert?.source))) await playWakeAudio(config);
   state.pending_wake = null;
   await persist();
 }));

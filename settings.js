@@ -30,11 +30,7 @@ async function load() {
   byId("maxDuration").value = config.max_alert_duration_seconds;
   byId("idleThreshold").value = Math.max(15, Number(config.idle_threshold_seconds) || 15);
   byId("wakeAudioMode").value = config.wake_audio_mode === "escalate" ? "escalate" : "gentle";
-  byId("followupEnabled").checked = config.followup_enabled !== false;
-  byId("followupAfter").value = config.followup_after_minutes;
-  byId("followupAnswer").value = config.followup_answer_minutes;
   byId("peerLost").value = config.peer_lost_minutes;
-  byId("reminderGrace").value = config.shift_reminder_grace_minutes;
   byId("blindAfter").value = config.blind_after_minutes;
   const stored = await chrome.storage.local.get(["aog_team_groups", "aog_team_groups_synced_at"]);
   const team = stored.aog_team_groups ?? [];
@@ -73,11 +69,7 @@ async function save({ quiet = false } = {}) {
     max_alert_duration_seconds: numberOr("maxDuration", 540),
     idle_threshold_seconds: Math.max(15, numberOr("idleThreshold", 15)),
     wake_audio_mode: byId("wakeAudioMode").value === "escalate" ? "escalate" : "gentle",
-    followup_enabled: byId("followupEnabled").checked,
-    followup_after_minutes: numberOr("followupAfter", 10),
-    followup_answer_minutes: numberOr("followupAnswer", 5),
     peer_lost_minutes: numberOr("peerLost", 5),
-    shift_reminder_grace_minutes: numberOr("reminderGrace", 10),
     blind_after_minutes: numberOr("blindAfter", 5),
   };
   await setConfig(config);

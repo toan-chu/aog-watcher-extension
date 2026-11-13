@@ -134,3 +134,13 @@ footer { display: flex; align-items: center; justify-content: space-between; gap
 .test-toggle input { margin: 2px 0 0; width: 16px; height: 16px; accent-color: var(--heading); }
 .test-button { border: 1px solid var(--heading); border-radius: 6px; background: transparent; color: var(--heading); padding: 9px 10px; font-weight: 700; cursor: pointer; }
 .test-error { color: var(--danger); font-size: 12px; }
+
+/* Personal ring switches (Tonight tab, while on watch) */
+.mute-bar { margin-top: 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); padding: 9px 11px; }
+.mute-bar h3 { margin: 0 0 8px; color: var(--muted); font-size: 12px; }
+.mute-bar__buttons { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.mute-bar__buttons button { border: 1px solid var(--ok); border-radius: 6px; background: var(--surface); color: var(--ok); padding: 7px 4px; font-weight: 700; cursor: pointer; }
+.mute-bar__buttons button::before { content: "On · "; font-weight: 400; }
+.mute-bar__buttons button[aria-pressed="true"] { border-color: var(--danger); background: var(--danger); color: #fff; }
+.mute-bar__buttons button[aria-pressed="true"]::before { content: "Off · "; }
+.mute-bar .hint { display: block; margin: 8px 0 0; }

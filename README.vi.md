@@ -8,7 +8,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-5.0.3-4d148c" alt="Phiên bản 5.0.3">
+  <img src="https://img.shields.io/badge/version-5.1.0-4d148c" alt="Phiên bản 5.1.0">
   <img src="https://img.shields.io/badge/Chrome%20%2F%20Edge-Manifest%20V3-ff6200" alt="Chrome MV3">
   <img src="https://img.shields.io/badge/data-SharePoint%20Lists-4d148c" alt="SharePoint">
 </p>
@@ -54,14 +54,14 @@ flowchart LR
 
 ## ⚠️ Hai luật quan trọng nhất
 
-Máy của bạn tìm dòng của bạn trong lịch trực (`AOG_Shifts`) bằng **ngày + email**.
+Máy tìm bạn trong lịch trực (`AOG_Shifts`) bằng **email**, và biết khi nào bạn trực nhờ cột **Start / End**.
 
 | | Luật | Vì sao |
 |---|---|---|
-| 📧 | **Email** trong lịch = đúng y địa chỉ Microsoft 365 bạn dùng để đăng nhập | Sai email → máy không tìm thấy dòng của bạn và **tạo thêm một dòng mới**. Bảng lương sẽ có bạn hai lần. |
-| 📅 | **ShiftDate** = ngày của buổi tối bắt đầu đêm trực, gõ dạng `YYYY-MM-DD` | `2026-11-12` ✅ · `12/11/2026` ❌ (SharePoint không cho lưu) |
+| 📧 | **Email** trong lịch = đúng y địa chỉ Microsoft 365 bạn dùng để đăng nhập | Sai email → máy không tìm thấy bạn và **không bao giờ reo**. |
+| 🕙 | **Start / End** = ngày và giờ 24h, dạng `YYYY-MM-DD HH:mm` | `2026-11-14 02:30` ✅ · `14/11 2h30` ❌ (dòng bị bỏ qua) |
 
-**Tên** của bạn được lấy từ lịch trực. Bạn gõ khác trong Settings thì máy tự sửa lại và báo: `Name updated to "Leah" from tonight's roster`.
+**Tên** của bạn được lấy từ lịch trực. Bạn gõ khác trong Settings thì máy tự sửa lại và báo: `Name updated to "Leah" from the roster`.
 
 > [!TIP]
 > Không chắc email nào là của mình? Mở **Settings** → bấm **Sign in & check**. Khung xanh hiện `Signed in: Tên bạn <email của bạn>`. Gửi địa chỉ đó cho trưởng ca một lần.
@@ -84,64 +84,62 @@ Máy của bạn tìm dòng của bạn trong lịch trực (`AOG_Shifts`) bằn
 
 ## 🌃 Ca trực của bạn
 
-### 1️⃣ Chọn vai trò
+**Không còn Start shift hay End shift.** Chỉ cần để trình duyệt mở với WhatsApp Web và Outlook; lịch trực lo phần còn lại.
 
-Một đêm có hai slot. Ở màn **OFF SHIFT**, mở **Tonight's shift times**:
+| Khi nào | Máy của bạn |
+|---|---|
+| 🟣 Trong khung giờ **của bạn** | **Primary**: reo ngay khi có tin |
+| 🟠 Trong khung giờ của **người cùng đêm** | **Backup**: chỉ reo khi người đó 2 phút chưa nhận |
+| ⚪ Các lúc khác | Off: không bao giờ reo |
 
-| Slot | Giờ mặc định | Chọn |
-|---|---|---|
-| **Slot 1** | 22:00 → 02:30 | 🟣 Primary · 🟠 Backup · ⚪ Off |
-| **Slot 2** | 02:30 → 07:00 | 🟣 Primary · 🟠 Backup · ⚪ Off |
+*Ví dụ: Julia 22:00 → 02:30, Ethan 02:30 → 07:00. Từ 22:00 Julia là Primary, Ethan là Backup; đến 02:30 hai người tự đổi vai.*
 
-- 🟣 **Primary** reo ngay khi có tin.
-- 🟠 **Backup** reo khi Primary không nhận kịp.
-- ⚪ **Off** không bao giờ reo. Chọn Off cho slot bạn không trực.
+### ✅ Kiểm sẵn sàng
 
-### 2️⃣ Vào ca
-
-Bấm **Start shift**. Màn **WATCHING** có năm dòng kiểm. Xử lý từng dòng đỏ cho đến khi thấy **READY**:
+Mở popup trước giờ trực của bạn. Màn **WATCHING** có các dòng kiểm; xử lý từng dòng đỏ cho đến khi thấy **READY**:
 
 | Dòng kiểm | Xanh khi… |
 |---|---|
 | 💬 WhatsApp | tab đang mở và vừa được đọc |
-| 📧 Outlook | tab hộp thư AOG đang mở |
+| 📧 Outlook | tab Outlook đang mở |
 | ☁️ SharePoint | bạn đã đăng nhập |
-| 🤝 Partner machine | người trực máy kia đã bấm Start shift |
+| 🤝 Partner machine | AOG Watcher của người cùng đêm đang chạy |
 | 🔊 Test ring heard | bạn đã bấm **Test ring** → **I hear it** |
 
-### 3️⃣ Khi máy reo
+Nếu người đang trực không có AOG Watcher nào đang chạy, máy Backup hiện dòng **"… AOG Watcher is offline"** (không reo): gọi cho người đó.
 
-- 👆 **Accept**: tắt chuông, báo máy kia. WhatsApp: mở chat, gõ sẵn câu chào. Outlook: đưa Outlook lên trước và mở đúng thư đang reo.
+### 🔔 Khi máy reo
+
+- 👆 **Accept**: tắt chuông trên mọi máy. **Accept là xong việc**: máy không hỏi lại nữa. WhatsApp: mở chat, gõ sẵn câu chào. Outlook: đưa Outlook lên trước.
 - 👆👆 **Accept all (N)**: khi có nhiều tin đang chờ.
 - 👀 **Mở thẳng chat đó** và đọc khi bạn đang ngồi ở máy: cũng được tính là Accept.
 
-### 4️⃣ Kết thúc ca
+### 🔕 Công tắc reo
 
-Bấm **End shift** hai lần. Giờ ra ca và số giờ trực được ghi vào lịch, và máy không reo gì nữa cho đến lần **Start shift** kế tiếp.
+Khi bạn đang trực, tab Tonight có ba công tắc: **Sound**, **WhatsApp**, **Outlook**. Dùng khi máy reo sai.
 
-> [!WARNING]
-> Luôn bấm **End shift** trước khi gỡ hoặc cài lại extension. Nếu không, lịch trực thiếu giờ ra ca, và máy đồng đội báo **Partner machine lost** cho đến khi máy này im lặng đủ 12 tiếng.
+- **Tắt Sound**: máy này không reo gì cả. **Tắt WhatsApp** / **tắt Outlook**: chỉ nguồn đó thôi reo.
+- Chỉ có tác dụng trên máy bạn. Tin vẫn chờ bạn bấm Accept; bạn không bấm thì sau thời gian chờ như thường lệ, tin vẫn chuyển sang người dự phòng. Tin đã tắt tiếng mà bạn không bấm Accept thì tính là Miss.
+- Hết ca trực, cả ba công tắc tự bật lại.
 
 ---
 
 ## 📅 Trưởng ca: điền lịch trực
 
-Trong list `AOG_Shifts`, mỗi người mỗi đêm **một dòng**. Các cột còn lại máy tự điền.
+Trong list `AOG_Shifts`, mỗi **khung giờ trực** là một dòng. Máy đọc cột Start/End, và chỉ ghi bốn cột đếm trên dòng của chính người trực (để tính tiền trực); máy không bao giờ tạo dòng mới.
 
-| OperatorName | ShiftDate | Email | Slot1Role | Slot2Role |
-|---|---|---|---|---|
-| Alex | 2026-11-12 | alex@trustana.vn | Primary | Off |
-| Sam | 2026-11-12 | sam@trustana.vn | Off | Primary |
+| OperatorName | Email | Start | End |
+|---|---|---|---|
+| Julia | julia.trang@trustana.vn | 2026-11-13 22:00 | 2026-11-14 02:30 |
+| Ethan | ethan.hieu@trustana.vn | 2026-11-14 02:30 | 2026-11-14 07:00 |
+| Ryan | ryan.toan@trustana.vn | 2026-11-14 22:00 | 2026-11-15 07:00 |
 
-*Ví dụ: đêm bắt đầu từ tối thứ Tư 12/11.*
-
-> [!WARNING]
-> **Ca rạng sáng thuộc về ngày hôm trước.** Người trực 02:30–07:00 sáng thứ Năm được nhập với ngày **thứ Tư**.
-
+- 🔗 **Các khung giờ nối liền nhau là cùng một đêm.** Julia kết thúc 02:30, Ethan bắt đầu 02:30, nên hai người dự phòng cho nhau. Khung của Ryan là đêm khác: máy Ryan im lặng đêm 13.
+- 🕙 Ghi **đúng ngày thật** của từng mốc: 02:30 sáng ngày 14 là `2026-11-14 02:30`.
+- 🔄 Đổi ca = sửa tên và email trên dòng đó.
 - 📧 Chép email từ dòng `Signed in:` của người trực. Không có dấu cách thừa, không dùng Gmail cá nhân.
-- 🔢 **Slot 1 = 22:00–02:30.** Đừng dùng cách đánh số "Ca 1" của lịch cũ.
-- ℹ️ `Slot1Role` / `Slot2Role` là kế hoạch để người đọc. Mỗi máy vẫn lấy vai trò từ popup của chính nó.
-- 👥 **Cả Primary lẫn Backup phải có mặt trong mọi nhóm khách** ở `AOG_Groups`. Accept mở chat trong WhatsApp của chính người trực; không có trong nhóm thì chuông vẫn tắt nhưng không mở được chat.
+- 👥 **Mọi người trong lịch phải có mặt trong mọi nhóm khách** ở `AOG_Groups`. Accept mở chat trong WhatsApp của chính người trực; không có trong nhóm thì chuông vẫn tắt nhưng không mở được chat.
+- ℹ️ Các cột cũ (ShiftDate, Slot1Role, Slot2Role, CheckIn, CheckOut, Hours, Ready) không còn dùng, xoá được.
 
 ---
 
@@ -171,7 +169,7 @@ Máy tải lại danh sách mỗi lần bắt đầu ca và mỗi lần lưu Set
 |---|---|
 | SharePoint AOG link | `https://trustanavn.sharepoint.com/sites/aog`. Giữ nguyên. |
 | Sign in & check | Kết nối và hiện email bạn đang đăng nhập. |
-| Display name | Tên của bạn, tự lấy từ lịch trực tối nay. |
+| Display name | Tên của bạn, tự lấy từ lịch trực. |
 
 </details>
 
@@ -208,10 +206,8 @@ Máy tải lại danh sách mỗi lần bắt đầu ca và mỗi lần lưu Set
 | Backup rings on its own after (Backup tự reo sau) | 180 giây |
 | Stop ringing after (tự tắt chuông sau) | 540 giây |
 | Ring style (+ ▶ Preview để nghe thử) | Gentle, repeating |
-| Follow up after Accept → Ask after → Ring again if no answer in (mỗi chat một câu "Is it done?" hiện im lặng; chỉ reo khi để quá hạn không trả lời) | bật · 10 phút · 5 phút |
 | Machine unattended after (máy coi như không có người sau) | 15 giây |
 | Partner machine lost after (mất liên lạc máy kia sau) | 5 phút |
-| Start-shift reminder after (nhắc bấm Start shift sau; chỉ nhắc người có tên trong lịch trực tối nay ở `AOG_Shifts`) | 10 phút |
 | Blind warning after (báo không đọc được WhatsApp/Outlook sau) | 5 phút |
 
 </details>
@@ -230,16 +226,16 @@ Popup có tab thứ tư là **Test 🔒**. Tab này bị khoá để không làm
 | 🟠 Backup | Reo khi máy kia chuyển tin sang. |
 | 🔁 **Solo** | Một máy đóng cả hai vai: reo như Primary; nếu sau 2 phút chưa ai nhận thì chuyển sang **giai đoạn Backup giả lập**, chuông to hơn. Không cần máy thứ hai. |
 
-**Dry-run** chạy thử im lặng: không reo, không báo máy kia. Đổi gì thì bấm **Save test mode**.
+Bật **Test mode** là máy trực ngay, bất kể lịch; tắt đi thì máy quay về theo lịch trực. **Dry-run** chạy thử im lặng: không reo, không báo máy kia. Đổi gì thì bấm **Save test mode**.
 
-**2 · Simulate a message (giả lập tin)** (bấm **Start shift** trước)
+**2 · Simulate a message (giả lập tin)**
 
 - 💬 **Simulate WhatsApp message**: reo như tin khách thật. Gõ tên một chat có thật (ví dụ `AOG test`) thì khi Accept máy sẽ mở chat đó và gõ sẵn câu chào; để trống thì Accept không mở gì.
 - 📧 **Simulate Outlook email**: reo như thư AOG thật, kể cả khi bộ lọc thư lẽ ra sẽ bỏ qua.
 
 Tin giả lập đi đúng đường của tin thật: nếu có máy khác đang trực vai Backup, máy đó cũng nhận được tín hiệu chuyển tin.
 
-Khi bật **Test mode**, máy không ghi gì vào `AOG_Shifts` (không giờ vào/ra ca, không số giờ, không số đếm) và không ghi nhật ký sự kiện vào `AOG_Log`. Máy chỉ vẫn gửi hai loại dòng cần để hai máy thấy nhau và chuyển tin cho nhau (`Machine` và `Signal`).
+Khi bật **Test mode**, máy không ghi nhật ký sự kiện vào `AOG_Log`. Máy chỉ vẫn gửi hai loại dòng cần để hai máy thấy nhau và chuyển tin cho nhau (`Machine` và `Signal`).
 
 > [!TIP]
 > Muốn thử tin WhatsApp thật trên một máy, hãy nhắn **từ điện thoại** vào nhóm test. Tin bạn gõ trên WhatsApp Web của chính máy đó là tin gửi đi, nên không bao giờ reo.
@@ -280,19 +276,23 @@ Mọi dữ liệu nằm trên `https://trustanavn.sharepoint.com/sites/aog`. ✍
 </details>
 
 <details>
-<summary><b>🗓️ AOG_Shifts</b>: lịch trực và tính lương</summary>
+<summary><b>🗓️ AOG_Shifts</b>: lịch trực và số đếm tính tiền trực</summary>
 
 | Cột | | Ý nghĩa |
 |---|---|---|
-| OperatorName (Title) | ✍️ | Tên chính thức. Máy không bao giờ ghi đè. |
-| ShiftDate | ✍️ | Ngày buổi tối, `YYYY-MM-DD` |
+| OperatorName (Title) | ✍️ | Tên hiện trên popup và trong nhật ký |
 | Email | ✍️ | Địa chỉ Microsoft 365 |
-| Slot1Role, Slot2Role | ✍️ | Vai trò dự kiến từng slot |
+| Start | ✍️ | Giờ bắt đầu khung trực, `YYYY-MM-DD HH:mm` |
+| End | ✍️ | Giờ kết thúc khung trực, `YYYY-MM-DD HH:mm` |
+| AlertCount | 🤖 | Số tin đã reo trên máy người này trong đêm của họ (mỗi tin tính một lần) |
+| AcceptedCount | 🤖 | Trong số đó, bao nhiêu tin người này bấm Accept |
+| MissCount | 🤖 | Tin reo trên máy này nhưng người này không bấm Accept (reo hết giờ, người kia nhận, còn treo lúc hết đêm), cộng các báo cáo lọt tin. **Khi đang là dự phòng, tin mà người trực chính nhận thì không bao giờ tính Miss.** |
+| AcceptLog | 🤖 | Giờ và tên chat hoặc tiêu đề mỗi lần Accept, ví dụ `22:11 BlueLane AOG; 03:02 RE: AOG A321` |
 | Notes | ✍️ | Ghi chú tự do |
-| CheckIn, CheckOut, Hours | 🤖 | Giờ vào ca, giờ ra ca, số giờ trực |
-| Ready | 🤖 | Bước kiểm đầu ca có đạt không |
-| AlertCount, AcceptedCount, MissCount | 🤖 | Số tin đã reo, đã nhận, bị lỡ |
-| AcceptLog | 🤖 | Giờ và tên chat của từng lần Accept |
+
+Số đếm tính cho **cả đêm** của người đó (khung của mình và phần làm dự phòng), cập nhật trong đêm và lúc hết đêm, không tính tin thử ở tab Test. Ví dụ: Ethan để tin reo hết giờ, Julia (dự phòng) bấm Accept → Ethan: Alert 1, Miss 1; Julia: Alert 1, Accepted 1. Nếu Ethan bấm Accept muộn lúc tin đang reo trên máy Julia → Ethan: Accepted 1; Julia: Alert 1, không Miss.
+
+Các cột cũ (ShiftDate, Slot1Role, Slot2Role, CheckIn, CheckOut, Hours, Ready) không còn dùng.
 
 </details>
 
@@ -323,10 +323,9 @@ Toàn bộ là 🤖. Chỉ ghi những gì cần để dựng lại một đêm 
 |---|---|
 | 🔴 WhatsApp hoặc Outlook | Mở hoặc tải lại tab đó. Với Outlook, mở đúng hộp thư/thư mục đã điền ở **Outlook watch path** (hoặc để trống ô đó). |
 | 🔴 SharePoint | Mở site AOG và đăng nhập lại. Trong lúc đó máy vẫn reo bình thường. |
-| 🔴 Partner machine lost | Gọi người trực máy kia: trình duyệt có mở không, đã bấm Start shift chưa? Máy bị gỡ mà chưa **End shift** sẽ tự hết bị tính sau 12 tiếng; muốn hết ngay thì xoá dòng `Machine` của máy đó trong `AOG_Log`. |
+| 🔴 "… AOG Watcher is offline" | Người đang trực không có AOG Watcher nào chạy. Gọi cho họ: trình duyệt có mở không? Trong lúc đó tự để mắt WhatsApp và Outlook. |
 | 💬 Accepted, but the chat could not be opened | WhatsApp của bạn không có trong nhóm đó. Nhờ thêm vào nhóm; trong lúc chờ, trả lời bằng điện thoại có trong nhóm. |
-| 🔴 You are not on tonight's roster | Nhờ trưởng ca thêm dòng của bạn (đúng ngày, đúng email). Máy vẫn reo bình thường. |
-| 📄 AOG_Shifts có thêm một dòng tên bạn | Email hoặc ShiftDate không khớp. Trưởng ca sửa dòng đã xếp và xoá dòng thừa. |
+| ⚪ "Not on the roster" trên popup | Email của bạn không có khung giờ nào trong `AOG_Shifts`. Nhờ trưởng ca thêm (đúng email, dạng `YYYY-MM-DD HH:mm`). |
 | 💬 Mở nhầm chat | Ô nhập không bị gõ gì. Mở đúng chat, hoặc mở lại tin từ **Recent events**. |
 | 🙈 Có tin mà máy không reo | Popup → **Help** → **Missed a message?** rồi ghi lại. |
 | ⚠️ Extension context invalidated | Tải lại tab WhatsApp và tab Outlook. |

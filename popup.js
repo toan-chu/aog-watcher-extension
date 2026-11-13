@@ -1,4 +1,4 @@
-import { acceptAllView, backupCountdownText, eventSentence, formatAgo, formatClock24, peerEvidence, popupMode, slotRoleSummary, statusBadge, watchingSummary } from "./lib/popup_view.js";
+import { acceptAllView, backupCountdownText, eventSentence, formatAgo, formatClock24, peerEvidence, popupMode, rosterSummary, statusBadge, watchingSummary } from "./lib/popup_view.js";
 
 const ids = ["versionValue", "stateBadge", "readyBadge", "dryRunBadge", "testModeBadge", "tonightTab", "searchTab", "helpTab", "testTab", "tonightPanel", "searchPanel", "helpPanel", "testPanel",
   "offShiftScreen", "watchingScreen", "watchingTitle", "watchingCopy", "ringingScreen", "roleValue", "startShiftButton", "shiftStatusHint", "endShiftButton", "whatsappDot", "whatsappValue",
@@ -7,7 +7,8 @@ const ids = ["versionValue", "stateBadge", "readyBadge", "dryRunBadge", "testMod
   "alertTitle", "alertMeta", "pendingCount", "backupCountdown", "systemAlerts", "unknownChats", "unknownList", "searchChatInput", "helpButton", "helpButtonVi", "leakSource", "leakWhat", "leakAt",
   "leakButton", "diagnosticsRows", "sharepointButton", "settingsButton", "feedback",
   "testLockIcon", "testLock", "testPassword", "testTools", "testModeInput", "testRoleInput", "dryRunInput", "testSaveButton",
-  "simChatInput", "simWhatsAppButton", "simSubjectInput", "simEmailButton", "testLockButton"];
+  "simChatInput", "simWhatsAppButton", "simSubjectInput", "simEmailButton", "testLockButton",
+  "muteBar", "muteSoundButton", "muteWhatsAppButton", "muteOutlookButton"];
 const elements = Object.fromEntries(ids.map((id) => [id, document.getElementById(id)]));
 const slotRows = [...document.querySelectorAll(".slot-row")];
 const ROLE_LABEL = { primary: "Primary", backup: "Backup", off: "Off", solo: "Solo" };
@@ -184,6 +185,7 @@ function render(status) {
   elements.watchingScreen.hidden = mode !== "watching";
   elements.ringingScreen.hidden = mode !== "ringing";
   document.body.dataset.mode = mode;
+  renderMute(status, mode);
   elements.versionValue.textContent = status.version ?? "5.0";
   const badge = statusBadge(status);
   elements.stateBadge.textContent = badge.text;
@@ -192,10 +194,14 @@ function render(status) {
   elements.testModeBadge.hidden = !status.test_mode;
   elements.testModeBadge.textContent = status.test_mode ? `TEST·${ROLE_LABEL[status.test_role] ?? ""}` : "TEST";
 
-  const role = status.current_role || status.shift_slots?.[0]?.role;
-  elements.roleValue.textContent = slotRoleSummary(status.shift_slots);
-  elements.shiftStatusHint.textContent = role ? `${ROLE_LABEL[role]} · times shown below` : "No shift times configured";
-  if (document.activeElement?.closest?.(".slot-row") === null) writeSlotsToUI(status.shift_slots);
+  // 5.1: no Start/End shift and no slot editing; the roster (or Test mode) decides.
+  const roster = rosterSummary(status);
+  elements.roleValue.textContent = roster.title;
+  elements.shiftStatusHint.textContent = roster.hint;
+  elements.startShiftButton.hidden = true;
+  elements.endShiftButton.hidden = true;
+  const shiftSetup = document.getElementById("shiftSetup");
+  if (shiftSetup) shiftSetup.hidden = true;
 
   const alert = status.current_alert;
   elements.acceptButton.disabled = mode !== "ringing";
@@ -215,6 +221,25 @@ function render(status) {
   renderRecent(status.recent_events ?? []);
   renderDiagnostics(status);
   elements.sharepointButton.hidden = !status.sharepoint?.configured;
+}
+
+// Ring switches show only while on watch; pressed = that ringing is off on this machine.
+const MUTE_BUTTONS = ["muteSoundButton", "muteWhatsAppButton", "muteOutlookButton"];
+function renderMute(status, mode) {
+  elements.muteBar.hidden = mode === "off-shift";
+  for (const id of MUTE_BUTTONS) {
+    const button = elements[id];
+    const off = Boolean(status.mute?.[button.dataset.mute]);
+    button.setAttribute("aria-pressed", String(off));
+    button.title = off ? "Ringing is off on this machine. Click to turn it back on." : "Click to stop this ringing on this machine for the rest of your watch.";
+  }
+}
+for (const id of MUTE_BUTTONS) {
+  elements[id].addEventListener("click", () => {
+    const button = elements[id];
+    const on = button.getAttribute("aria-pressed") !== "true";
+    act({ type: "SET_MUTE", what: button.dataset.mute, on }, on ? `${button.textContent} ringing is off on this machine` : `${button.textContent} ringing is back on`);
+  });
 }
 
 async function act(message, okText = "") {

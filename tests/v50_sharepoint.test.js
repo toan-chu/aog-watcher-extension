@@ -160,7 +160,7 @@ describe("team sync", () => {
     const rows = client.lists.get(SP_LISTS.SHIFTS);
     expect(rows).toHaveLength(2);
     expect(rows.find((row) => row.Email === "a@x.vn")).toMatchObject({ Id: 5, Title: "A", Slot1Role: "Primary", CheckIn: "t-a", AcceptedCount: 2 });
-    expect(rows.find((row) => row.Email === "b@x.vn")).toMatchObject({ Title: "B", ShiftDate: "2026-07-28", CheckIn: "t-b", CheckOut: "t-b2", Hours: 4.5, AcceptedCount: 1 });
+    expect(rows.find((row) => row.Email === "b@x.vn")).toMatchObject({ Title: "B", ShiftDate: "2026-07-28", CheckIn: "t-b", CheckOut: "t-b2", AcceptedCount: 1 });
   });
 
   it("fills in the row the shift lead scheduled by name, and leaves a namesake's claimed row alone", async () => {
@@ -175,7 +175,7 @@ describe("team sync", () => {
     const rows = client.lists.get(SP_LISTS.SHIFTS);
     expect(rows).toHaveLength(2);
     expect(rows.find((row) => row.Id === 5)).toMatchObject({ Email: "other.leah@x.vn", CheckIn: "theirs" });
-    expect(rows.find((row) => row.Id === 6)).toMatchObject({ Slot1Role: "Primary", Email: "leah@x.vn", CheckIn: "t1", CheckOut: "t2", Hours: 4, AcceptedCount: 3 });
+    expect(rows.find((row) => row.Id === 6)).toMatchObject({ Slot1Role: "Primary", Email: "leah@x.vn", CheckIn: "t1", CheckOut: "t2", AcceptedCount: 3 });
   });
 
   it("keeps one heartbeat row per machine, apart from that machine's event rows", async () => {
@@ -219,7 +219,7 @@ describe("team sync", () => {
     expect(fieldSchemaXml({ name: "Active", type: "Boolean", default: "1" })).toContain("<Default>1</Default>");
     expect(fieldSchemaXml({ name: "ChatType", type: "Choice", choices: ["Customer", "Flyer"], default: "Customer" })).toContain("<CHOICES><CHOICE>Customer</CHOICE><CHOICE>Flyer</CHOICE></CHOICES>");
     expect(clampFields(SP_LISTS.GROUPS, { Title: "x".repeat(400) }).Title).toHaveLength(255);
-    expect(clampFields(SP_LISTS.SHIFTS, { Hours: "4.5", AlertCount: 3, MissCount: "n/a", Ready: true })).toEqual({ Hours: 4.5, AlertCount: 3, Ready: "true" });
+    expect(clampFields(SP_LISTS.SHIFTS, { AcceptedCount: "4", AlertCount: 3, MissCount: "n/a", Ready: true })).toEqual({ AcceptedCount: 4, AlertCount: 3, Ready: "true" });
     for (const list of Object.values(SP_LISTS)) expect(Array.isArray(SP_FIELDS[list])).toBe(true);
   });
 });

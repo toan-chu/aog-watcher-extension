@@ -96,7 +96,7 @@ async function boot({ config = {}, sharepoint = null, browserTabs = [], tabRespo
   globalThis.chrome = chrome;
   if (sharepoint) globalThis.fetch = sharepoint.fetch;
   const { DEFAULT_CONFIG } = await import("../lib/constants.js");
-  chrome._store.aog_config = { ...DEFAULT_CONFIG, sharepoint_site_url: "", self_display_name: "Hoài", test_mode: true, test_role: "primary", ...config };
+  chrome._store.aog_config = { ...DEFAULT_CONFIG, sharepoint_site_url: "", self_display_name: "Hoài", test_mode: true, test_role: "primary", followup_enabled: true, ...config };
   await import("../service_worker.js");
   const send = (message) => new Promise((resolve) => { chrome._listeners.message[0](message, {}, resolve); });
   const alarm = (name) => chrome._listeners.alarm[0]({ name });
@@ -114,74 +114,123 @@ beforeEach(() => { vi.useRealTimers(); });
 // Test mode never writes the roster or Event rows, so tests of those writes run as a real shift
 // with one slot covering the whole day.
 const REAL_DUTY = { test_mode: false, shift_slots: [{ start: "00:00", end: "23:59", role: "primary" }] };
+
+// A roster window in AOG_Shifts, minutes relative to now (5.1: Start/End carry date and time).
+const stamp = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")} ${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+function addWindow(sp, { name = "Hoài", email = "hoai@acme.vn", from = -60, to = 180 } = {}) {
+  const now = Date.now();
+  sp.rows("AOG_Shifts").push({ Id: 100 + sp.rows("AOG_Shifts").length, Title: name, Email: email, Start: stamp(new Date(now + from * 60_000)), End: stamp(new Date(now + to * 60_000)) });
+}
 afterEach(() => { delete globalThis.chrome; });
 
 describe("service worker 5.0 behaviour", () => {
-  it("takes the operator name from tonight's email roster row on Sign in and Start shift", async () => {
+  it("takes the operator name from the roster on Sign in", async () => {
     const sp = fakeSharePoint();
-    sp.rows("AOG_Shifts").push({ Id: 1, ShiftDate: shiftDate(new Date().toISOString()), Title: "Leah", Email: "hoai@acme.vn" });
-    const { chrome, send, alarm, settle } = await boot({ config: { sharepoint_site_url: "https://acme.sharepoint.com/sites/AOG", self_display_name: "Lahe" }, sharepoint: sp });
-
+    addWindow(sp, { name: "Leah" });
+    const { chrome, send } = await boot({ config: { sharepoint_site_url: "https://acme.sharepoint.com/sites/AOG", self_display_name: "Lahe" }, sharepoint: sp });
     const signedIn = await send({ type: "SP_TEST" });
-    expect(signedIn.note).toBe('Name updated to "Leah" from tonight\'s roster');
+    expect(signedIn.note).toBe('Name updated to "Leah" from the roster');
     expect(chrome._store.aog_config.self_display_name).toBe("Leah");
-
-    chrome._store.aog_config.self_display_name = "Lahe";
-    const started = await send({ type: "START_SHIFT" });
-    expect(started.note).toBe('Name updated to "Leah" from tonight\'s roster');
-    expect(chrome._store.aog_config.self_display_name).toBe("Leah");
-    alarm("aog:tick"); await settle();
   });
 
-  it("never overwrites an existing roster Title during Start shift or End shift", async () => {
+  it("payroll: writes only the four count cells on this person's own row, never creates rows or touches the partner's", async () => {
     const sp = fakeSharePoint();
-    const roster = { Id: 1, ShiftDate: shiftDate(new Date().toISOString()), Title: "Shift lead name", Email: "hoai@acme.vn" };
-    sp.rows("AOG_Shifts").push(roster);
-    const { send, alarm, settle } = await boot({ config: { ...REAL_DUTY, sharepoint_site_url: "https://acme.sharepoint.com/sites/AOG", self_display_name: "Old name" }, sharepoint: sp });
-
-    await send({ type: "START_SHIFT" });
+    addWindow(sp, { name: "Shift lead name" });
+    addWindow(sp, { name: "Julia", email: "julia@acme.vn", from: 180, to: 400 });
+    const partnerBefore = JSON.stringify(sp.rows("AOG_Shifts")[1]);
+    const { send, alarm, settle } = await boot({ config: { ...REAL_DUTY, sharepoint_site_url: "https://acme.sharepoint.com/sites/AOG" }, sharepoint: sp });
     alarm("aog:tick"); await settle();
-    roster.Title = "Lead corrected";
+    alarm("aog:tick"); await settle();                     // the watch starts by itself from the roster
+    expect((await send({ type: "GET_STATUS" })).status.session?.role).toBe("primary");
+    await send({ type: "ALERT_DETECTED", alert: { alert_id: "p1", source: "whatsapp", group_name: "AOG TEST", unread_count: 1 } });
+    await send({ type: "ACCEPT_CURRENT" });
+    await send({ type: "ALERT_DETECTED", alert: { alert_id: "p2", source: "whatsapp", group_name: "AOG TWO", unread_count: 1 } });
+    alarm("aog:max_alert_duration:p2"); await settle();
+    alarm("aog:tick"); await settle();                     // counts queued
+    alarm("aog:tick"); await settle();                     // and sent
+    const rows = sp.rows("AOG_Shifts");
+    expect(rows).toHaveLength(2);
+    expect(rows[0]).toMatchObject({ Id: 100, Title: "Shift lead name", Email: "hoai@acme.vn", AlertCount: 2, AcceptedCount: 1, MissCount: 1 });
+    expect(rows[0].AcceptLog).toMatch(/^\d{2}:\d{2} AOG TEST$/);
+    expect(JSON.stringify(rows[1])).toBe(partnerBefore);
+  });
+
+  it("payroll: as Backup, a message the person on watch took is counted as an alert, never as a miss", async () => {
+    const sp = fakeSharePoint();
+    addWindow(sp, { name: "Julia", email: "julia@acme.vn", from: -30, to: 60 });
+    addWindow(sp, { from: 60, to: 300 });
+    const { send, alarm, settle } = await boot({ config: { ...REAL_DUTY, sharepoint_site_url: "https://acme.sharepoint.com/sites/AOG" }, sharepoint: sp });
+    alarm("aog:tick"); await settle();
+    alarm("aog:tick"); await settle();
+    expect((await send({ type: "GET_STATUS" })).status.session?.role).toBe("backup");
+    await send({ type: "ALERT_DETECTED", alert: { alert_id: "b1", source: "whatsapp", group_name: "AOG TEST", unread_count: 1 } });
+    alarm("aog:backup_delay:b1"); await settle();
+    expect((await send({ type: "GET_STATUS" })).status.app_state).toBe("ALERTING");
+    sp.rows("AOG_Log").push({ Id: 5000, RecordType: "Signal", EventType: "HANDLED", AlertId: "b1", Source: "whatsapp", MachineId: "julia-pc", At: new Date().toISOString(), Detail: JSON.stringify({ operator: "Julia", from_role: "primary" }) });
+    alarm("aog:tick"); await settle();
+    alarm("aog:tick"); await settle();
+    expect((await send({ type: "GET_STATUS" })).status.app_state).toBe("IDLE");
+    expect(sp.rows("AOG_Shifts")[1]).toMatchObject({ Email: "hoai@acme.vn", AlertCount: 1, AcceptedCount: 0, MissCount: 0 });
     await send({ type: "END_SHIFT" });
     alarm("aog:tick"); await settle();
-
-    expect(roster.Title).toBe("Lead corrected");
-    expect(roster.CheckIn).toBeTruthy();
-    expect(roster.CheckOut).toBeTruthy();
+    expect(sp.rows("AOG_Shifts")[1]).toMatchObject({ AlertCount: 1, MissCount: 0 });
   });
 
-  it("warns when no roster row exists but still creates its row and rings", async () => {
+  it("payroll: nothing is written in test mode", async () => {
     const sp = fakeSharePoint();
-    const { send, alarm, settle } = await boot({ config: { ...REAL_DUTY, sharepoint_site_url: "https://acme.sharepoint.com/sites/AOG" }, sharepoint: sp });
+    addWindow(sp);
+    const before = JSON.stringify(sp.rows("AOG_Shifts"));
+    const { send, alarm, settle } = await boot({ config: { ...REAL_DUTY, test_mode: true, test_role: "primary", sharepoint_site_url: "https://acme.sharepoint.com/sites/AOG" }, sharepoint: sp });
+    alarm("aog:tick"); await settle();
+    await send({ type: "ALERT_DETECTED", alert: { alert_id: "t1", source: "whatsapp", group_name: "AOG TEST", unread_count: 1 } });
+    await send({ type: "ACCEPT_CURRENT" });
+    alarm("aog:tick"); await settle();
+    expect(JSON.stringify(sp.rows("AOG_Shifts"))).toBe(before);
+  });
 
+  it("ring switches: a muted source does not ring but still waits for Accept and goes to Backup; reset at watch end", async () => {
+    const { chrome, send } = await boot({ config: REAL_DUTY });
     await send({ type: "START_SHIFT" });
+    const off = await send({ type: "SET_MUTE", what: "whatsapp", on: true });
+    expect(off.status.mute).toEqual({ sound: false, whatsapp: true, outlook: false });
+    chrome._sent.length = 0;
+    const ringing = await send({ type: "ALERT_DETECTED", alert: { alert_id: "m1", source: "whatsapp", group_name: "AOG TEST", unread_count: 1 } });
+    expect(ringing.status.app_state).toBe("ALERTING");
+    expect(chrome._sent.some((message) => message.type === "AUDIO_PLAY")).toBe(false);
+    expect([...chrome._alarms.keys()]).toContain("aog:primary_timeout:m1");
+    expect(ringing.status.recent_events.some((event) => event.event_type === "MUTE_CHANGED")).toBe(true);
+    await send({ type: "END_SHIFT" });
+    expect((await send({ type: "GET_STATUS" })).status.mute).toEqual({ sound: false, whatsapp: false, outlook: false });
+    expect((await send({ type: "SET_MUTE", what: "sound", on: true })).ok).toBe(false);
+  });
+
+  it("ring switches: Sound off silences everything on this machine; the other source still rings when only one is off", async () => {
+    const { chrome, send } = await boot({ config: REAL_DUTY });
+    await send({ type: "START_SHIFT" });
+    await send({ type: "SET_MUTE", what: "outlook", on: true });
+    chrome._sent.length = 0;
+    await send({ type: "ALERT_DETECTED", alert: { alert_id: "w1", source: "whatsapp", group_name: "AOG TEST", unread_count: 1 } });
+    expect(chrome._sent.some((message) => message.type === "AUDIO_PLAY")).toBe(true);
+    await send({ type: "SET_MUTE", what: "sound", on: true });
+    expect(chrome._sent.at(-1)?.type === "AUDIO_STOP" || chrome._sent.some((message) => message.type === "AUDIO_STOP")).toBe(true);
+  });
+
+  it("someone not on the roster stays off duty and silent", async () => {
+    const sp = fakeSharePoint();
+    addWindow(sp, { name: "Julia", email: "julia@acme.vn" });
+    const { chrome, send, alarm, settle } = await boot({ config: { ...REAL_DUTY, sharepoint_site_url: "https://acme.sharepoint.com/sites/AOG" }, sharepoint: sp });
+    alarm("aog:tick"); await settle();
+    alarm("aog:tick"); await settle();
     await send({ type: "ALERT_DETECTED", alert: { source: "whatsapp", group_name: "AOG TEST", unread_count: 1 } });
-    alarm("aog:tick"); await settle();
     const status = (await send({ type: "GET_STATUS" })).status;
-
-    expect(status.app_state).toBe("ALERTING");
-    expect(status.preflight.items.find((item) => item.key === "roster")).toMatchObject({
-      status: "fail",
-      hint: "You are not on tonight's roster. Contact the shift lead.",
-    });
-    expect(sp.rows("AOG_Shifts")).toEqual([expect.objectContaining({ Title: "Hoài", Email: "hoai@acme.vn" })]);
-  });
-
-  it("claims a matching name row whose Email is null instead of creating a duplicate", async () => {
-    const sp = fakeSharePoint();
-    sp.rows("AOG_Shifts").push({ Id: 1, ShiftDate: shiftDate(new Date().toISOString()), Title: "Hoài", Email: null });
-    const { send, alarm, settle } = await boot({ config: { ...REAL_DUTY, sharepoint_site_url: "https://acme.sharepoint.com/sites/AOG" }, sharepoint: sp });
-
-    await send({ type: "START_SHIFT" });
-    alarm("aog:tick"); await settle();
-
-    expect(sp.rows("AOG_Shifts")).toHaveLength(1);
-    expect(sp.rows("AOG_Shifts")[0].Email).toBe("hoai@acme.vn");
+    expect(status.session).toBeNull();
+    expect(status.app_state).toBe("IDLE");
+    expect(chrome._sent.some((message) => message.type === "AUDIO_PLAY")).toBe(false);
   });
 
   it("uses the roster-corrected name in Machine, Event and peer Signal rows", async () => {
     const sp = fakeSharePoint();
-    sp.rows("AOG_Shifts").push({ Id: 1, ShiftDate: shiftDate(new Date().toISOString()), Title: "Leah", Email: "hoai@acme.vn" });
+    addWindow(sp, { name: "Leah" });
     const { send, alarm, settle } = await boot({ config: { ...REAL_DUTY, sharepoint_site_url: "https://acme.sharepoint.com/sites/AOG", self_display_name: "Lahe" }, sharepoint: sp });
 
     await send({ type: "START_SHIFT" });
@@ -362,6 +411,7 @@ describe("service worker 5.0 behaviour", () => {
 
   it("Accept all handles three alerts, creates three follow-ups and opens only the ringing chat", async () => {
     const sp = fakeSharePoint();
+    addWindow(sp);
     const browserTabs = [{ id: 7, windowId: 3, url: "https://web.whatsapp.com/" }];
     const { chrome, send, alarm, settle } = await boot({
       config: { ...REAL_DUTY, sharepoint_site_url: "https://acme.sharepoint.com/sites/AOG" },
@@ -405,6 +455,7 @@ describe("service worker 5.0 behaviour", () => {
 
   it("focused exact WhatsApp chat Accepts without navigation or greeting", async () => {
     const sp = fakeSharePoint();
+    addWindow(sp);
     const browserTabs = [{ id: 7, windowId: 3, url: "https://web.whatsapp.com/" }];
     const { chrome, send, alarm, settle } = await boot({ config: { ...REAL_DUTY, sharepoint_site_url: "https://acme.sharepoint.com/sites/AOG" }, sharepoint: sp, browserTabs, idleState: "active" });
     alarm("aog:tick"); await settle();
@@ -557,8 +608,9 @@ describe("service worker 5.0 behaviour", () => {
     expect(status.system_alerts).toEqual([]);
   });
 
-  it("with SharePoint: Accept is sent as a signal, a peer ESCALATED signal is received, black box + night row are written", async () => {
+  it("with SharePoint: Accept is sent as a signal, a peer ESCALATED signal is received, black box written, roster untouched", async () => {
     const sp = fakeSharePoint();
+    addWindow(sp);
     const { send, alarm, settle } = await boot({ config: { ...REAL_DUTY, sharepoint_site_url: "https://acme.sharepoint.com/sites/AOG" }, sharepoint: sp });
     alarm("aog:tick"); await settle();                     // first sync: sets signal cursor, identity, machine row
     const log = (type) => sp.rows("AOG_Log").filter((row) => row.RecordType === type);
@@ -577,11 +629,8 @@ describe("service worker 5.0 behaviour", () => {
     expect(log("Machine")).toHaveLength(1);                // heartbeat updates its own row, event rows with the same MachineId are left alone
     const night = sp.rows("AOG_Shifts");
     expect(night).toHaveLength(1);
-    expect(night[0].Title).toBe("Hoài");
-    expect(night[0].Email).toBe("hoai@acme.vn");
-    expect(night[0]).not.toHaveProperty("OperatorName");
-    expect(night[0].AcceptedCount).toBe(1);
-    expect(night[0].AcceptLog).toMatch(/AOG A321/);
+    expect(night[0]).not.toHaveProperty("CheckIn");
+    expect(night[0]).toMatchObject({ AlertCount: 1, AcceptedCount: 1, MissCount: 0 });
     for (const title of ["AOG_Events", "AOG_Signals", "AOG_Machines"]) expect(sp.lists[title]).toBeUndefined();
     expect(status.sharepoint.ok).toBe(true);
   });
@@ -618,10 +667,8 @@ describe("service worker 5.0 behaviour", () => {
 
   it("a partner's follow-up signal does not ring a machine that is off shift", async () => {
     const sp = fakeSharePoint();
-    const { chrome, send, alarm, settle } = await boot({ config: { sharepoint_site_url: "https://acme.sharepoint.com/sites/AOG", test_role: "backup" }, sharepoint: sp });
+    const { chrome, send, alarm, settle } = await boot({ config: { ...REAL_DUTY, sharepoint_site_url: "https://acme.sharepoint.com/sites/AOG" }, sharepoint: sp });
     alarm("aog:tick"); await settle();
-    await send({ type: "START_SHIFT" });
-    await send({ type: "END_SHIFT" }); await settle();
     const timestamp = new Date().toISOString();
     sp.rows("AOG_Log").push({
       Id: 901, RecordType: "Signal", EventType: "FOLLOWUP_OVERDUE", AlertId: "done-earlier", Source: "whatsapp",
@@ -634,11 +681,14 @@ describe("service worker 5.0 behaviour", () => {
     expect(chrome._sent.filter((message) => message.type === "AUDIO_PLAY").length).toBe(before);
   });
 
-  it("Test tab: simulated messages need Test mode and a started shift", async () => {
+  it("Test tab: simulated messages need Test mode, and Test mode starts watching by itself", async () => {
     const { send } = await boot({ config: { test_mode: false } });
     expect(await send({ type: "SIMULATE_ALERT", source: "whatsapp" })).toMatchObject({ ok: false, error: "Turn on Test mode first." });
-    await send({ type: "UPDATE_TEST_SETTINGS", test_mode: true, test_role: "primary", dry_run: false });
-    expect(await send({ type: "SIMULATE_ALERT", source: "whatsapp" })).toMatchObject({ ok: false, error: "Select Start shift on the Tonight tab first." });
+    const saved = await send({ type: "UPDATE_TEST_SETTINGS", test_mode: true, test_role: "primary", dry_run: false });
+    expect(saved.status.session).toBeTruthy();
+    const simulated = await send({ type: "SIMULATE_ALERT", source: "whatsapp" });
+    expect(simulated.ok).toBe(true);
+    expect(simulated.status.app_state).toBe("ALERTING");
   });
 
   it("Test tab: saving keeps only known roles", async () => {
@@ -791,31 +841,60 @@ describe("service worker 5.0 behaviour", () => {
     expect(sp.rows("AOG_Log").filter((row) => row.RecordType === "Event")).toEqual([]);
   });
 
-  const lateSlot = () => {
-    const start = new Date(Date.now() - 15 * 60_000);
-    const hhmm = (date) => `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
-    return [{ start: hhmm(start), end: hhmm(new Date(start.getTime() + 4 * 3_600_000)), role: "primary" }];
-  };
-
-  it("no Shift not started reminder (and no signal to the partner) for someone not on tonight's roster", async () => {
+  it("roster: the watch starts by itself in your own window, as Primary", async () => {
     const sp = fakeSharePoint();
-    const { chrome, send, alarm, settle } = await boot({ config: { test_mode: false, shift_slots: lateSlot(), sharepoint_site_url: "https://acme.sharepoint.com/sites/AOG" }, sharepoint: sp });
+    addWindow(sp, { from: -30, to: 240 });
+    const { send, alarm, settle } = await boot({ config: { ...REAL_DUTY, sharepoint_site_url: "https://acme.sharepoint.com/sites/AOG" }, sharepoint: sp });
     alarm("aog:tick"); await settle();
     alarm("aog:tick"); await settle();
     const status = (await send({ type: "GET_STATUS" })).status;
-    expect(status.system_alerts.map((item) => item.kind)).not.toContain("shift_reminder");
-    expect(sp.rows("AOG_Log").some((row) => row.EventType === "SHIFT_NOT_STARTED")).toBe(false);
+    expect(status.session).toBeTruthy();
+    expect(status.current_role).toBe("primary");
+    expect(status.role_source).toBe("roster");
+  });
+
+  it("roster: in a partner's window of the same night you are Backup", async () => {
+    const sp = fakeSharePoint();
+    addWindow(sp, { name: "Julia", email: "julia@acme.vn", from: -30, to: 60 });
+    addWindow(sp, { from: 60, to: 300 });
+    const { send, alarm, settle } = await boot({ config: { ...REAL_DUTY, sharepoint_site_url: "https://acme.sharepoint.com/sites/AOG" }, sharepoint: sp });
+    alarm("aog:tick"); await settle();
+    alarm("aog:tick"); await settle();
+    const status = (await send({ type: "GET_STATUS" })).status;
+    expect(status.session).toBeTruthy();
+    expect(status.current_role).toBe("backup");
+  });
+
+  it("roster: after the night the watch ends by itself and nothing rings", async () => {
+    const sp = fakeSharePoint();
+    addWindow(sp, { from: -300, to: -10 });
+    const { chrome, send, alarm, settle } = await boot({ config: { ...REAL_DUTY, sharepoint_site_url: "https://acme.sharepoint.com/sites/AOG" }, sharepoint: sp });
+    alarm("aog:tick"); await settle();
+    alarm("aog:tick"); await settle();
+    await send({ type: "ALERT_DETECTED", alert: { source: "whatsapp", group_name: "AOG TEST", unread_count: 1 } });
+    const status = (await send({ type: "GET_STATUS" })).status;
+    expect(status.session).toBeNull();
     expect(chrome._sent.some((message) => message.type === "AUDIO_PLAY")).toBe(false);
   });
 
-  it("the Shift not started reminder still rings for someone on tonight's roster", async () => {
+  it("roster: the Backup is told, without a ring, when the person on watch has no live machine", async () => {
     const sp = fakeSharePoint();
-    sp.rows("AOG_Shifts").push({ Id: 1, Title: "Hoài", ShiftDate: shiftDate(new Date().toISOString()), Email: "hoai@acme.vn" });
-    const { send, alarm, settle } = await boot({ config: { test_mode: false, shift_slots: lateSlot(), sharepoint_site_url: "https://acme.sharepoint.com/sites/AOG" }, sharepoint: sp });
+    addWindow(sp, { name: "Julia", email: "julia@acme.vn", from: -30, to: 60 });
+    addWindow(sp, { from: 60, to: 300 });
+    const { chrome, send, alarm, settle } = await boot({ config: { ...REAL_DUTY, sharepoint_site_url: "https://acme.sharepoint.com/sites/AOG" }, sharepoint: sp });
     alarm("aog:tick"); await settle();
     alarm("aog:tick"); await settle();
-    const status = (await send({ type: "GET_STATUS" })).status;
-    expect(status.system_alerts.find((item) => item.kind === "shift_reminder")).toMatchObject({ title: "Shift not started", ring: true });
-    expect(sp.rows("AOG_Log").some((row) => row.EventType === "SHIFT_NOT_STARTED")).toBe(true);
+    alarm("aog:tick"); await settle();
+    const offline = (await send({ type: "GET_STATUS" })).status.system_alerts.find((item) => item.kind === "roster_offline");
+    expect(offline).toMatchObject({ title: "Julia's AOG Watcher is offline", ring: false });
+
+    sp.rows("AOG_Log").push({ Id: 990, RecordType: "Machine", MachineId: "julia-pc", OperatorName: "Julia", Email: "julia@acme.vn", Role: "primary", ShiftId: "s-j", At: new Date().toISOString(), Detail: JSON.stringify({ problems: [], shift_slots: [], test_mode: false }) });
+    alarm("aog:tick"); await settle();
+    expect((await send({ type: "GET_STATUS" })).status.system_alerts.map((item) => item.kind)).not.toContain("roster_offline");
+  });
+
+  it("Accept is done by default: no Is it done? question", async () => {
+    const { DEFAULT_CONFIG } = await import("../lib/constants.js");
+    expect(DEFAULT_CONFIG.followup_enabled).toBe(false);
   });
 });

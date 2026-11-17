@@ -190,6 +190,61 @@ describe("service worker 5.0 behaviour", () => {
     expect(machine.Detail).not.toContain("shift_slots");
   });
 
+  it("Outlook 5.2: rings once when the AOG folder's unread count goes up during a watch", async () => {
+    const browserTabs = [{ id: 31, windowId: 3, url: "https://outlook.cloud.microsoft/mail/" }, { id: 32, windowId: 3, url: "https://outlook.office.com/mail/" }];
+    const { chrome, send } = await boot({ browserTabs });
+    const fromTab = (id, count) => new Promise((resolve) => { chrome._listeners.message[0]({ type: "OUTLOOK_UNREAD", count }, { tab: { id } }, resolve); });
+    const emailAlerts = async () => (await send({ type: "GET_STATUS" })).status.recent_events.filter((event) => event.event_type === "DETECTED" && event.source === "email");
+
+    await fromTab(31, 5);                                  // off watch: only remembered
+    await send({ type: "START_SHIFT" });
+    await fromTab(31, 5);                                  // same count: nothing new
+    await fromTab(32, 5);                                  // a second Outlook tab joins: its first report is its baseline
+    expect(await emailAlerts()).toHaveLength(0);
+
+    await fromTab(31, 6);                                  // one new email
+    let alerts = await emailAlerts();
+    expect(alerts).toHaveLength(1);
+    expect(alerts[0].subject).toBe("New email in the AOG mailbox");
+    expect((await send({ type: "GET_STATUS" })).status.app_state).toBe("ALERTING");
+    await fromTab(32, 6);                                  // the other tab catches up: same email, no second alert
+    expect(await emailAlerts()).toHaveLength(1);
+
+    await fromTab(31, 0);                                  // everything read
+    await fromTab(32, 0);
+    await fromTab(31, 2);                                  // two new emails at once: one alert
+    alerts = await emailAlerts();
+    expect(alerts).toHaveLength(2);
+    expect(alerts[1].subject).toBe("2 new emails in the AOG mailbox");
+  });
+
+  it("Outlook 5.2: a narrow extra Outlook tab does not turn Outlook red while a wide tab reads the folder", async () => {
+    const browserTabs = [{ id: 31, windowId: 3, url: "https://outlook.cloud.microsoft/mail/" }, { id: 32, windowId: 4, url: "https://outlook.cloud.microsoft/mail/" }];
+    const { chrome, send, alarm, settle } = await boot({ browserTabs });
+    const health = (id, gate) => new Promise((resolve) => { chrome._listeners.message[0]({ type: "CONTENT_HEALTH", source: "outlook", connected: true, stats: { folder_gate: gate, rows_seen: gate === "pass" ? 1 : 0 } }, { tab: { id } }, resolve); });
+    await send({ type: "START_SHIFT" });
+    await health(31, "pass");
+    await health(32, "hidden");                            // the narrow tab reports last
+    alarm("aog:tick"); await settle();
+    expect((await send({ type: "GET_STATUS" })).status.sources.outlook.status).toBe("ok");
+    chrome._store.aog_outlook_tab_health = {};             // only the narrow tab left
+    await health(32, "hidden");
+    alarm("aog:tick"); await settle();
+    expect((await send({ type: "GET_STATUS" })).status.sources.outlook.status).toBe("wrong_folder");
+  });
+
+  it("Outlook 5.2: a closed Outlook tab's old count never hides new mail", async () => {
+    const browserTabs = [{ id: 31, windowId: 3, url: "https://outlook.cloud.microsoft/mail/" }];
+    const { chrome, send } = await boot({ browserTabs });
+    const fromTab = (id, count) => new Promise((resolve) => { chrome._listeners.message[0]({ type: "OUTLOOK_UNREAD", count }, { tab: { id } }, resolve); });
+    await send({ type: "START_SHIFT" });
+    chrome._store.aog_outlook_unread = { 99: { count: 40, at: Date.now() } };   // tab 99 was closed
+    await fromTab(31, 1);
+    await fromTab(31, 2);
+    const detected = (await send({ type: "GET_STATUS" })).status.recent_events.filter((event) => event.event_type === "DETECTED" && event.source === "email");
+    expect(detected).toHaveLength(1);
+  });
+
   it("payroll: nothing is written in test mode", async () => {
     const sp = fakeSharePoint();
     addWindow(sp);
@@ -388,7 +443,8 @@ describe("service worker 5.0 behaviour", () => {
     await send({ type: "ALERT_DETECTED", alert: { source: "email", sender: "ops@airline.com", subject: "AOG A321", message_id: "m1" } });
     const accepted = await send({ type: "ACCEPT_CURRENT" });
     expect(accepted.status.app_state).toBe("IDLE");
-    expect(accepted.status.followups).toHaveLength(1);
+    expect(accepted.status.followups).toEqual([]);
+    expect(accepted.status.recent_events.filter((event) => event.event_type === "ACCEPT")).toHaveLength(1);
     alarm("aog:tick");
     await settle();
     // first 2 minutes of the watch: tabs may not have reported yet, so no source alert
@@ -457,7 +513,8 @@ describe("service worker 5.0 behaviour", () => {
 
     expect(accepted.status.app_state).toBe("IDLE");
     expect(accepted.status.pending_count).toBe(0);
-    expect(accepted.status.followups).toHaveLength(3);
+    expect(accepted.status.followups).toEqual([]);
+    expect(accepted.status.recent_events.filter((event) => event.event_type === "ACCEPT")).toHaveLength(3);
     expect(sp.rows("AOG_Log").filter((row) => row.RecordType === "Signal" && row.EventType === "HANDLED")).toHaveLength(3);
     const acceptEvents = sp.rows("AOG_Log").filter((row) => row.RecordType === "Event" && row.EventType === "ACCEPT");
     expect(acceptEvents).toHaveLength(3);
@@ -496,7 +553,8 @@ describe("service worker 5.0 behaviour", () => {
     alarm("aog:tick"); await settle();
 
     expect(accepted.status.app_state).toBe("IDLE");
-    expect(accepted.status.followups).toHaveLength(1);
+    expect(accepted.status.followups).toEqual([]);
+    expect(accepted.status.recent_events.filter((event) => event.event_type === "ACCEPT")).toHaveLength(1);
     expect(sp.rows("AOG_Log").filter((row) => row.RecordType === "Signal" && row.EventType === "HANDLED")).toHaveLength(1);
     const event = sp.rows("AOG_Log").find((row) => row.RecordType === "Event" && row.EventType === "ACCEPT");
     expect(JSON.parse(event.Detail).accept_method).toBe("open_chat");
@@ -519,7 +577,7 @@ describe("service worker 5.0 behaviour", () => {
     expect(accepted.status.app_state).toBe("ALERTING");
     expect(accepted.status.current_alert.alert_id).toBe("a1");
     expect(accepted.status.pending_count).toBe(2);
-    expect(accepted.status.followups.map((item) => item.alert_id)).toEqual(["a2"]);
+    expect(accepted.status.recent_events.filter((event) => event.event_type === "ACCEPT").map((event) => event.alert_id)).toEqual(["a2"]);
     expect(sp.rows("AOG_Log").filter((row) => row.RecordType === "Signal" && row.EventType === "HANDLED").map((row) => row.AlertId)).toEqual(["a2"]);
   });
 
@@ -559,7 +617,7 @@ describe("service worker 5.0 behaviour", () => {
     const accepted = await send({ type: "WHATSAPP_READ_OBSERVED", focused_active_chat: "", visible_read_chats: ["AOG ONE"] });
 
     expect(accepted.status.app_state).toBe("IDLE");
-    expect(accepted.status.followups.map((item) => item.alert_id)).toEqual(["a1"]);
+    expect(accepted.status.recent_events.filter((event) => event.event_type === "ACCEPT").map((event) => event.alert_id)).toEqual(["a1"]);
   });
 
   it("lets Backup auto-Accept an escalated alert after the exact chat opens", async () => {
@@ -575,7 +633,7 @@ describe("service worker 5.0 behaviour", () => {
 
     expect(accepted.status.app_state).toBe("IDLE");
     expect(accepted.status.pending_count).toBe(0);
-    expect(accepted.status.followups.map((item) => item.alert_id)).toEqual(["backup-a1"]);
+    expect(accepted.status.recent_events.filter((event) => event.event_type === "ACCEPT").map((event) => event.alert_id)).toEqual(["backup-a1"]);
   });
 
   it("ignores old peer signals when Backup starts with an old unread alert", async () => {
@@ -811,25 +869,18 @@ describe("service worker 5.0 behaviour", () => {
     expect(chrome._tabUpdates.at(-1)).toMatchObject({ tabId: 31, options: { active: true } });
   });
 
-  it("Is it done? appears quietly; only an unanswered question rings", async () => {
-    const { chrome, send, alarm, settle } = await boot();
+  it("Accept is done: a machine that still had Is it done? switched on asks nothing", async () => {
+    const { chrome, send, alarm, settle } = await boot({ config: { followup_enabled: true } });
     await send({ type: "START_SHIFT" });
-    await send({ type: "ALERT_DETECTED", alert: { source: "email", sender: "ops@airline.com", subject: "AOG A321", message_id: "m1" } });
+    await send({ type: "ALERT_DETECTED", alert: { source: "whatsapp", group_name: "AOG TEST", unread_count: 1 } });
     await send({ type: "ACCEPT_CURRENT" }); await settle();
-    const plays = () => chrome._sent.filter((message) => message.type === "AUDIO_PLAY").length;
-
-    chrome._store.aog_followups = chrome._store.aog_followups.map((item) => ({ ...item, ask_at: Date.now() - 1000 }));
-    const before = plays();
-    alarm("aog:tick"); await settle();
-    const asked = (await send({ type: "GET_STATUS" })).status.system_alerts.find((item) => item.kind === "followup");
-    expect(asked).toMatchObject({ title: "Is it done?", ring: false });
-    expect(plays()).toBe(before);
-
-    chrome._store.aog_followups = chrome._store.aog_followups.map((item) => ({ ...item, asked_at: Date.now() - 6 * 60_000 }));
-    alarm("aog:tick"); await settle();
-    const overdue = (await send({ type: "GET_STATUS" })).status.system_alerts.find((item) => item.kind === "followup_overdue");
-    expect(overdue.ring).toBe(true);
-    expect(plays()).toBeGreaterThan(before);
+    expect(chrome._store.aog_followups ?? []).toEqual([]);
+    const realNow = Date.now;
+    Date.now = () => realNow() + 30 * 60_000;
+    try { alarm("aog:tick"); await settle(); } finally { Date.now = realNow; }
+    const kinds = (await send({ type: "GET_STATUS" })).status.system_alerts.map((item) => item.kind);
+    expect(kinds).not.toContain("followup");
+    expect(kinds).not.toContain("followup_overdue");
   });
 
   it("simulated messages create no Is it done? question", async () => {

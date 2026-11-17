@@ -8,7 +8,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-5.1.0-4d148c" alt="Phiên bản 5.1.0">
+  <img src="https://img.shields.io/badge/version-5.2.0-4d148c" alt="Phiên bản 5.2.0">
   <img src="https://img.shields.io/badge/Chrome%20%2F%20Edge-Manifest%20V3-ff6200" alt="Chrome MV3">
   <img src="https://img.shields.io/badge/data-SharePoint%20Lists-4d148c" alt="SharePoint">
 </p>
@@ -71,14 +71,15 @@ Máy tìm bạn trong lịch trực (`AOG_Shifts`) bằng **email**, và biết 
 ## 👤 Người trực: cài một lần (5 phút)
 
 1. 📦 **Cài đặt.** Tải repo này về, giải nén vào một thư mục sẽ giữ lâu dài. Mở `chrome://extensions` (hoặc `edge://extensions`), bật **Developer mode**, bấm **Load unpacked**, chọn thư mục đó, rồi ghim AOG Watcher.
-2. 🔑 **Đăng nhập.** Popup → **Settings** → **Sign in & check**.
+2. 🔑 **Đăng nhập.** Bấm biểu tượng AOG Watcher: bảng điều khiển mở ở cạnh phải trình duyệt và **vẫn mở khi bạn chuyển tab**. Bảng → **Settings** → **Sign in & check**.
    *Báo lỗi đỏ?* Bấm **Open SharePoint**, đăng nhập bằng tài khoản công ty, rồi thử lại.
 3. 👀 **Kiểm tên.** Tên phải giống trong lịch trực. Có tên bạn trong lịch tối nay thì máy tự điền.
 4. 💾 Bấm **Save settings**.
-5. 🌐 **Mở hai tab:** WhatsApp Web (đã đăng nhập) và Outlook Web ở hộp thư AOG.
+5. 🌐 **Mở hai tab:** WhatsApp Web (đã đăng nhập) và Outlook Web, trong đó nhóm **AOG** phải hiện ở cột thư mục bên trái của Outlook (mục Groups, hoặc thêm vào Favorites).
+6. 🪟 **Để Outlook ở một cửa sổ riêng.** Kéo tab Outlook ra khỏi cửa sổ rồi phóng to hết màn hình. Bảng AOG Watcher chỉ mở ở cửa sổ WhatsApp. Lý do: bảng chiếm khoảng 400px; cửa sổ hẹp thì Outlook giấu cột thư mục, máy không thấy số của AOG (khi đó máy báo **Widen the Outlook window**).
 
 > [!NOTE]
-> Mỗi lần cập nhật extension, tải lại tab WhatsApp và tab Outlook.
+> Cập nhật extension xong, các tab WhatsApp và Outlook đang mở tự kết nối lại. Tab nào vẫn đỏ thì tải lại tab đó.
 
 ---
 
@@ -101,7 +102,7 @@ Mở popup trước giờ trực của bạn. Màn **WATCHING** có các dòng k
 | Dòng kiểm | Xanh khi… |
 |---|---|
 | 💬 WhatsApp | tab đang mở và vừa được đọc |
-| 📧 Outlook | tab Outlook đang mở |
+| 📧 Outlook | tab Outlook đang mở và thư mục AOG hiện ở cột thư mục |
 | ☁️ SharePoint | bạn đã đăng nhập |
 | 🤝 Partner machine | AOG Watcher của người cùng đêm đang chạy |
 | 🔊 Test ring heard | bạn đã bấm **Test ring** → **I hear it** |
@@ -110,7 +111,7 @@ Nếu người đang trực không có AOG Watcher nào đang chạy, máy Backu
 
 ### 🔔 Khi máy reo
 
-- 👆 **Accept**: tắt chuông trên mọi máy. **Accept là xong việc**: máy không hỏi lại nữa. WhatsApp: mở chat, gõ sẵn câu chào. Outlook: đưa Outlook lên trước.
+- 👆 **Accept**: tắt chuông trên mọi máy. **Accept là xong việc**: máy không hỏi lại nữa. WhatsApp: mở chat, gõ sẵn câu chào. Outlook: đưa Outlook lên trước và mở thư mục AOG.
 - 👆👆 **Accept all (N)**: khi có nhiều tin đang chờ.
 - 👀 **Mở thẳng chat đó** và đọc khi bạn đang ngồi ở máy: cũng được tính là Accept.
 - ⌨️ **Đang dùng máy thì không reo.** Khi bạn đang gõ phím hay di chuột, máy chỉ hiện thông báo; chuông chỉ reo khi máy để yên 15 giây (Settings → Machine unattended after).
@@ -197,10 +198,9 @@ Máy tải lại danh sách mỗi lần bắt đầu ca và mỗi lần lưu Set
 
 | Thiết lập | Ý nghĩa |
 |---|---|
-| Outlook watch path | Chỉ máy này. Để trống = theo dõi thư mục Outlook đang mở. Hoặc điền đường dẫn hộp thư/thư mục, ví dụ `/mail/aog@trustana.vn/`. Dán cả địa chỉ Outlook cũng được; dán địa chỉ của một thư cụ thể thì bị từ chối. |
-| 🔄 Only accept from senders | Không bắt buộc. Chỉ thư từ các email hoặc tên miền này mới reo. |
-| 🔄 Ignored sender domains | Thư từ các tên miền này không reo. Mặc định `trustana.vn`; cũng bỏ qua thư nội bộ mà Outlook chỉ hiện tên, ví dụ "Leena \| TRUSTANA". |
-| 🔄 Subject keywords | Chỉ tiêu đề có các từ này mới reo. Để trống thì mọi thư đều reo. |
+| Folder to watch | Chỉ máy này. Tên thư mục như trong cột thư mục của Outlook. Để trống = **AOG**. |
+
+**Máy theo dõi Outlook thế nào (5.2):** máy đọc con số chưa đọc cạnh thư mục **AOG** ở cột thư mục của Outlook. Trong ca, số này tăng thì máy reo một lần: "New email in the AOG mailbox". Thư gửi hoặc CC tới AOG đều vào thư mục này; hộp thư khác (Inbox, DGPac…) không bao giờ reo, và thư cũ không reo lại khi danh sách vẽ lại. Đọc thư mới thì số giảm về. Giữ cột thư mục mở và không chuyển thư mục AOG sang "hiện tổng số thư".
 
 </details>
 
@@ -328,7 +328,7 @@ Toàn bộ là 🤖. Chỉ ghi những gì cần để tìm và sửa lỗi, và
 
 | Bạn thấy | Làm gì |
 |---|---|
-| 🔴 WhatsApp hoặc Outlook | Mở hoặc tải lại tab đó. Với Outlook, mở đúng hộp thư/thư mục đã điền ở **Outlook watch path** (hoặc để trống ô đó). |
+| 🔴 WhatsApp hoặc Outlook | Mở hoặc tải lại tab đó. Với Outlook: **Show the AOG folder** = mở cột thư mục để thấy nhóm AOG; **Widen the Outlook window** = chuyển Outlook ra cửa sổ riêng, phóng to, không mở bảng bên. |
 | 🔴 SharePoint | Mở site AOG và đăng nhập lại. Trong lúc đó máy vẫn reo bình thường. |
 | 🔴 "… AOG Watcher is offline" | Người đang trực không có AOG Watcher nào chạy. Gọi cho họ: trình duyệt có mở không? Trong lúc đó tự để mắt WhatsApp và Outlook. |
 | 💬 Accepted, but the chat could not be opened | WhatsApp của bạn không có trong nhóm đó. Nhờ thêm vào nhóm; trong lúc chờ, trả lời bằng điện thoại có trong nhóm. |

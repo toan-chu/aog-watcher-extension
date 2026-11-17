@@ -21,7 +21,7 @@ import { runPreflight } from "./lib/preflight.js";
 import { shiftReminderState } from "./lib/shift_reminder.js";
 import { evaluatePeers, wasOfflineAt } from "./lib/heartbeat.js";
 import { classifyMiss } from "./lib/miss_cause.js";
-import { addFollowups, answerFollowup, tickFollowups } from "./lib/followup.js";
+import { answerFollowup, tickFollowups } from "./lib/followup.js";
 import { applySharedSettings, changedKeys, publishSharedSettings, pullSharedSettings } from "./lib/shared_settings.js";
 import { ensureSharePointOriginRule } from "./lib/sharepoint_origin_rule.js";
 import { hydrateNight, myNight, myWindow, rosterName, rosterRoleAt, serializeNight } from "./lib/roster.js";
@@ -523,11 +523,51 @@ async function getActiveWhatsAppChat() {
   throw new Error("Open WhatsApp Web before using Search");
 }
 
+// 5.2 Outlook: each Outlook tab reports the unread count of the AOG folder. During a watch, a count that
+// goes up (and is higher than every other Outlook tab has reported) is one alert: "New email in the AOG mailbox".
+// Reading mail makes it go down; redraws do not change it. Off watch, the count is only remembered,
+// so the watch starts from what is unread at that moment.
+async function handleOutlookUnread(message, tabKey) {
+  const count = Number(message.count);
+  if (!Number.isInteger(count) || count < 0) return { ok: false };
+  // Forget tabs that were closed, so an old tab's count never hides new mail.
+  const live = new Set((await chrome.tabs.query({ url: OUTLOOK_URLS }).catch(() => [])).map((tab) => String(tab.id)));
+  const key = String(tabKey);
+  const counts = Object.fromEntries(Object.entries(await getKey(K.OUTLOOK_UNREAD, {})).filter(([id]) => id === key || live.has(id)));
+  const mine = counts[key];
+  const others = Object.entries(counts).filter(([id]) => id !== key).map(([, value]) => value.count);
+  await setKey(K.OUTLOOK_UNREAD, { ...counts, [key]: { count, at: Date.now() } });
+  await hydrate();
+  if (!state.session || mine === undefined || count <= mine.count || count <= Math.max(-1, ...others)) return { ok: true };
+  const added = count - Math.max(mine.count, ...others);
+  const now = new Date().toISOString();
+  await handleAlert({
+    source: ALERT_SOURCE.EMAIL, count_alert: true, alert_id: `email-count-${Date.now()}`, message_id: "",
+    sender: "", subject: added > 1 ? `${added} new emails in the AOG mailbox` : "New email in the AOG mailbox",
+    unread_count: count, received_at: now, detected_at: now,
+  });
+  return { ok: true };
+}
+
+// Several Outlook tabs may be open (one wide, one narrow next to the side panel). The source is fine
+// when ANY live tab can read the AOG folder, so a narrow extra tab never turns Outlook red.
+async function bestOutlookStats(tabId, stats) {
+  const now = Date.now();
+  const live = new Set((await chrome.tabs.query({ url: OUTLOOK_URLS }).catch(() => [])).map((tab) => String(tab.id)));
+  const key = String(tabId);
+  const kept = Object.fromEntries(Object.entries(await getKey(K.OUTLOOK_TAB_HEALTH, {}))
+    .filter(([id, item]) => id !== key && live.has(id) && now - item.at < 90_000));
+  const all = { ...kept, [key]: { stats, at: now } };
+  await setKey(K.OUTLOOK_TAB_HEALTH, all);
+  return Object.values(all).find((item) => item.stats?.folder_gate === "pass")?.stats ?? stats;
+}
+
 // Brings Outlook forward and, when the alert says which email rang, opens that email in the tab that has it.
+const OUTLOOK_URLS = ["https://outlook.office.com/*", "https://outlook.office365.com/*", "https://outlook.live.com/*", "https://outlook.cloud.microsoft/*"];
 async function focusOutlook(target = null) {
-  const tabs = await chrome.tabs.query({ url: ["https://outlook.office.com/*", "https://outlook.office365.com/*", "https://outlook.live.com/*", "https://outlook.cloud.microsoft/*"] });
+  const tabs = await chrome.tabs.query({ url: OUTLOOK_URLS });
   if (!tabs.length) throw new Error("No Outlook tab found");
-  if (target?.message_id || target?.subject) {
+  if (target) {
     for (const tab of tabs) {
       try {
         const result = await chrome.tabs.sendMessage(tab.id, { type: MESSAGE.OPEN_OUTLOOK_MESSAGE, message_id: target.message_id ?? "", subject: target.subject ?? "", sender: target.sender ?? "" });
@@ -763,7 +803,7 @@ async function handleAlert(rawAlert) {
     await appendServiceEvent({ event_type: "SKIPPED_NO_SHIFT", source: rawAlert.source, group_name: rawAlert.group_name, subject: rawAlert.subject });
     return;
   }
-  if (rawAlert.source === "email" && !rawAlert.simulated && shouldSkipEmail(rawAlert, config)) {
+  if (rawAlert.source === "email" && !rawAlert.simulated && !rawAlert.count_alert && shouldSkipEmail(rawAlert, config)) {
     await appendServiceEvent({ event_type: "SKIPPED_EMAIL_FILTER", source: rawAlert.source, sender: rawAlert.sender, subject: rawAlert.subject });
     return;
   }
@@ -1035,12 +1075,8 @@ async function reportLeak({ source, what, at }) {
 
 async function finishAccepted(alerts, config) {
   if (!alerts.length) return;
+  // 5.2: Accept means done. The "Is it done?" question is gone, also on machines that had it switched on.
   await writeShiftRow(config, state.session);
-  if (!config.followup_enabled) return;
-  // Simulated test messages need no "Is it done?" afterwards.
-  const real = alerts.filter((alert) => !alert.simulated);
-  if (!real.length) return;
-  await setKey(K.FOLLOWUPS, addFollowups(await getKey(K.FOLLOWUPS, []), real, { askAfterMinutes: Number(config.followup_after_minutes) || 10 }));
 }
 
 async function handleWhatsAppReadObservation(message) {
@@ -1108,9 +1144,29 @@ function broadcastStatus() {
 // ---------- wiring ----------
 function ensureTickAlarm() { chrome.alarms.create(TICK_ALARM, { periodInMinutes: 0.5, delayInMinutes: 0.1 }); }
 
-chrome.runtime.onInstalled.addListener(() => enqueue(async () => {
+// After an install or update, the WhatsApp and Outlook tabs already open lose their old script:
+// put the new one in right away, so nobody has to reload tabs (a browser update keeps the old one: skip it).
+async function injectIntoOpenTabs() {
+  if (!chrome.scripting?.executeScript) return;
+  for (const entry of chrome.runtime.getManifest().content_scripts ?? []) {
+    const tabs = await chrome.tabs.query({ url: entry.matches }).catch(() => []);
+    for (const tab of tabs) await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: entry.js }).catch(() => {});
+  }
+}
+
+// The control panel opens in the browser's side panel, which stays open across tabs.
+// Browsers without a side panel keep the usual popup.
+function setUpPanel() {
+  if (chrome.sidePanel?.setPanelBehavior) chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(() => chrome.action?.setPopup?.({ popup: "popup.html" }));
+  else chrome.action?.setPopup?.({ popup: "popup.html" });
+}
+setUpPanel();
+
+chrome.runtime.onInstalled.addListener((details) => enqueue(async () => {
   const config = await getConfig();
-  await setConfig({ ...DEFAULT_CONFIG, ...config });
+  await setConfig({ ...DEFAULT_CONFIG, ...config, followup_enabled: false });
+  await setKey(K.FOLLOWUPS, []);
+  if (details?.reason === "install" || details?.reason === "update") await injectIntoOpenTabs();
   await getMachineId();
   await hydrate();
   await persist();
@@ -1176,7 +1232,7 @@ async function handleMessage(message) {
       return {};
     }
     case MESSAGE.CONTENT_HEALTH:
-      if (message.connected) await recordSourceHealth(message.source, message.stats ?? null);
+      if (message.connected) await recordSourceHealth(message.source, message.source === "outlook" ? await bestOutlookStats(message.tab_id, message.stats ?? null) : (message.stats ?? null));
       return {};
     case MESSAGE.WHATSAPP_READ_OBSERVED: return handleWhatsAppReadObservation(message);
     case MESSAGE.UNKNOWN_CHAT_DECISION: return decideUnknownChat(message.name, message.decision);
@@ -1227,11 +1283,13 @@ async function handleMessage(message) {
   }
 }
 
-chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === MESSAGE.AUDIO_PLAY || message.type === MESSAGE.AUDIO_STOP || message.type === MESSAGE.STATUS_UPDATED) return false;
   enqueue(async () => {
     if (message.type === MESSAGE.BASELINE_SYNC) { sendResponse(await handleBaselineSync(message)); return; }
+    if (message.type === MESSAGE.OUTLOOK_UNREAD) { sendResponse(await handleOutlookUnread(message, sender?.tab?.id ?? "tab")); return; }
     let result = {};
+    if (message.type === MESSAGE.CONTENT_HEALTH) message.tab_id = sender?.tab?.id ?? "tab";
     try { result = await handleMessage(message); } catch (error) { result = { ok: false, error: englishSharePointError(error.message) }; }
     broadcastStatus();
     sendResponse({ ok: true, ...result, status: await status() });

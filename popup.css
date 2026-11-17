@@ -150,3 +150,6 @@ footer { display: flex; align-items: center; justify-content: space-between; gap
 .ring-test button { border: 1px solid var(--brand-purple); border-radius: 6px; background: var(--surface); color: var(--brand-purple); padding: 7px 4px; font-weight: 700; cursor: pointer; }
 .ring-test button.primary { border-color: var(--brand-orange); background: var(--brand-orange); color: var(--on-orange); }
 .ring-test .hint { grid-column: 1 / -1; margin: 2px 0 0; }
+
+/* In the side panel (taller than any popup), fill the panel instead of the fixed popup size. */
+@media (min-height: 601px) { body { width: auto; max-height: none; } }

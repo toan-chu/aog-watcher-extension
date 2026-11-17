@@ -4,12 +4,21 @@ let currentLevel = 1;
 let startedAt = 0;
 let audio = null;
 
+// Starting a new beep stops the previous one; Chrome then rejects the previous play() with an AbortError.
+// That is expected, not a failure. Real failures are logged with their name and message.
+function playSafely(element) {
+  element.play().catch((error) => {
+    if (error?.name === "AbortError") return;
+    console.error(`AOG Watcher audio failed: ${error?.name ?? "Error"}: ${error?.message ?? error}`);
+  });
+}
+
 function beep(level) {
   const names = ["", "soft", "medium", "loud", "urgent"];
   audio?.pause();
   audio = new Audio(chrome.runtime.getURL(`assets/audio/alert_${names[level]}.wav`));
   audio.volume = [0, 0.3, 0.6, 0.9, 1][level];
-  audio.play().catch((error) => console.error("AOG Watcher audio failed", error));
+  playSafely(audio);
 }
 
 function playEscalate() {
@@ -29,8 +38,9 @@ function playGentle() {
   audio = new Audio(chrome.runtime.getURL("assets/audio/gentle_loop.wav"));
   audio.loop = true;
   audio.volume = 0.2;
-  audio.play().catch((error) => console.error("AOG Watcher audio failed", error));
+  playSafely(audio);
   rampTimer = setInterval(() => {
+    if (!audio) return;
     const elapsed = Date.now() - startedAt;
     audio.volume = Math.min(0.7, 0.2 + (elapsed / 60_000) * 0.5);
   }, 1000);

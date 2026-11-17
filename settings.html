@@ -48,14 +48,15 @@
       </section>
 
       <section>
-        <header class="section-head"><span class="icon" aria-hidden="true">📧</span><div><h2>Outlook</h2><p class="helper">The watch path applies to this machine only. The filters are shared with every machine.</p></div></header>
+        <header class="section-head"><span class="icon" aria-hidden="true">📧</span><div><h2>Outlook</h2><p class="helper">Rings when the unread count of the AOG folder (Outlook's folder list) goes up. This machine only.</p></div></header>
         <div class="field field--wide">
-          <label for="outlookWatchPath">Outlook watch path</label>
-          <input id="outlookWatchPath" placeholder="Blank = watch whichever Outlook folder is open">
-          <small>Optional. For example /mail/aog@trustana.vn/ or /mail/AOG/. You can paste the whole Outlook address of the mailbox; only its path is kept.</small>
+          <label for="outlookWatchPath">Folder to watch</label>
+          <input id="outlookWatchPath" placeholder="Blank = AOG">
+          <small>Name of the folder as Outlook's folder list shows it. Blank = AOG. A path also works: its last part is used.</small>
         </div>
-        <h3>Filters <span class="pill">Shared</span></h3>
-        <div class="grid three">
+        <!-- 5.2: Outlook rings for any new mail in the AOG folder, so the sender and subject filters are not used. -->
+        <h3 hidden>Filters <span class="pill">Shared</span></h3>
+        <div class="grid three" hidden>
           <div class="field"><label for="senderWhitelist">Only accept from senders</label><textarea id="senderWhitelist" rows="3"></textarea><small>Optional. One email or domain per line.</small></div>
           <div class="field"><label for="skipDomains">Ignored sender domains</label><textarea id="skipDomains" rows="3"></textarea><small>One domain per line.</small></div>
           <div class="field"><label for="subjectKeywords">Subject keywords</label><textarea id="subjectKeywords" rows="3"></textarea><small>Blank = every subject rings.</small></div>

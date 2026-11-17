@@ -76,14 +76,13 @@ describe("silent machines", () => {
   });
 });
 
-describe("Outlook: open the email that rang", () => {
-  it("the Outlook content script answers OPEN_OUTLOOK_MESSAGE by id, then by subject, and never sends anything", async () => {
+describe("Outlook: Accept opens the AOG folder", () => {
+  it("the Outlook content script answers OPEN_OUTLOOK_MESSAGE by clicking the AOG folder, and never sends anything", async () => {
     const source = await readFile(new URL("../content_outlook.js", import.meta.url), "utf8");
     expect(source).toContain('message.type !== "OPEN_OUTLOOK_MESSAGE"');
-    const finder = source.slice(source.indexOf("function findMessageRow"), source.indexOf("function openMessage"));
-    expect(finder.indexOf("=== messageId")).toBeLessThan(finder.indexOf("wantSubject"));
-    const opener = source.slice(source.indexOf("function openMessage"), source.indexOf("function scheduleScan"));
-    expect(opener).toContain("row.click()");
-    expect(opener).not.toMatch(/send|reply/i);
+    expect(source).toContain("folder.folderNode(document, config)");
+    const handler = source.slice(source.indexOf('"OPEN_OUTLOOK_MESSAGE"'), source.indexOf('"REBASELINE"'));
+    expect(handler).toContain("node.click()");
+    expect(handler.replaceAll("sendResponse", "").replaceAll("_sender", "")).not.toMatch(/send|reply/i);
   });
 });

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "AOG Watcher",
-  "version": "5.1.0",
+  "version": "5.2.0",
   "description": "AOG night-shift watcher: WhatsApp + Outlook alerts, two-machine escalation, self-checks and SharePoint team log.",
   "permissions": [
     "storage",
@@ -9,7 +9,9 @@
     "offscreen",
     "notifications",
     "idle",
-    "declarativeNetRequestWithHostAccess"
+    "declarativeNetRequestWithHostAccess",
+    "scripting",
+    "sidePanel"
   ],
   "host_permissions": [
     "https://web.whatsapp.com/*",
@@ -38,22 +40,20 @@
     },
     {
       "matches": [
-        "https://outlook.office.com/mail/*",
-        "https://outlook.office365.com/mail/*",
-        "https://outlook.live.com/mail/*",
-        "https://outlook.cloud.microsoft/mail/*"
+        "https://outlook.office.com/*",
+        "https://outlook.office365.com/*",
+        "https://outlook.live.com/*",
+        "https://outlook.cloud.microsoft/*"
       ],
       "js": [
         "lib/content_runtime.js",
-        "lib/outlook_selectors.js",
-        "lib/outlook_message_id.js",
+        "lib/outlook_folder.js",
         "content_outlook.js"
       ],
       "run_at": "document_idle"
     }
   ],
   "action": {
-    "default_popup": "popup.html",
     "default_title": "AOG Watcher",
     "default_icon": {
       "16": "assets/icon16.png",
@@ -68,5 +68,8 @@
     "48": "assets/icon48.png",
     "128": "assets/icon128.png"
   },
-  "options_page": "settings.html"
+  "options_page": "settings.html",
+  "side_panel": {
+    "default_path": "popup.html"
+  }
 }

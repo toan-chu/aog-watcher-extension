@@ -1,221 +1,58 @@
+// Outlook on the web: report the unread count of the AOG folder (see lib/outlook_folder.js).
+// The service worker rings when the count goes up during a watch. Nothing about single emails
+// (sender, subject) is read any more, so old emails can never ring again when the list redraws.
 (() => {
-  const selectors = globalThis.AOG_OUTLOOK_SELECTORS;
-  const { stableOutlookMessageId } = globalThis.AOG_OUTLOOK_MESSAGE_ID;
+  const folder = globalThis.AOG_OUTLOOK_FOLDER;
   const runtime = globalThis.AOG_CONTENT_RUNTIME;
-  const seen = new Set();
-  let config = null;
+  let config = {};
+  let lastReported = undefined;
+  let lastStats = { rows_seen: 0, folder_gate: "off", unread: null, last_scan_at: null };
   let scanTimer = null;
-  let baselineReady = false;
-  let lastStats = emptyStats();
-  const first = (root, list) => list.map((selector) => root.querySelector(selector)).find(Boolean) ?? null;
-  const all = (root, list) => [...new Set(list.flatMap((selector) => [...root.querySelectorAll(selector)]))];
-  const normalized = (value) => String(value ?? "").trim().toLocaleLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-  const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
   async function refreshConfig() {
     const stored = await runtime.safeStorageGet("aog_config");
     config = stored.aog_config ?? {};
   }
 
-  function isUnread(row) {
-    // Outlook cloud: a row has button[aria-label='Mark as read'] when it's UNREAD
-    // (because the action available is "mark as read").
-    if ([...row.querySelectorAll("button[aria-label]")].some((button) => isUnreadButton(button))) return true;
-    // Legacy fallbacks.
-    if (row.matches("[aria-label*='Unread' i], [data-is-unread='true']")) return true;
-    if (Boolean(first(row, selectors.unreadRow))) return true;
-    if (/unread/i.test(row.getAttribute("aria-label") ?? "")) return true;
-    return false;
-  }
-
-  function emptyStats() {
-    return { rows_seen: 0, unread_seen: 0, alerts_sent: 0, suppressed_baseline: 0, suppressed_gate: 0, folder_gate: "off", path: "", last_scan_at: null };
-  }
-
-  function isUnreadButton(button) {
-    const label = normalized(button.getAttribute("aria-label"));
-    return (selectors.unreadButtonLabels ?? ["mark as read"]).some((item) => label.includes(normalized(item)));
-  }
-
-  function closestMessageRow(element) {
-    let current = element;
-    for (let depth = 0; current && depth < 10; depth += 1) {
-      if (current.matches?.("[role='option'], [role='listitem'], [data-convid], [data-item-id]")) return current;
-      if (current.querySelector?.("[role='checkbox'][aria-label*='Select' i]")) return current;
-      current = current.parentElement;
-    }
-    return element.closest?.("[role='option'], [role='listitem'], [data-convid], [data-item-id]") ?? null;
-  }
-
-  function candidateRows() {
-    const rows = all(document, selectors.messageRows);
-    const unreadRows = [...document.querySelectorAll("[role='main'] button[aria-label], button[aria-label*='Mark as read' i]")]
-      .filter(isUnreadButton)
-      .map(closestMessageRow)
-      .filter(Boolean);
-    return [...new Set([...unreadRows, ...rows])];
-  }
-
-  function textFrom(row, selectorList) { return first(row, selectorList)?.textContent?.trim() ?? ""; }
-
-  function extractSender(row) {
-    // Preferred: span with title containing '@' (sender email).
-    const emailSpan = row.querySelector("span[title*='@']");
-    if (emailSpan) return emailSpan.textContent?.trim() || emailSpan.getAttribute("title") || "";
-    // Fallback: avatar aria-label (display name only, no email).
-    const avatar = row.querySelector("[role='img'][aria-label]");
-    if (avatar) return avatar.getAttribute("aria-label") || "";
-    return textFrom(row, selectors.sender);
-  }
-
-  function extractSubject(row) {
-    // Try legacy stable selectors first.
-    const legacy = first(row, selectors.subject);
-    if (legacy) return legacy.textContent?.trim() ?? "";
-    // Outlook cloud structural fallback: the subject is the first span in the row
-    // that does NOT have a title attribute (sender + date both have title attributes).
-    const spans = [...row.querySelectorAll("span")];
-    const subjectSpan = spans.find((s) => {
-      const text = s.textContent?.trim();
-      if (!text) return false;
-      if (s.hasAttribute("title")) return false;        // skip sender (has title=email) and date (has title=date)
-      if (s.getAttribute("role") === "img") return false;
-      if (s.children.length > 0) return false;           // leaf text node only
-      if (text.length < 3 || text.length > 200) return false;
-      return true;
-    });
-    return subjectSpan?.textContent?.trim() ?? "";
-  }
-
-  function extractMessageId(row, sender, subject) {
-    return stableOutlookMessageId(row, sender, subject);
-  }
-
-  function folderGatePasses() {
-    const watchPath = normalized(config?.outlook_watch_path);
-    if (!watchPath) return { pass: true, mode: "off", path: location.pathname };
-    const path = normalized(location.pathname);
-    return { pass: path.includes(watchPath), mode: path.includes(watchPath) ? "pass" : "blocked", path: location.pathname };
-  }
-
-  function currentUnreadSnapshot() {
-    const outlook_ids = [];
-    if (!folderGatePasses().pass) return null;
-    const rows = candidateRows();
-    if (rows.length === 0) return null;
-    for (const row of rows) {
-      if (!isUnread(row)) continue;
-      const sender = extractSender(row);
-      const subject = extractSubject(row);
-      const rawId = extractMessageId(row, sender, subject);
-      if (rawId) outlook_ids.push(rawId);
-    }
-    return outlook_ids.sort();
-  }
-
-  function sameSnapshot(left, right) {
-    return Array.isArray(left) && Array.isArray(right) && left.length === right.length && left.every((id, index) => id === right[index]);
-  }
-
-  async function stableUnreadSnapshot() {
-    for (;;) {
-      const firstSnapshot = currentUnreadSnapshot();
-      await sleep(2000);
-      const secondSnapshot = currentUnreadSnapshot();
-      if (sameSnapshot(firstSnapshot, secondSnapshot)) return secondSnapshot;
-    }
-  }
-
-  function seedBaseline(baseline) {
-    baselineReady = Array.isArray(baseline?.outlook_ids);
-    if (!baselineReady) return;
-    for (const id of baseline.outlook_ids) seen.add(id);
-  }
-
-  async function syncBaseline() {
-    const outlookIds = await stableUnreadSnapshot();
-    const response = await runtime.safeSendMessage({ type: "BASELINE_SYNC", source: "outlook", snapshot: { outlook_ids: outlookIds } }).catch(() => null);
-    seedBaseline(response?.baseline ?? null);
-  }
-
   function scan() {
-    if (!config) return;
-    const stats = emptyStats();
-    stats.last_scan_at = new Date().toISOString();
-    const gate = folderGatePasses();
-    stats.folder_gate = gate.mode;
-    stats.path = gate.path;
-    if (!gate.pass) {
-      stats.suppressed_gate += 1;
-      lastStats = stats;
-      sendHealth();
-      return;
-    }
-    for (const row of candidateRows()) {
-      try {
-        stats.rows_seen += 1;
-        if (!isUnread(row)) continue;
-        stats.unread_seen += 1;
-        const sender = extractSender(row);
-        const subject = extractSubject(row);
-        const rawId = extractMessageId(row, sender, subject);
-        if (!rawId || seen.has(rawId)) continue;
-        seen.add(rawId);
-        if (!baselineReady) {
-          stats.suppressed_baseline += 1;
-          continue;
-        }
-        stats.alerts_sent += 1;
-        runtime.safeSendMessage({ type: "ALERT_DETECTED", alert: { source: "email", sender, subject, message_id: rawId, received_at: new Date().toISOString(), detected_at: new Date().toISOString() } }).catch(() => {});
-      } catch (error) {
-        console.warn("AOG Watcher: Outlook row scan failed", error);
-      }
-    }
-    lastStats = stats;
-  }
-
-  // Accept on an email: open the exact message that rang. Match the stable row id first,
-  // then the subject (and sender when known), because a fallback id contains row text that can change.
-  function findMessageRow({ message_id: messageId = "", subject = "", sender = "" } = {}) {
-    const rows = candidateRows();
-    const byId = messageId ? rows.find((row) => extractMessageId(row, extractSender(row), extractSubject(row)) === messageId) : null;
-    if (byId) return byId;
-    const wantSubject = normalized(subject);
-    if (!wantSubject) return null;
-    const wantSender = normalized(sender);
-    const sameSubject = rows.filter((row) => normalized(extractSubject(row)) === wantSubject);
-    return sameSubject.find((row) => !wantSender || normalized(extractSender(row)) === wantSender) ?? sameSubject[0] ?? null;
-  }
-
-  function openMessage(target) {
-    const row = findMessageRow(target);
-    if (!row) return { ok: true, opened: false };
-    row.scrollIntoView?.({ block: "center" });
-    row.click();
-    return { ok: true, opened: true };
+    const result = folder.readFolder(document, config);
+    // rows_seen > 0 tells the service worker this tab is really watching; folder_gate "blocked" = AOG folder not visible.
+    const gate = result.found ? "pass" : (result.pane ? "blocked" : "hidden");
+    lastStats = { rows_seen: result.found ? 1 : 0, folder_gate: gate, unread: result.count, folder: result.name, last_scan_at: new Date().toISOString() };
+    if (!result.found) return;
+    if (result.count === lastReported) return;
+    lastReported = result.count;
+    runtime.safeSendMessage({ type: "OUTLOOK_UNREAD", count: result.count, at: new Date().toISOString() }).catch(() => {});
   }
 
   function scheduleScan() { clearTimeout(scanTimer); scanTimer = setTimeout(scan, 300); }
-  runtime.addStorageChangedListener((changes, area) => { if (area === "local" && changes.aog_config) { config = changes.aog_config.newValue; scheduleScan(); } });
-  function sendHealth() {
-    runtime.safeSendMessage({ type: "CONTENT_HEALTH", source: "outlook", connected: true, stats: lastStats }).catch(() => {});
-  }
-  runtime.addRuntimeMessageListener((message, _sender, sendResponse) => {
-    if (message.type !== "REBASELINE") return false;
-    baselineReady = false;
-    seen.clear();
-    syncBaseline().then(() => { scheduleScan(); sendResponse({ ok: true }); }).catch((error) => sendResponse({ ok: false, error: error.message }));
-    return true;
+  function sendHealth() { runtime.safeSendMessage({ type: "CONTENT_HEALTH", source: "outlook", connected: true, stats: lastStats }).catch(() => {}); }
+
+  runtime.addStorageChangedListener((changes, area) => {
+    if (area === "local" && changes.aog_config) { config = changes.aog_config.newValue ?? {}; lastReported = undefined; scheduleScan(); }
   });
+  // Accept on an email alert: open the AOG folder so the operator sees the new mail.
   runtime.addRuntimeMessageListener((message, _sender, sendResponse) => {
     if (message.type !== "OPEN_OUTLOOK_MESSAGE") return false;
-    try { sendResponse(openMessage(message)); } catch (error) { sendResponse({ ok: false, error: error.message }); }
+    try {
+      const node = folder.folderNode(document, config);
+      if (node) { node.scrollIntoView?.({ block: "center" }); node.click(); }
+      sendResponse({ ok: true, opened: Boolean(node) });
+    } catch (error) { sendResponse({ ok: false, error: error.message }); }
     return false;
   });
+  // A new watch starts from what is unread now: report the current count again.
+  runtime.addRuntimeMessageListener((message, _sender, sendResponse) => {
+    if (message.type !== "REBASELINE") return false;
+    lastReported = undefined;
+    scan();
+    sendResponse({ ok: true });
+    return false;
+  });
+
   refreshConfig().then(() => {
-    syncBaseline().catch(() => {});
-    new MutationObserver(scheduleScan).observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ["aria-label", "data-is-unread"] });
-    scheduleScan();
+    new MutationObserver(scheduleScan).observe(document.documentElement, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ["aria-label", "title"] });
+    scan();
     sendHealth();
     runtime.setSafeInterval(scheduleScan, 2_000);
     runtime.setSafeInterval(sendHealth, 30_000);

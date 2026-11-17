@@ -8,10 +8,17 @@ describe("manifest Outlook coverage", () => {
     expect(manifest.host_permissions).toContain("https://outlook.cloud.microsoft/*");
   });
 
-  it("injects the Outlook content script on Outlook Cloud mail", () => {
+  it("injects the Outlook content script on every Outlook page (not only /mail at load), with the folder counter", () => {
     const outlookEntry = manifest.content_scripts.find((entry) => entry.js.includes("content_outlook.js"));
-    expect(outlookEntry.matches).toContain("https://outlook.cloud.microsoft/mail/*");
-    expect(outlookEntry.js).toEqual(["lib/content_runtime.js", "lib/outlook_selectors.js", "lib/outlook_message_id.js", "content_outlook.js"]);
+    expect(outlookEntry.matches).toContain("https://outlook.cloud.microsoft/*");
+    expect(outlookEntry.matches).toContain("https://outlook.office.com/*");
+    expect(outlookEntry.js).toEqual(["lib/content_runtime.js", "lib/outlook_folder.js", "content_outlook.js"]);
+  });
+
+  it("opens in the side panel and can put scripts into tabs that are already open", () => {
+    expect(manifest.side_panel.default_path).toBe("popup.html");
+    expect(manifest.action.default_popup).toBeUndefined();
+    expect(manifest.permissions).toEqual(expect.arrayContaining(["sidePanel", "scripting"]));
   });
 });
 

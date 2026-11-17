@@ -19,7 +19,7 @@ const TIME_PATTERN = /^(?:[01]\d|2[0-3]):[0-5]\d$/;
 const PREFLIGHT_ACTION = {
   identity: "Open Settings and enter the operator name.",
   whatsapp: "Open or reload WhatsApp Web.",
-  outlook: "Open or reload the AOG mailbox in Outlook.",
+  outlook: "Outlook: open it in its own wide window with the AOG folder visible in the folder list.",
   sharepoint: "Open SharePoint and sign in.",
   groups: "Reconnect SharePoint to refresh the shared group list.",
   sound: "Select Test ring, confirm the sound, then select I hear it.",
@@ -124,7 +124,7 @@ function renderSources(status) {
     if (status.mute?.[source]) setDot(source, "warn", "Ringing off");
     else if (value?.status === "ok") setDot(source, "ok", checked);
     else if (value?.status === "blind") setDot(source, "bad", "BLIND — reload the tab");
-    else if (value?.status === "wrong_folder") setDot(source, "bad", "Open the AOG mailbox");
+    else if (value?.status === "wrong_folder") setDot(source, "bad", /hidden/.test(value.message ?? "") ? "Widen the Outlook window" : "Show the AOG folder");
     else setDot(source, "bad", "Open the tab");
   }
   const sp = status.sharepoint ?? {};

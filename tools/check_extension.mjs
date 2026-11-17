@@ -7,7 +7,8 @@ if (manifest.background?.type !== "module") throw new Error("service worker must
 
 const referenced = new Set([
   manifest.background.service_worker,
-  manifest.action.default_popup,
+  manifest.side_panel?.default_path ?? manifest.action.default_popup,
+  "popup.html",
   manifest.options_page,
   ...Object.values(manifest.icons ?? {}),
   ...manifest.content_scripts.flatMap((entry) => entry.js),

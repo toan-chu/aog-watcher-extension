@@ -8,7 +8,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-5.1.0-4d148c" alt="Version 5.1.0">
+  <img src="https://img.shields.io/badge/version-5.2.0-4d148c" alt="Version 5.2.0">
   <img src="https://img.shields.io/badge/Chrome%20%2F%20Edge-Manifest%20V3-ff6200" alt="Chrome MV3">
   <img src="https://img.shields.io/badge/data-SharePoint%20Lists-4d148c" alt="SharePoint">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT">
@@ -70,14 +70,15 @@ Your **name** is taken from the roster. If you type it differently in Settings, 
 ## 👤 Operator: set up once (5 minutes)
 
 1. 📦 **Install.** Download this repository and unzip it into a folder you will keep. Open `chrome://extensions`, switch on **Developer mode**, click **Load unpacked**, pick the folder, and pin AOG Watcher.
-2. 🔑 **Sign in.** Popup → **Settings** → **Sign in & check**.
+2. 🔑 **Sign in.** Click the AOG Watcher icon: its panel opens on the right of the browser and **stays open while you switch tabs**. Panel → **Settings** → **Sign in & check**.
    *Red error?* Click **Open SharePoint**, sign in with your company account, and try again.
 3. 👀 **Check your name.** It should match the roster. If you are on tonight's roster, it is filled in for you.
 4. 💾 **Save settings.**
-5. 🌐 **Open both tabs:** WhatsApp Web (signed in) and Outlook Web at the AOG mailbox.
+5. 🌐 **Open both tabs:** WhatsApp Web (signed in) and Outlook Web, with the **AOG** group visible in Outlook's folder list on the left (under Groups, or add it to Favorites).
+6. 🪟 **Put Outlook in its own window.** Drag the Outlook tab out of the window and maximise it. Keep the AOG Watcher panel in the WhatsApp window only. Reason: the panel takes about 400 px, and on a narrow window Outlook hides its folder list, so the watcher cannot see the AOG count (it then shows **Widen the Outlook window**).
 
 > [!NOTE]
-> After every extension update, reload the WhatsApp and Outlook tabs.
+> After an extension update, the open WhatsApp and Outlook tabs reconnect by themselves. If one still shows red, reload that tab.
 
 ---
 
@@ -100,7 +101,7 @@ Open the popup before your window starts. The **WATCHING** screen lists the chec
 | Check | Green when… |
 |---|---|
 | 💬 WhatsApp | the tab is open and was read recently |
-| 📧 Outlook | the Outlook tab is open |
+| 📧 Outlook | the Outlook tab is open and the AOG folder shows in its folder list |
 | ☁️ SharePoint | you are signed in |
 | 🤝 Partner machine | your partner's AOG Watcher is running |
 | 🔊 Test ring heard | you clicked **Test ring** → **I hear it** |
@@ -109,7 +110,7 @@ If the person on watch has no running AOG Watcher, the Backup machine shows **"�
 
 ### 🔔 When it rings
 
-- 👆 **Accept**: stops the ring on every machine. **Accept means done**: nothing asks again later. WhatsApp: opens the chat with the greeting typed. Outlook: brings Outlook forward.
+- 👆 **Accept**: stops the ring on every machine. **Accept means done**: nothing asks again later. WhatsApp: opens the chat with the greeting typed. Outlook: brings Outlook forward and opens the AOG folder.
 - 👆👆 **Accept all (N)**: when several alerts wait.
 - 👀 **Just open the chat** and read it while at your desk: that counts as Accept too.
 - ⌨️ **At your desk, it does not ring.** While you are using the computer it only shows a notification; the sound starts once the computer has been untouched for 15 seconds (Settings → Machine unattended after).
@@ -196,10 +197,9 @@ Machines reload the list when a shift starts and when Settings are saved. A chat
 
 | Setting | Meaning |
 |---|---|
-| Outlook watch path | This machine only. Blank = watch whichever Outlook folder is open. Or a mailbox/folder path such as `/mail/aog@trustana.vn/`. Pasting the whole Outlook address works; the address of a single email is refused. |
-| 🔄 Only accept from senders | Optional. Only these emails or domains ring. |
-| 🔄 Ignored sender domains | Never ring for these. Default `trustana.vn`; it also skips internal senders Outlook shows by name only, such as "Leena \| TRUSTANA". |
-| 🔄 Subject keywords | Only these subjects ring. Blank = all. |
+| Folder to watch | This machine only. Name of the folder in Outlook's folder list. Blank = **AOG**. |
+
+**How Outlook is watched (5.2):** the extension reads the unread number next to the **AOG** folder in Outlook's folder list. When it goes up during your watch, it rings once: "New email in the AOG mailbox". Mail sent or copied to AOG lands there; other mailboxes (Inbox, DGPac…) never ring, and old mail never rings again when the list redraws. Read the new mail and the number goes back down. Keep the folder list open and do not switch the AOG folder to "show total count".
 
 </details>
 
@@ -327,7 +327,7 @@ All 🤖. Only what is needed to find and fix a problem is written here, and onl
 
 | You see | Do this |
 |---|---|
-| 🔴 WhatsApp or Outlook | Open or reload that tab. For Outlook, open the mailbox or folder set in **Outlook watch path** (or leave that blank). |
+| 🔴 WhatsApp or Outlook | Open or reload that tab. For Outlook: **Show the AOG folder** = open the folder list so the AOG group is visible; **Widen the Outlook window** = move Outlook to its own maximised window, without the side panel. |
 | 🔴 SharePoint | Open the AOG site and sign in again. Ringing keeps working meanwhile. |
 | 🔴 "… AOG Watcher is offline" | The person on watch has no running AOG Watcher. Call them: is the browser open? Meanwhile watch WhatsApp and Outlook yourself. |
 | 💬 Accepted, but the chat could not be opened | Your WhatsApp is not in that chat. Ask to be added; meanwhile answer from a phone that is. |

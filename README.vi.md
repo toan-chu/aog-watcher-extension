@@ -198,7 +198,7 @@ Máy tải lại danh sách mỗi lần bắt đầu ca và mỗi lần lưu Set
 
 | Thiết lập | Ý nghĩa |
 |---|---|
-| Folder to watch | Chỉ máy này. Tên thư mục như trong cột thư mục của Outlook. Để trống = **AOG**. |
+| Folder to watch | Chỉ máy này. Tên thư mục như trong cột thư mục của Outlook. Để trống = **AOG**, khớp luôn với nhóm **AOG \| TRUSTANA** trong Outlook Groups. Outlook để tiếng Anh hay tiếng Việt đều được. |
 
 **Máy theo dõi Outlook thế nào (5.2):** máy đọc con số chưa đọc cạnh thư mục **AOG** ở cột thư mục của Outlook. Trong ca, số này tăng thì máy reo một lần: "New email in the AOG mailbox". Thư gửi hoặc CC tới AOG đều vào thư mục này; hộp thư khác (Inbox, DGPac…) không bao giờ reo, và thư cũ không reo lại khi danh sách vẽ lại. Đọc thư mới thì số giảm về. Giữ cột thư mục mở và không chuyển thư mục AOG sang "hiện tổng số thư".
 

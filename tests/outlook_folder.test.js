@@ -58,6 +58,23 @@ describe("Outlook AOG folder reader", () => {
     expect(folder.nodeName(page.querySelectorAll()[3])).toBe("groups");
   });
 
+  it("finds the AOG group in Outlook Groups, where it is named \"AOG | TRUSTANA\" (checked on live Outlook Groups)", () => {
+    const page = doc(
+      node({ title: "DG | TRUSTANA", label: "DG | TRUSTANA 3 unread", text: "DTDG | TRUSTANA3unread" }),
+      node({ title: "AOG | TRUSTANA", label: "AOG | TRUSTANA 7 unread", text: "ATAOG | TRUSTANA7unread" }),
+      node({ title: "Marketing | TRUSTANA", label: "Marketing | TRUSTANA 4843 unread" }),
+    );
+    expect(folder.readFolder(page, {})).toMatchObject({ found: true, count: 7 });
+    expect(folder.readFolder(page, { outlook_watch_path: "DG" }).count).toBe(3);         // DGPac never counts for AOG
+    expect(folder.readFolder(doc(node({ title: "AOG-old | TRUSTANA" })), {}).found).toBe(false);
+  });
+
+  it("works when Outlook is in Vietnamese", () => {
+    const page = doc(node({ title: "Hộp thư đến - 1.108 mục (0 chưa đọc)" }), node({ title: "AOG - 2.133 mục (5 chưa đọc)" }));
+    expect(folder.readFolder(page, {})).toMatchObject({ found: true, count: 5 });
+    expect(folder.nodeName(page.querySelectorAll()[0])).toBe("hop thu đen");   // accents dropped, the letter đ kept
+  });
+
   it("says not found when the folder list does not show AOG", () => {
     expect(folder.readFolder(doc(node({ title: "Inbox", label: "Inbox, 1 unread" })), {})).toMatchObject({ found: false, count: null, pane: true });
     // narrow window: Outlook removes the whole folder list (seen on live Outlook at 868 px wide)

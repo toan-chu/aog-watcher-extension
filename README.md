@@ -197,7 +197,7 @@ Machines reload the list when a shift starts and when Settings are saved. A chat
 
 | Setting | Meaning |
 |---|---|
-| Folder to watch | This machine only. Name of the folder in Outlook's folder list. Blank = **AOG**. |
+| Folder to watch | This machine only. Name of the folder in Outlook's folder list. Blank = **AOG**, which also matches the group **AOG \| TRUSTANA** in Outlook Groups. Works with Outlook in English or Vietnamese. |
 
 **How Outlook is watched (5.2):** the extension reads the unread number next to the **AOG** folder in Outlook's folder list. When it goes up during your watch, it rings once: "New email in the AOG mailbox". Mail sent or copied to AOG lands there; other mailboxes (Inbox, DGPac…) never ring, and old mail never rings again when the list redraws. Read the new mail and the number goes back down. Keep the folder list open and do not switch the AOG folder to "show total count".
 
